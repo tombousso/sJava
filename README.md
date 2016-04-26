@@ -28,7 +28,9 @@ A more complex example of an sJava program including generics, autoboxing/unboxi
     )
 
 
-The sJava compiler outputs classfiles just like the Java compiler.
+The bytecode for this example can be found at [the bottom of the page](#final-thoughts).
+
+The sJava compiler outputs Java bytecode in classfiles just like the Java compiler.
 At this point the best example of sJava code is the sJava compiler itself (compile.sjava).
 
 ### Kawa
@@ -117,9 +119,9 @@ Most parts of the compilation are quite straightforward, however some parts are 
 #### If statements/conditionals
 In Java bytecode (and x86 assembler), conditionals like
 
-    boolean a = 5 > 3;
+    (define a (> 5 3))
     
-will be compiled using branches. In Java bytecode:
+will be compiled using branches:
 
      0: iconst_5
      1: iconst_3
@@ -130,13 +132,17 @@ will be compiled using branches. In Java bytecode:
     10: istore_1
     11: return
 
-Instructions 0 and 1 push 5 and 3 onto the stack. Then the if_icmple instruction will determine that 5 is not less than or equal to 3 and so it will **not** jump to instruction 9. Therefore a one (true) will be pushed onto the stack and the goto will skip over instruction 9, which pushes a zero (false), into instruction 10 which stores true in a the variable.
+Instructions 0 and 1 push 5 and 3 onto the stack. Then the if_icmple instruction will determine that 5 is not less than or equal to 3 and so it will **not** jump to instruction 9. Therefore a one (true) will be pushed onto the stack and the goto will skip over instruction 9, which pushes a zero (false), into instruction 10 which stores true in a, the variable.
 
-Notice that the opposite comparison is used (less than or equal to instead of greater than). If you're wondering why, consider:
+The define above is equivalent to:
 
-    if (5 > 3) {
-        System.out.println("Hello world");
-    }
+    (define a (if (> 5 3) true false))
+
+Notice that the opposite comparison is used in the bytecode (less than or equal to instead of greater than). If you're wondering why, consider:
+
+    (if (> 5 3)
+        (System:out:println "Hello world")
+    )
 
 and the Java bytecode (shortened):
 
@@ -161,7 +167,7 @@ Ifs and conditionals are implemented using a recursive method (Compiler:emitIf_)
 
 A not (!) in a conditional triggers a recursive call with the inverse comparator argument inversed.
 
-Short circuit ands (&&) and ors (||) are handled using De Morgan's law, !(a && b) == (!a || !b).
+Short circuit ands (&&) and ors (||) are handled using De Morgan's laws, !(a && b) == (!a || !b) and !(a || b) == (!a && !b).
 
 This means that if the inverse argument is true and the comparison operator is && or the inverse argument is false and the comparison operator is ||, then an **or** is emitted (returns true when the first comparison results in a true, else false).
 
@@ -179,7 +185,7 @@ The Compiler:compile_ method takes in a "needed" Type (among other things) and r
 This sJava code defines a variable of type double and sets it to 5.0. Compiler:compile_ will be called on the token "5" with "needed" set to Type:doubleType and so it will convert the integer 5 to a double 5.0 to meet the "needed" requirement.
 
 #### Generics
-The JVM doesn't support generics and so they are implemented in Java using type erasure. Generics give the compiler extra information to work with during compile time, but to the JVM all Map objects are Map<Object, Object>. 
+The JVM doesn't support generics and so they are implemented in Java using type erasure. Generics give the compiler extra information to work with during compile time, but to the JVM all Map objects are Map\<Object, Object>. 
 
 In the generics.sjava example, the variable doesn't have a given type and so the token (ArrayList{Integer}) will run with "needed" set to unknownType by the code for define. The variable's type will become the return value of the Compiler:compile_, which will be ArrayList{Integer}. These defines are equivalent:
 
@@ -189,7 +195,7 @@ In the generics.sjava example, the variable doesn't have a given type and so the
 ### Final thoughts
 gnu.bytecode makes it easy to create classfiles and the JVM will do many optimizations as it's JITing so the bytecode doesn't really need much optimization. Also there are bytecode optimizers like ProGuard which can help with performance. Unlike the CLR which was designed by Microsoft to be the platform for many languages, the JVM was originally designed only for Java (no standard assembly language or assembler, etc), and so it seems like there are less languages which target the JVM.
 
-The Kawa version of the sJava compiler (compile.scm) also includes commented out code which creates an SVG graph of the tokens  using a dot file and reflection code which looks for a main method and runs it.
+The Kawa version of the sJava compiler (compile.scm) also includes commented out code which creates an SVG graph of the tokens using a dot file and reflection code which looks for a main method and runs it.
 
 In case you're interested here is the decompiled bytecode of generics.sjava (javap -c) with added comments:
 
