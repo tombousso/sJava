@@ -1,0 +1,5 @@
+(define-class Main () 'public
+	((main args String[]) void 'public 'static
+		(System:out:println "Hello world")
+	)
+)
