@@ -95,7 +95,8 @@
 		(Main:compareOpposites:put 199 198)
 		
 		(set Main:precs (String[][]
-			(String[] ":" "'")
+			(String[] "`")
+			(String[] ":" "'" ",")
 			(String[] "(" ")" "{" "}")
 			(String[] "\n" "\r\n")
 			(String[] ";")
@@ -163,9 +164,9 @@
 	)
 )
 
-(define-class Token ()
+(define-class Token () 'public
 	(what String)
-	(val Object)
+	(val Object 'public)
 	(ops List{Token})
 	(prec int)
 	(line int)
@@ -174,39 +175,40 @@
 		(set this:what what0)
 		(set this:val val0)
 		(set this:line line0)
+		(set this:prec -1)
 	)
 	((<init> line0 int what0 String val0 Object prec0 int) void
 		(Token:<super> line0 what0 val0)
 		(set this:prec prec0)
 	)
-	((<init> line0 int what0 String val0 Object prec0 int ops0 List{Token}) void
+	((<init> line0 int what0 String val0 Object prec0 int ops0 List{Token}) void 'public
 		(Token:<super> line0 what0 val0 prec0)
 		(set this:ops ops0)
 	)
-	;((repr) String 'public
-	;	(((Integer:toString this:prec):concat
-	;		"-"):concat
-	;		(if (= this:val null)
-	;			this:what
-	;			((this:what:concat ":"):concat (this:val:toString))
-	;		)
-	;	)
-	;)
-	;((toString) String
-	;	(define sops "")
-	;	(if (!= this:ops null)
-	;		(begin
-	;			(set sops (sops:concat " { "))
-	;			(define i 0)
-	;			(while (!= i (this:ops:size))
-	;				(set sops ((sops:concat ((this:ops:get i):toString)):concat " "))
-	;				(set i (+ i 1))
-	;			)
-	;			(set sops (sops:concat "} "))
-	;		)
-	;	)
-	;	((org.apache.commons.lang3.StringEscapeUtils:escapeJava (this:repr)):concat sops)
-	;)
+	((repr) String 'public
+		(((Integer:toString this:prec):concat
+			"-"):concat
+			(if (= this:val null)
+				this:what
+				((this:what:concat ":"):concat (this:val:toString))
+			)
+		)
+	)
+	((toString) String
+		(define sops "")
+		(if (!= this:ops null)
+			(begin
+				(set sops (sops:concat " { "))
+				(define i 0)
+				(while (!= i (this:ops:size))
+					(set sops ((sops:concat ((this:ops:get i):toString)):concat " "))
+					(set i (+ i 1))
+				)
+				(set sops (sops:concat "} "))
+			)
+		)
+		((org.apache.commons.lang3.StringEscapeUtils:escapeJava (this:repr)):concat sops)
+	)
 )
 
 (define-class Lexer ()
@@ -276,10 +278,10 @@
 							)
 						)
 					)
-				(if (|| (Character:isDigit c) (= c #\-))
+				(if (|| (Character:isDigit c) (&& (= c #\-) (Character:isDigit (this:code:charAt (+ this:i 1)))))
 					(begin
 						(this:nextTok)
-						(Token this:line "N" (this:code:substring oi this:i))
+						(Token this:line "N" (this:code:substring oi this:i) 0)
 					)
 					(begin
 						(this:nextTok)
@@ -346,6 +348,36 @@
 		)
 		(- oe e)
 	)
+	((generic i int e int o String c String) int
+		(define oi i)
+		(define oe e)
+		(define end false)
+		(set i (+ i 1))
+		(while (! end)
+			(define t Token (this:toks:get i))
+			(define w t:what)
+			(if (w:equals o)
+				(begin
+					(set e (- e (this:generic i e o c)))
+					(set i (- i 1))
+				)
+			)
+			(if (w:equals c)
+				(begin
+					(define d (this:parse (+ oi 1) i Main:MP 0))
+					(set i (- i d))
+					(set e (- e d))
+					(define n (+ (- i oi) 1))
+					(this:toks:set (- oi 1) (Token t:line "generic" "" -1 (ArrayList (Arrays:asList (Object[] (this:toks:get (- oi 1)) (Token (this:toks:get oi):line o null -1 (ArrayList (this:toks:subList (+ oi 1) i))))))))
+					(Main:shiftDown this:toks oi n)
+					(set e (- e n))
+					(set end true)
+				)
+			)
+			(set i (+ i 1))
+		)
+		(- oe e)
+	)
 	((comment i int e int) int
 		(define oi i)
 		(define oe e)
@@ -380,11 +412,17 @@
 					)
 					(if (w:equals "{")
 						(begin
-							(set e (- e (this:block i e "{" "}")))
-							(this:toks:set (- i 1) (Token t:line "generic" "" -1 (ArrayList (Arrays:asList (Object[] (this:toks:get (- i 1)) (this:toks:get i))))))
-							(Main:shiftDown this:toks i 1)
-							(set e (- e 1))
+							(set e (- e (this:generic i e "{" "}")))
 							(set i (- i 1))
+						)
+					)
+					(if (w:equals "N")
+						(begin
+							(define val String t:val)
+							(if (val:contains ".")
+								(set t:val (Double:parseDouble val))
+								(set t:val (Integer:parseInt val))
+							)
 						)
 					)
 					(if (w:equals ";")
@@ -401,7 +439,7 @@
 							(set i (- i 1))
 						)
 					)
-					(if (w:equals "'")
+					(if (|| (w:equals "'") (w:equals "`") (w:equals ","))
 						(begin
 							(this:toks:set i (Token t:line w "" -1 (ArrayList (Arrays:asList (Object[] (this:toks:get (+ i 1)))))))
 							(Main:shiftDown this:toks (+ i 1) 1)
@@ -513,7 +551,6 @@
 
 (define-class MethodInfo ()
 	(method Method)
-	(scope HashMap)
 	(scopes ArrayDeque)
 	(labels ArrayDeque)
 	((<init> method0 Method scope0 HashMap) void
@@ -649,7 +686,7 @@
 				(define tparams (Type[] len:(params:ops:size)))
 				(define i 0)
 				(while (!= i (params:ops:size))
-					(aset tparams i (this:get (as String (params:ops:get i):val)))
+					(aset tparams i (this:get (params:ops:get i)))
 					(set i (+ i 1))
 				)
 				(ParameterizedType c tparams)
@@ -708,6 +745,125 @@
 	((<init>) void (Object:<super>))
 	((isCompare s String) bool
 		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare1Ops:containsKey s) (Main:compare2Ops:containsKey s))
+	)
+	((compile_macros classes Classes toks ArrayList{Token}) void
+		(define macros (ClassType "Macros"))
+		(macros:setSuper "java.lang.Object")
+		(macros:setModifiers Access:PUBLIC)
+		(define i 0)
+		(define mis (HashMap{String HashMap{Integer MethodInfo}}))
+		(while (!= i (toks:size))
+			(define tok (toks:get i))
+			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+				(begin
+					(define first (tok:ops:get 0))
+					(if (first:val:equals "define-macro")
+						(begin
+							(define scope (HashMap))
+							(define params (tok:ops:get 1))
+							(define name String (params:ops:get 0):val)
+							(define types (Type[] len:(- (params:ops:size) 1)))
+							(begin
+								(define i 0)
+								(while (!= i (alen types))
+									(aset types i (Type:getType "Token"))
+									(scope:put (params:ops:get (+ i 1)):val (Arg i (Type:getType "Token")))
+									(set i (+ i 1))
+								)
+							)
+							(define mi (MethodInfo (macros:addMethod name types (Type:getType "Token") (| Access:PUBLIC Access:STATIC)) scope))
+							(set tok:val mi)
+							(if (mis:containsKey name)
+								((mis:get name):put (alen types) mi)
+								(begin
+									(define hm (HashMap{Integer MethodInfo}))
+									(hm:put (alen types) mi)
+									(mis:put name hm)
+								)
+							)
+						)
+					)
+				)
+			)
+			(set i (+ i 1))
+		)
+		(set i 0)
+		(while (!= i (toks:size))
+			(define tok (toks:get i))
+			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+				(begin
+					(define first (tok:ops:get 0))
+					(if (first:val:equals "define-macro")
+						(begin
+							(this:compile_method_body (as MethodInfo tok:val) classes tok macros 2)
+							(Main:shiftDown toks i 1)
+							(set i (- i 1))
+						)
+					)
+				)
+			)
+			(set i (+ i 1))
+		)
+
+		(define cl (ArrayClassLoader))
+		(cl:addClass "Macros" (macros:writeToArray))
+		(define includes (ClassType "Includes"))
+		(includes:setSuper "java.lang.Object")
+		(includes:setModifiers Access:PUBLIC)
+		(this:compile_includes classes includes toks 0)
+		(this:subst_includes mis includes (cl:loadClass "Macros" true) toks)
+	)
+	((compile_includes classes Classes includes ClassType toks List{Token} n int) int
+		(define i 0)
+		(while (!= i (toks:size))
+			(define tok (toks:get i))
+			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+				(if (&& ((tok:ops:get 0):what:equals "V") ((tok:ops:get 0):val:equals "include"))
+					(begin
+						(define name ("_":concat (Integer:toString i)))
+						(this:compile_method_body (MethodInfo (includes:addMethod name (Type[]) (Type:getType "Token") (| Access:PUBLIC Access:STATIC)) (HashMap)) classes tok includes 1)
+						(set tok:val name)
+						(set n (+ n 1))
+					)
+					(set n (this:compile_includes classes includes tok:ops n))
+				)
+			)
+			(set i (+ i 1))
+		)
+		n
+	)
+	((subst_includes mis HashMap{String HashMap{Integer MethodInfo}} includes ClassType macros Class toks List{Token}) void
+		(define cl (ArrayClassLoader))
+		(cl:addClass "Includes" (includes:writeToArray))
+		(define c (cl:loadClass "Includes"))
+		(define i 0)
+		(while (!= i (toks:size))
+			(define tok (toks:get i))
+			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+				(if (&& ((tok:ops:get 0):what:equals "V") ((tok:ops:get 0):val:equals "include"))
+					(begin
+						(define t ((c:getMethod (as String tok:val) (Class[])):invoke null (Object[])))
+						(toks:set i (as Token t))
+					)
+				(if (&& ((tok:ops:get 0):what:equals "V") (mis:containsKey (tok:ops:get 0):val))
+					(begin
+						(define name String (tok:ops:get 0):val)
+						(define mi ((mis:get name):get (- (tok:ops:size) 1)))
+						(define l (- (tok:ops:size) 1))
+						(define types (Class[] len:l))
+						(define j 0)
+						(while (!= j l)
+							(aset types j (Class:forName "Token"))
+							(set j (+ j 1))
+						)
+						(toks:set i (as Token ((macros:getMethod name types):invoke null ((tok:ops:subList 1 (tok:ops:size)):toArray))))
+					)
+					(this:subst_includes mis includes macros tok:ops)
+				)
+				)
+			)
+			(set i (+ i 1))
+		)
 	)
 	((compile_types classes Classes newClasses ArrayList tok Token) void
 		(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
@@ -775,6 +931,17 @@
 			)
 		)
 	)
+	((get_params classes Classes tok Token scope HashMap n int) Type[]
+		(define types (Type[] len: (/ (- (tok:ops:size) 1) 2)))
+		(define j 0)
+		(while (!= j (alen types))
+			(define type (classes:get (tok:ops:get (+ (* j 2) 2))))
+			(aset types j type)
+			(scope:put (as String (tok:ops:get (+ (* j 2) 1)):val) (Arg (+ n j) type))
+			(set j (+ j 1))
+		)
+		types
+	)
 	((compile_method_def classes Classes tok Token c ClassType) void
 		(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
 			(begin
@@ -802,15 +969,7 @@
 								(set n 1)
 							)
 						)
-						(define l (first:ops:size))
-						(define types (Type[] len: (/ (- l 1) 2)))
-						(define j 0)
-						(while (!= j (alen types))
-							(define type (classes:get (first:ops:get (+ (* j 2) 2))))
-							(aset types j type)
-							(scope:put (as String (first:ops:get (+ (* j 2) 1)):val) (Arg (+ n j) type))
-							(set j (+ j 1))
-						)
+						(define types (this:get_params classes first scope n))
 						(define m Method (c:addMethod (as String (first:ops:get 0):val) types (classes:get (tok:ops:get 1)) mods))
 						(tok:ops:set 0 (Token 0 "(" null -1 (ArrayList (tok:ops:subList i (tok:ops:size)))))
 						(Main:shiftDown tok:ops 1 (- (tok:ops:size) 1))
@@ -865,20 +1024,20 @@
 			(begin ;method definition
 				(define mi MethodInfo tok:val)
 				(if (! (mi:method:isAbstract))
-					(this:compile_method_body mi classes (tok:ops:get 0) c)
+					(this:compile_method_body mi classes (tok:ops:get 0) c 0)
 				)
 			)
 		)
 	)
-	((compile_method_body mi MethodInfo classes Classes tok Token c ClassType) void
+	((compile_method_body mi MethodInfo classes Classes tok Token c ClassType i int) void
 		(this:compile_labels tok 0)
 		(mi:pushScope null (as HashMap tok:val))
-		(this:compile_al classes tok:ops 0 (- (tok:ops:size) 1) c mi null Type:voidType)
+		(this:compile_al classes tok:ops i (- (tok:ops:size) 1) c mi null Type:voidType)
 		(this:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi null (mi:method:getReturnType))
 		(mi:popScope null)
 		(define code (mi:method:startCode))
 		(mi:pushScope code (as HashMap tok:val))
-		(this:compile_al classes tok:ops 0 (- (tok:ops:size) 1) c mi code Type:voidType)
+		(this:compile_al classes tok:ops i (- (tok:ops:size) 1) c mi code Type:voidType)
 		(this:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi code (mi:method:getReturnType))
 		(mi:popScope code)
 		(code:emitReturn)
@@ -889,8 +1048,8 @@
 		(while (!= i (block:ops:size))
 			(define tok (block:ops:get i))
 			(if (tok:what:equals "(")
-				(if (&& (> (tok:ops:size) 0) ((as Token (tok:ops:get 0)):val:equals "label"))
-					(hm:put (as Token (tok:ops:get 1)):val (Label))
+				(if (&& (> (tok:ops:size) 0) ((tok:ops:get 0):val:equals "label"))
+					(hm:put (tok:ops:get 1):val (Label))
 					(this:compile_labels tok 0)
 				)
 			)
@@ -917,9 +1076,9 @@
 		)
 		types
 	)
-	((emitInvoke name String type Type classes Classes tok Token c ClassType mi MethodInfo code CodeAttr needed Type) Type
+	((emitInvoke name String type Type classes Classes tok Token c ClassType mi MethodInfo code CodeAttr needed Type i int) Type
 		(define output (!= code null))
-		(define types (this:compile_al classes tok:ops 1 (tok:ops:size) c mi null Main:unknownType))
+		(define types (this:compile_al classes tok:ops i (tok:ops:size) c mi null Main:unknownType))
 		(if (name:equals "<super>") (begin (if output (code:emitPushThis)) (set name "<init>")))
 		(define filter (MFilter name types type))
 		((as ObjectType (type:getRawType)):getMethods filter 2 null)
@@ -930,12 +1089,14 @@
 			)
 		)
 		(define params Type[] ((method:getParameterTypes):clone))
-		(define i 0)
-		(while (!= i (alen params))
-			(aset params i (Main:resolveParam type (aget params i)))
-			(set i (+ i 1))
+		(begin
+			(define i 0)
+			(while (!= i (alen params))
+				(aset params i (Main:resolveParam type (aget params i)))
+				(set i (+ i 1))
+			)
 		)
-		(this:compile_al classes tok:ops 1 (tok:ops:size) c mi code params)
+		(this:compile_al classes tok:ops i (tok:ops:size) c mi code params)
 		(if output (code:emitInvoke method))
 		(define out (Main:resolveParam type (method:getReturnType)))
 		(if (! (Type:isSame out ((method:getReturnType):getRawType)))
@@ -1036,6 +1197,63 @@
 			(this:emitIf_ classes inv tok i "!=0" trueE falseE c mi code needed)
 		)
 	)
+	((compile_quasi classes Classes tok Token c ClassType mi MethodInfo code CodeAttr) Type
+		(define output (!= code null))
+		(define c ClassType (Type:getType "Token"))
+		(if (&& (tok:what:equals ",") (= c (this:compile_ classes (tok:ops:get 0) c mi null Main:unknownType)))
+			(this:compile_ classes (tok:ops:get 0) c mi code Main:unknownType)
+			(begin
+				(if output (code:emitNew c))
+				(if output (code:emitDup))
+				(if output (code:emitPushInt tok:line))
+				(if (tok:what:equals ",")
+					(begin
+						(define const (tok:ops:get 0))
+						(define t (this:compile_ classes const c mi null Main:unknownType))
+						(if (instance? t PrimType)
+							(if output (code:emitPushString "N"))
+							(if output (code:emitPushString "S"))
+						)
+						(this:castMaybe code (this:compile_ classes const c mi code Main:unknownType) Type:objectType)
+						(if output (code:emitPushInt tok:prec))
+						(if output (code:emitPushNull))
+					)
+					(begin
+						(if output (code:emitPushString tok:what))
+						(if (instance? tok:val String)
+							(if output (code:emitPushString (as String tok:val)))
+						(if (tok:what:equals "N")
+							(this:compile_ classes tok c mi code Type:objectType)
+							(if output (code:emitPushNull))
+						)
+						)
+						(if output (code:emitPushInt tok:prec))
+						(if (= tok:ops null)
+							(if output (code:emitPushNull))
+							(begin
+								(define al ClassType (Type:getType "java.util.ArrayList"))
+								(if output (code:emitNew al))
+								(if output (code:emitDup))
+								(if output (code:emitInvoke (al:getMethod "<init>" (Type[]))))
+								(begin
+									(define i 0)
+									(while (!= i (tok:ops:size))
+										(if output (code:emitDup))
+										(this:compile_quasi classes (tok:ops:get i) c mi code)
+										(if output (code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
+										(if output (code:emitPop 1))
+										(set i (+ i 1))
+									)
+								)
+							)
+						)
+					)
+				)
+				(if output (code:emitInvoke (c:getMethod "<init>" (Type[] Type:intType Type:javalangStringType Type:objectType Type:intType (Type:getType "java.util.List")))))
+			)
+		)
+		c
+	)
 	((compile_ classes Classes tok Token c ClassType mi MethodInfo code CodeAttr needed Type) Type
 		(define output (!= code null))
 		(if output (code:putLineNumber "abc.java" tok:line))
@@ -1061,20 +1279,19 @@
 				)
 			(if (tok:what:equals "N")
 				(begin
-					(define val String tok:val)
-					(if (val:contains ".")
+					(if (instance? tok:val Double)
 						(begin
-							(if output (code:emitPushDouble (java.lang.Double:parseDouble val)))
+							(if output (code:emitPushDouble (as Double tok:val)))
 							Type:doubleType
 						)
 						(begin
 							(if (! (instance? needed PrimType))
 								(begin
-									(if output (code:emitPushInt (java.lang.Integer:parseInt val)))
+									(if output (code:emitPushInt (as Integer tok:val)))
 									Type:intType
 								)
 								(begin
-									(if output (code:emitPushConstant (java.lang.Integer:parseInt val) needed))
+									(if output (code:emitPushConstant (as Integer tok:val) needed))
 									needed
 								)
 							)
@@ -1092,6 +1309,8 @@
 					)
 					(field:getType)
 				)
+			(if (tok:what:equals "`")
+				(this:compile_quasi classes (tok:ops:get 0) c mi code)
 			(if (tok:what:equals "V")
 				(if (tok:val:equals "false")
 					(begin
@@ -1271,7 +1490,7 @@
 							(if (first:what:equals ":")
 								(begin ;method call
 									(define name String (first:ops:get 1):val)
-									(this:emitInvoke name (this:compile_ classes (first:ops:get 0) c mi code Main:unknownType) classes tok c mi code Main:unknownType)
+									(this:emitInvoke name (this:compile_ classes (first:ops:get 0) c mi code Main:unknownType) classes tok c mi code Main:unknownType 1)
 								)
 								(begin ;constructor
 									(define type Type (classes:get first))
@@ -1300,7 +1519,7 @@
 											(define class ClassType (type:getRawType))
 											(if output (code:emitNew class))
 											(if output (code:emitDup))
-											(this:emitInvoke "<init>" type classes tok c mi code Main:unknownType)
+											(this:emitInvoke "<init>" type classes tok c mi code Main:unknownType 1)
 											type
 										)
 									)
@@ -1330,7 +1549,12 @@
 			)
 			)
 			)
+			)
 		)
+		(this:castMaybe code result needed)
+	)
+	((castMaybe code CodeAttr result Type needed Type) Type
+		(define output (!= code null))
 		(if (= needed Main:unknownType)
 			result
 		(if (= needed Type:voidType)
@@ -1369,6 +1593,7 @@
 		(define classes (Classes locals))
 		(define newClasses (ArrayList))
 
+
 		(define i 0)
 		(while (!= i (toks:size))
 			(this:compile_types classes newClasses (toks:get i))
@@ -1381,6 +1606,8 @@
 			(set i (+ i 1))
 		)
 
+		(this:compile_macros classes toks)
+
 		(set i 0)
 		(while (!= i (toks:size))
 			(this:compile_root classes (toks:get i))
@@ -1391,6 +1618,9 @@
 
 		((java.io.File "out"):mkdir)
 
+		(define argTypes (Class[] (Class:forName "[Ljava.lang.String;")))
+		(define main java.lang.reflect.Method null)
+
 		(set i 0)
 		(while (!= i (newClasses:size))
 			(define class ClassType (newClasses:get i))
@@ -1398,6 +1628,27 @@
 			(cl:addClass (class:getSimpleName) classFile)
 			(Files:write (Paths:get (("out/":concat (class:getSimpleName)):concat ".class") (String[])) classFile (OpenOption[]))
 			(set i (+ i 1))
+		)
+
+		(if false
+			(begin
+				(set i 0)
+				(while (!= i (newClasses:size))
+					(define class ClassType (newClasses:get i))
+					(try
+						(set main ((cl:loadClass (class:getSimpleName) true):getMethod "main" argTypes))
+						()
+					)
+					(set i (+ i 1))
+				)
+
+				(if (!= main null)
+					(main:invoke
+						null
+						(Object[] (String[]))
+					)
+				)
+			)
 		)
 	)
 )

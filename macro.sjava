@@ -1,0 +1,31 @@
+(define-macro (repeat n block)
+	`(begin
+		(define i 0)
+		(label start)
+		,block
+		(set i (+ i 1))
+		(if (!= i ,(as int (as Integer n:val)))
+			(goto start)
+		)
+	)
+)
+(define-macro (getTimestamp f)
+	`,((java.text.SimpleDateFormat (as String f:val)):format (java.util.Date))
+)
+(define-macro (print s)
+	`(System:out:println ,s)
+)
+(define-class Main () 'public
+	((main args String[]) void 'public 'static
+		(repeat 5 (System:out:println "Hello world"))
+		(System:out:println ("Compiled at ":concat (getTimestamp "HH:mm:ss MM/dd/yyyy")))
+		(System:out:println ("Dice roll result: ":concat (include 
+			;inline macro
+			(begin
+				(System:out:println "Compile time")
+				`,(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
+			)
+		)))
+		(print "abc")
+	)
+)
