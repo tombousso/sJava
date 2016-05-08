@@ -1275,7 +1275,7 @@
 												((= i (tok:ops:size)))
 												(if output (code:emitDup))
 												(if output (code:emitPushInt (- i i0)))
-												(compile_ classes (tok:ops:get i) c mi code unknownType)
+												(compile_ classes (tok:ops:get i) c mi code array:elements)
 												(if output (code:emitArrayStore))
 											)
 											type
