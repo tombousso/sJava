@@ -1,16 +1,8 @@
-(define-macro (repeat n block)
-	`(begin
-		(define i 0)
-		(label start)
-		,block
-		(set i (+ i 1))
-		(if (!= i ,n)
-			(goto start)
-		)
-	)
+(define-macro (repeat n @block)
+	(macro for `(i 0) `(!= i ,n) `(i (+ i 1)) block)
 )
 (define-macro (getTimestamp f)
-	`,((java.text.SimpleDateFormat (as String f:val)):format (java.util.Date))
+	`,((java.text.SimpleDateFormat (as SToken f):val):format (java.util.Date))
 )
 (define-macro (print_ s)
 	`(System:out:println ,s)
@@ -18,45 +10,72 @@
 (define-macro (print s)
 	(macro print_ s)
 )
-(define-macro (test @a)
-	(System:out:println (java.util.Arrays:toString a))
-	`()
-)
-(define-macro (identity @a)
+(define-macro (begin @a)
 	`(begin ,a)
 )
 (define-macro (while cond @block)
 	`(begin
 		(label start)
-		,block
 		(if ,cond
-			(goto start)
+			(begin
+				,block
+				(goto start)
+			)
 		)
 	)
 )
+(define-macro (for def cond inc @block)
+	`(begin
+		(define ,def:ops)
+		,(macro while cond `(begin ,block (set ,inc:ops)))
+	)
+)
+(define-macro (timestwo1 expr)
+	`(begin
+		(define x 0)
+		(set x 2)
+		(* ,expr x)
+	)
+)
+;mvars are automatically added to timestwo1 at compile time
+(define-macro (timestwo2 expr)
+	`(begin
+		(define (mvar x) 0)
+		(set (mvar x) 2)
+		(* ,expr (mvar x))
+	)
+)
+(define-macro (rand n)
+	`(Integer:toString ((java.util.Random):nextInt ,n))
+)
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
-		(repeat 5 (System:out:println "Hello world"))
+		(define i -1)
+		(repeat 5 (System:out:println i))
+		(repeat 5 (System:out:println (mvar i)))
+
 		(System:out:println ("Compiled at ":concat (getTimestamp "HH:mm:ss MM/dd/yyyy")))
-		(System:out:println ("Dice roll result: ":concat (include 
+		(System:out:println ("Compile time dice roll result: ":concat (include
 			;inline macro
 			(begin
 				(System:out:println "Compile time")
 				`,(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
 			)
 		)))
+		(System:out:println ("Runtime random number up to 1000: ": concat (rand 1000)))
 		(print "abc")
+
 		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
-		(System:out:format "%d:%s\n" 5 "wow")
-		(include
-			(macro test `"abc" `5)
-		)
-		(test "abc" 5)
-		(identity (System:out:println "A") (System:out:println "B") (System:out:println "C"))
-		(define i 0)
-		(while (!= i 5)
+		(begin (System:out:format "%d:%s\n" 5 "wow"))
+	
+		(begin (System:out:println "A") (System:out:println "B") (System:out:println "C"))
+
+		(for (i 0) (!= i 4) (i (+ i 1))
 			(System:out:println i)
-			(set i (+ i 1))
 		)
+
+		(define x 3)
+		(System:out:println (timestwo1 x))
+		(System:out:println (timestwo2 x))
 	)
 )

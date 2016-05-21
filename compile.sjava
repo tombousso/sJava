@@ -1,6 +1,7 @@
 (import java.util.*)
 (import java.nio.file.*)
 (import gnu.bytecode.*)
+(import java.io.*)
 
 (define-class Main () 'public
 	(ML int 'static) ;max length of a special token
@@ -19,7 +20,7 @@
 	(args String[] 'static)
 	((main args String[]) void 'public 'static
 		(set Main:args args)
-		(set Main:unknownType null)
+		(set Main:unknownType (Type:getType "unknownType"))
 
 		(set Main:unboxMethods (HashMap{Type Method}))
 		(Main:unboxMethods:put (Type:shortType:boxedType) (Type:javalangNumberType:getDeclaredMethod "shortValue" 0))
@@ -95,8 +96,9 @@
 		(Main:compareOpposites:put 199 198)
 		
 		(set Main:precs (String[][]
-			(String[] "`")
-			(String[] ":" "'" ",")
+			(String[] "`" "'")
+			(String[] ",")
+			(String[] ":" "'")
 			(String[] "(" ")" "{" "}")
 			(String[] "\n" "\r\n")
 			(String[] ";")
@@ -164,35 +166,30 @@
 	)
 )
 
-(define-class Token () 'public
-	(what String)
-	(val Object 'public)
-	(ops List{Token})
-	(prec int)
-	(line int)
-	((<init> line0 int what0 String val0 Object) void
+(define-class Token (Serializable) 'public
+	(line int 'public)
+	(what String 'public)
+	(prec int 'public)
+	(ops List{Token} 'public)
+	((<init>) void 'public
 		(Object:<super>)
-		(set this:what what0)
-		(set this:val val0)
-		(set this:line line0)
 		(set this:prec -1)
 	)
-	((<init> line0 int what0 String val0 Object prec0 int) void
-		(Token:<super> line0 what0 val0)
+	((<init> line0 int what0 String) void
+		(set this:what what0)
+		(set this:line line0)
+		(Token:<super>)
+	)
+	((<init> line0 int what0 String prec0 int) void
+		(Token:<super> line0 what0)
 		(set this:prec prec0)
 	)
-	((<init> line0 int what0 String val0 Object prec0 int ops0 List{Token}) void 'public
-		(Token:<super> line0 what0 val0 prec0)
+	((<init> line0 int what0 String prec0 int ops0 List{Token}) void 'public
+		(Token:<super> line0 what0 prec0)
 		(set this:ops ops0)
 	)
 	((repr) String 'public
-		(((Integer:toString this:prec):concat
-			"-"):concat
-			(if (= this:val null)
-				this:what
-				((this:what:concat ":"):concat (this:val:toString))
-			)
-		)
+		((this:getClass):getName)
 	)
 	((toString) String
 		(define sops "")
@@ -208,6 +205,56 @@
 			)
 		)
 		((org.apache.commons.lang3.StringEscapeUtils:escapeJava (this:repr)):concat sops)
+	)
+)
+
+(define-class SToken (Token) 'public
+	(val String 'public)
+	((<init> line int val String) void
+		(Token:<super> line "S")
+		(set this:val val)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class NToken (Token) 'public
+	(sval String 'public)
+	(val Number 'public)
+	((<init> line int sval String) void
+		(Token:<super> line "N" 3)
+		(set this:sval sval)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class CToken (Token) 'public
+	(val Character)
+	((<init> line int val Character) void
+		(Token:<super> line "C")
+		(set this:val val)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class VToken (Token) 'public
+	(val String 'public)
+	(macro bool 'public)
+	((<init> line int val String) void
+		(Token:<super> line "V")
+		(set this:val val)
+		(set this:macro false)
+	)
+	((toString) String
+		this:val
+	)
+	((<init>) void 'public
+		(Token:<super>)
 	)
 )
 
@@ -264,14 +311,14 @@
 							(set this:i (+ this:i 1))
 						)
 						(set this:i (+ this:i 1))
-						(Token this:line "S" (org.apache.commons.lang3.StringEscapeUtils:unescapeJava (this:code:substring (+ oi 1) (- this:i 1))))
+						(SToken this:line (org.apache.commons.lang3.StringEscapeUtils:unescapeJava (this:code:substring (+ oi 1) (- this:i 1))))
 					)
 				(if (= c #\#)
 					(begin
 						(set this:i (+ this:i 2))
 						(this:nextTok)
 						(define schar (this:code:substring (+ oi 2) this:i))
-						(Token this:line "C"
+						(CToken this:line
 							(if (= (schar:length) 1)
 								(schar:charAt 0)
 								(Main:specialChars:get schar)
@@ -281,11 +328,15 @@
 				(if (|| (Character:isDigit c) (&& (= c #\-) (Character:isDigit (this:code:charAt (+ this:i 1)))))
 					(begin
 						(this:nextTok)
-						(Token this:line "N" (this:code:substring oi this:i) 0)
+						(NToken this:line (this:code:substring oi this:i))
 					)
 					(begin
 						(this:nextTok)
-						(Token this:line "V" (this:code:substring oi this:i))
+						(define s (this:code:substring oi this:i))
+						(if (|| (s:equals "null") (s:equals "true") (s:equals "false"))
+							(Token this:line s)
+							(VToken this:line s)
+						)
 					)
 				)
 				)
@@ -296,7 +347,7 @@
 				(if (this:s:contains "\n")
 					(set this:line (+ this:line 1))
 				)
-				(Token this:line this:s null p)
+				(Token this:line this:s p)
 			)
 		)
 	)
@@ -308,6 +359,58 @@
 			(out:add (this:token))
 		)
 		out
+	)
+)
+
+(define-class BlockToken (Token) 'public
+	(labels HashMap 'public)
+	((<init> line0 int ops0 List{Token}) void 'public
+		(Token:<super> line0 "block" -1 ops0)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class GenericToken (Token) 'public
+	(tok Token 'public)
+	(params List{Token} 'public)
+	((<init> line0 int tok Token params List{Token}) void 'public
+		(Token:<super> line0 "generic")
+		(set this:tok tok)
+		(set this:params params)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class ColonToken (Token) 'public
+	((<init> line0 int ops List{Token}) void 'public
+		(Token:<super> line0 ":" -1 ops)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class QuoteToken (Token) 'public
+	(quasi bool 'public)
+	((<init> line0 int ops List{Token} quasi bool) void
+		(Token:<super> line0 "quote" -1 ops)
+		(set this:quasi quasi)
+	)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class UnquoteToken (Token) 'public
+	((<init> line0 int ops List{Token}) void
+		(Token:<super> line0 "unquote" -1 ops)
+	)
+	((<init>) void 'public
+		(Token:<super>)
 	)
 )
 
@@ -336,7 +439,7 @@
 					(set e (- e d))
 					(define n (- i oi))
 					;(if (> n 2)
-						(this:toks:set oi (Token (this:toks:get oi):line o null -1 (ArrayList (this:toks:subList (+ oi 1) i))))
+						(this:toks:set oi (BlockToken (this:toks:get oi):line (ArrayList (this:toks:subList (+ oi 1) i))))
 						;(set! (toks oi) (toks (+ oi 1)))
 					;)
 					(Main:shiftDown this:toks (+ oi 1) n)
@@ -368,7 +471,7 @@
 					(set i (- i d))
 					(set e (- e d))
 					(define n (+ (- i oi) 1))
-					(this:toks:set (- oi 1) (Token t:line "generic" "" -1 (ArrayList (Arrays:asList (Object[] (this:toks:get (- oi 1)) (Token (this:toks:get oi):line o null -1 (ArrayList (this:toks:subList (+ oi 1) i))))))))
+					(this:toks:set (- oi 1) (GenericToken t:line (this:toks:get (- oi 1)) (ArrayList (this:toks:subList (+ oi 1) i))))
 					(Main:shiftDown this:toks oi n)
 					(set e (- e n))
 					(set end true)
@@ -397,8 +500,7 @@
 		(- oe e)
 	)
 	((parse i int e int p int mp int) int
-		;parse from i to e starting at p to mp (minimum precedence)
-		;(println i e p mp (toks:get i) (toks:get (- e 1)))
+		;parse from i to e starting at precedence p, until mp (minimum precedence)
 		(define oi i)
 		(define oe e)
 		(define end false)
@@ -418,10 +520,10 @@
 					)
 					(if (w:equals "N")
 						(begin
-							(define val String t:val)
-							(if (val:contains ".")
-								(set t:val (Double:parseDouble val))
-								(set t:val (Integer:parseInt val))
+							(define t NToken t)
+							(if (t:sval:contains ".")
+								(set t:val (Double:parseDouble t:sval))
+								(set t:val (Integer:parseInt t:sval))
 							)
 						)
 					)
@@ -433,7 +535,7 @@
 					)
 					(if (w:equals ":")
 						(begin
-							(this:toks:set (- i 1) (Token t:line w "" -1 (ArrayList (Arrays:asList (Object[] (this:toks:get (- i 1)) (this:toks:get (+ i 1)))))))
+							(this:toks:set (- i 1) (ColonToken t:line (ArrayList (Arrays:asList (Object[] (this:toks:get (- i 1)) (this:toks:get (+ i 1)))))))
 							(Main:shiftDown this:toks i 2)
 							(set e (- e 2))
 							(set i (- i 1))
@@ -441,7 +543,14 @@
 					)
 					(if (|| (w:equals "'") (w:equals "`") (w:equals ","))
 						(begin
-							(this:toks:set i (Token t:line w "" -1 (ArrayList (Arrays:asList (Object[] (this:toks:get (+ i 1)))))))
+							(define al (ArrayList (Arrays:asList (Object[] (this:toks:get (+ i 1))))))
+							(define new
+								(if (w:equals ",")
+									(UnquoteToken t:line al)
+									(QuoteToken t:line al (w:equals "`"))
+								)
+							)
+							(this:toks:set i new)
 							(Main:shiftDown this:toks (+ i 1) 1)
 							(set e (- e 1))
 						)
@@ -493,119 +602,6 @@
 	)
 )
 
-(define-class Emitter () 'interface
-	((emit compiler Compiler classes Classes c ClassType mi MethodInfo code CodeAttr needed Type) Type 'public 'abstract)
-)
-
-(define-class TokensEmitter (Emitter)
-	(toks List{Token})
-	(i int)
-	(l int)
-	((<init> toks0 List{Token} i0 int l0 int) void
-		(Object:<super>)
-		(set this:toks toks0)
-		(set this:i i0)
-		(set this:l l0)
-	)
-	((emit compiler Compiler classes Classes c ClassType mi MethodInfo code CodeAttr needed Type) Type 'public
-		(define type Type:voidType)
-		(define j this:i)
-		(while (!= j this:l)
-			(set type (compiler:compile_ classes (this:toks:get j) c mi code needed))
-			(set j (+ j 1))
-		)
-		type
-	)
-)
-
-(define-class TokenEmitter (Emitter)
-	(tok Token)
-	((<init> tok0 Token) void
-		(Object:<super>)
-		(set this:tok tok0)
-	)
-	((emit compiler Compiler classes Classes c ClassType mi MethodInfo code CodeAttr needed Type) Type 'public
-		(compiler:compile_ classes this:tok c mi code needed)
-	)
-)
-
-(define-class Goto (Emitter)
-	(label Label)
-	((<init> label0 Label) void (Object:<super>) (set this:label label0))
-	((emit compiler Compiler classes Classes c ClassType mi MethodInfo code CodeAttr needed Type) Type 'public (if (! (= code null)) (code:emitGoto this:label)) Type:voidType)
-)
-
-(define-class Emitters (Emitter)
-	(emitters Emitter[])
-	((<init> emitters0 Emitter[]) void (Object:<super>) (set this:emitters emitters0))
-	((emit compiler Compiler classes Classes c ClassType mi MethodInfo code CodeAttr needed Type) Type 'public
-		(define type Type Type:voidType)
-		(define i 0)
-		(while (< i (alen this:emitters))
-			(set type ((aget this:emitters i):emit compiler classes c mi code needed))
-			(set i (+ i 1))
-		)
-		type
-	)
-)
-
-(define-class MethodInfo ()
-	(method Method)
-	(scopes ArrayDeque)
-	(labels ArrayDeque)
-	((<init> method0 Method scope0 HashMap) void
-		(Object:<super>)
-		(set this:method method0)
-		(set this:scopes (ArrayDeque))
-		(this:scopes:push scope0)
-		(set this:labels (ArrayDeque))
-	)
-	((pushScope code CodeAttr label HashMap) void
-		(define output (!= code null))
-		(this:scopes:push (HashMap))
-		(this:labels:push label)
-		(if output (code:pushScope))
-	)
-	((popScope code CodeAttr) void
-		(define output (!= code null))
-		(this:scopes:pop)
-		(this:labels:pop)
-		(if output (code:popScope))
-	)
-	((getVar name String) AVar
-		(define found AVar null)
-		(define it Iterator (this:scopes:iterator))
-		(while (= found null)
-			(define vars HashMap (it:next))
-			(if (vars:containsKey name)
-				(set found (vars:get name))
-			)
-		)
-		found
-	)
-	((getLabel name String) Label
-		(define found Label null)
-		(define it Iterator (this:labels:iterator))
-		(while (= found null)
-			(define vars HashMap (it:next))
-			(if (vars:containsKey name)
-				(set found (vars:get name))
-			)
-		)
-		found
-	)
-)
-
-(define-class ClassInfo ()
-	(type ClassType)
-	(n int)
-	((<init> type0 ClassType n0 int) void
-		(Object:<super>)
-		(set this:type type0)
-		(set this:n n0)
-	)
-)
-
 (define-class Classes ()
 	(locals HashMap)
 	(imports HashMap)
@@ -624,7 +620,7 @@
 		(if (this:found:containsKey name)
 			(this:found:get name)
 			(begin
-				(define b 
+				(define b
 					(try
 						(begin
 							(java.lang.Class:forName name)
@@ -657,9 +653,9 @@
 			(if (this:classExists name)
 				(Type:getType name)
 			(begin
-				(define type Type null)
+				(define type Type Main:unknownType)
 				(define i 0)
-				(while (! (|| (! (= type null)) (= i (this:starImports:size))))
+				(while (! (|| (! (= type Main:unknownType)) (= i (this:starImports:size))))
 					(if (this:classExists ((as String (this:starImports:get i)):concat name))
 						(set type (Type:getType ((as String (this:starImports:get i)):concat name)))
 					)
@@ -680,91 +676,109 @@
 		type
 	)
 	((get tok Token) Type
-		(if (tok:what:equals "generic")
+		(if (instance? tok GenericToken)
 			(begin
-				(define c ClassType (this:get (as String (tok:ops:get 0):val)))
-				(define params (tok:ops:get 1))
-				(define tparams (Type[] len:(params:ops:size)))
+				(define tok GenericToken tok)
+				(define c ClassType (this:get (as VToken tok:tok):val))
+				(define params tok:params)
+				(define tparams (Type[] len:(params:size)))
 				(define i 0)
-				(while (!= i (params:ops:size))
-					(aset tparams i (this:get (params:ops:get i)))
+				(while (!= i (params:size))
+					(aset tparams i (this:get (params:get i)))
 					(set i (+ i 1))
 				)
 				(ParameterizedType c tparams)
 			)
-			(this:get (as String tok:val))
+			(this:get (as VToken tok):val)
 		)
 	)
 )
 
-(define-class MFilter (Filter)
-	(methods0 ArrayList{Method})
-	(methods1 ArrayList{Method})
-	(name String)
-	(types Type[])
-	(pt Type)
-	((<init> name0 String types0 Type[] pt0 Type) void
-		(Object:<super>)
-		(set this:methods0 (ArrayList{Method}))
-		(set this:methods1 (ArrayList{Method}))
-		(set this:name name0)
-		(set this:types types0)
-		(set this:pt pt0)
+(define-class ClassToken (Token)
+	(c ClassType 'public)
+	((<init> line int c ClassType ops List{Token}) void
+		(Token:<super> line "class" -1 ops)
+		(set this:c c)
 	)
-	((select v Object) bool 'public
-		(define method Method v)
-		(if ((method:getName):equals this:name)
-			(begin
-				(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
-				(define na (alen this:types))
-				(define np (alen (method:getParameterTypes)))
-				(if (|| (= na np) (&& varargs (>= na (- np 1))))
-					(begin
-						(define stop false)
-						(define minLevel 1)
-						(define i 0)
-						(while (! (|| stop (= i (alen this:types))))
-							(define at
-								(if (&& 
-										varargs
-										(>= i (- np 1))
-										(||
-											(!= i (- np 1))
-											(< ((Main:resolveParam this:pt (aget (method:getParameterTypes) i)):compare (aget this:types i)) 0)
-										)
-									)
-									(as ArrayType (aget (method:getParameterTypes) (- np 1))):elements
-									(aget (method:getParameterTypes) i)
-								)
-							)
-							(define level ((Main:resolveParam this:pt at):compare (aget this:types i)))
-							(if (< level minLevel)
-								(set minLevel level)
-							)
-							(if (< level 0)
-								(set stop true)
-							)
-							(set i (+ i 1))
-						)
-						(if (! stop)
-							(if (= minLevel 1)
-								(this:methods1:add method)
-								(this:methods0:add method)
-							)
-						)
-					)
-				)
+	((<init>) void 'public
+		(Token:<super>)
+	)
+)
+
+(define-class AMethodToken (Token)
+	(block BlockToken)
+	(method Method)
+	(scopes ArrayDeque)
+	(labels ArrayDeque)
+	(mscopes ArrayDeque)
+	((<init> line int block BlockToken method Method scope HashMap) void
+		(Token:<super> line "method" -1 (Arrays:asList (Token[] block)))
+		(set this:block block)
+		(set this:method method)
+		(set this:scopes (ArrayDeque))
+		(this:scopes:push scope)
+		(set this:labels (ArrayDeque))
+		(set this:mscopes (ArrayDeque))
+	)
+	((pushScope code CodeAttr label HashMap) void
+		(define output (!= code null))
+		(this:scopes:push (HashMap))
+		(this:labels:push label)
+		(if output (code:pushScope))
+	)
+	((popScope code CodeAttr) void
+		(define output (!= code null))
+		(this:scopes:pop)
+		(this:labels:pop)
+		(if output (code:popScope))
+	)
+	((getVar name String scopes ArrayDeque) AVar
+		(define found AVar null)
+		(define it Iterator (scopes:iterator))
+		(while (= found null)
+			(define vars HashMap (it:next))
+			(if (vars:containsKey name)
+				(set found (vars:get name))
 			)
 		)
-		false
+		found
+	)
+	((getVar name String) AVar
+		(this:getVar name this:scopes)
+	)
+	((getLabel name String) Label
+		(define found Label null)
+		(define it Iterator (this:labels:iterator))
+		(while (= found null)
+			(define vars HashMap (it:next))
+			(if (vars:containsKey name)
+				(set found (vars:get name))
+			)
+		)
+		found
+	)
+)
+
+(define-class MethodToken (AMethodToken)
+	((<init> line int block BlockToken method Method scope HashMap) void
+		(AMethodToken:<super> line block method scope)
+	)
+)
+
+(define-class MacroToken (AMethodToken)
+	((<init> line int block BlockToken method Method scope HashMap) void
+		(AMethodToken:<super> line block method scope)
+	)
+)
+
+(define-class IncludeToken (AMethodToken)
+	((<init> line int block BlockToken method Method scope HashMap) void
+		(AMethodToken:<super> line block method scope)
 	)
 )
 
 (define-class Compiler ()
 	((<init>) void (Object:<super>))
-	((isCompare s String) bool
-		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare1Ops:containsKey s) (Main:compare2Ops:containsKey s))
-	)
 	((compile_macros classes Classes toks ArrayList{Token}) void
 		(define macros (ClassType "Macros"))
 		(set classes:macros macros)
@@ -774,22 +788,21 @@
 		(define mis (HashMap{String Boolean}))
 		(while (!= i (toks:size))
 			(define tok (toks:get i))
-			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+			(if (&& (instance? tok BlockToken) (> (tok:ops:size) 0) (instance? (tok:ops:get 0) VToken))
 				(begin
-					(define first (tok:ops:get 0))
+					(define first VToken (tok:ops:get 0))
 					(if (first:val:equals "define-macro")
 						(begin
 							(define scope (HashMap))
 							(define params (tok:ops:get 1))
-							(define name String (params:ops:get 0):val)
-							;(define types (this:get_params classes params scope 0))
+							(define name (as VToken (params:ops:get 0)):val)
 							(define types (Type[] len:(- (params:ops:size) 1)))
 							(define mods (| Access:PUBLIC Access:STATIC))
 							(begin
 								(define i 0)
 								(while (!= i (alen types))
 									(define t (Type:getType "Token"))
-									(define name String (params:ops:get (+ i 1)):val)
+									(define name (as VToken (params:ops:get (+ i 1))):val)
 									(if (name:contains "@")
 										(begin
 											(set name (name:replace "@" ""))
@@ -802,8 +815,8 @@
 									(set i (+ i 1))
 								)
 							)
-							(define mi (MethodInfo (macros:addMethod name types (Type:getType "Token") mods) scope))
-							(set tok:val mi)
+							(this:compileBlock (as BlockToken tok) 0)
+							(toks:set i (MacroToken tok:line (as BlockToken tok) (macros:addMethod name types (Type:getType "Token") mods) scope))
 							(mis:put name true)
 						)
 					)
@@ -814,16 +827,11 @@
 		(set i 0)
 		(while (!= i (toks:size))
 			(define tok (toks:get i))
-			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+			(if (instance? tok MacroToken)
 				(begin
-					(define first (tok:ops:get 0))
-					(if (first:val:equals "define-macro")
-						(begin
-							(this:compile_method_body (as MethodInfo tok:val) classes tok macros 2)
-							(Main:shiftDown toks i 1)
-							(set i (- i 1))
-						)
-					)
+					(this:compileMethodBody (as AMethodToken tok) classes macros 2)
+					(Main:shiftDown toks i 1)
+					(set i (- i 1))
 				)
 			)
 			(set i (+ i 1))
@@ -836,18 +844,20 @@
 		(includes:setSuper "java.lang.Object")
 		(includes:setModifiers Access:PUBLIC)
 		(this:compile_includes classes includes toks 0)
-		(this:subst_includes cl mis includes macros macrosC toks)
+		(cl:addClass "Includes" (includes:writeToArray))
+		(this:subst_includes (cl:loadClass "Includes" true) mis macros macrosC toks)
 	)
 	((compile_includes classes Classes includes ClassType toks List{Token} n int) int
 		(define i 0)
 		(while (!= i (toks:size))
 			(define tok (toks:get i))
-			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
-				(if (&& ((tok:ops:get 0):what:equals "V") ((tok:ops:get 0):val:equals "include"))
+			(if (&& (!= tok:ops null) (> (tok:ops:size) 0))
+				(if (&& (instance? (tok:ops:get 0) VToken) ((as VToken (tok:ops:get 0)):val:equals "include"))
 					(begin
 						(define name ("$":concat (Integer:toString i)))
-						(this:compile_method_body (MethodInfo (includes:addMethod name (Type[]) (Type:getType "Token") (| Access:PUBLIC Access:STATIC)) (HashMap)) classes tok includes 1)
-						(set tok:val name)
+						(define mi (IncludeToken tok:line (as BlockToken tok) (includes:addMethod name (Type[]) (Type:getType "Token") (| Access:PUBLIC Access:STATIC)) (HashMap)))
+						(toks:set i mi)
+						(this:compileMethodBody mi classes includes 1)
 						(set n (+ n 1))
 					)
 					(set n (this:compile_includes classes includes tok:ops n))
@@ -857,67 +867,74 @@
 		)
 		n
 	)
-	((subst_includes cl ArrayClassLoader mis HashMap{String Boolean} includes ClassType macros ClassType macrosC Class toks List{Token}) void
-		(cl:addClass "Includes" (includes:writeToArray))
-		(define c (cl:loadClass "Includes" true))
+	((subst_includes includes Class mis HashMap{String Boolean} macros ClassType macrosC Class toks List{Token}) void
 		(define i 0)
 		(while (!= i (toks:size))
 			(define tok (toks:get i))
-			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
-				(if (&& ((tok:ops:get 0):what:equals "V") ((tok:ops:get 0):val:equals "include"))
-					(begin
-						(define t ((c:getMethod (as String tok:val) (Class[])):invoke null (Object[])))
-						(toks:set i (as Token t))
-					)
-				(if (&& ((tok:ops:get 0):what:equals "V") (mis:containsKey (tok:ops:get 0):val))
-					(begin
-						(define name String (tok:ops:get 0):val)
-						(define l (- (tok:ops:size) 1))
-						(define types (Type[] len:l))
-						(define j 0)
-						(while (!= j l)
-							(aset types j (Type:getType "Token"))
-							(set j (+ j 1))
-						)
-						(define filter (MFilter name types (Type:getType "Token")))
-						(macros:getMethods filter 0 null)
-						(define method (filter:methods0:get 0))
-						(define params (method:getParameterTypes))
-						(define classes (Class[] len:(alen params)))
-						(set j 0)
-						(while (!= j (alen params))
-							(aset classes j ((aget params j):getReflectClass))
-							(set j (+ j 1))
-						)
-						(define args
-							(if (instance? (aget params (- (alen params) 1)) ArrayType)
-								(begin
-									(define var (alen params))
-									(define al (ArrayList (tok:ops:subList 1 var)))
-									(define out (Token[] len:(- (tok:ops:size) var)))
-									((tok:ops:subList var (tok:ops:size)):toArray out)
-									(al:add out)
-									(al:toArray)
-								)
-								((tok:ops:subList 1 (tok:ops:size)):toArray)
+			(if (!= tok:ops null)
+				(this:subst_includes includes mis macros macrosC tok:ops)
+			)
+			(if (instance? tok IncludeToken)
+				(begin
+					(define t ((includes:getMethod ((as IncludeToken tok):method:getName) (Class[])):invoke null (Object[])))
+					(toks:set i (as Token t))
+				)
+			(if (&& (instance? tok BlockToken) (> (tok:ops:size) 0))
+				(begin
+					(if (&& (instance? (tok:ops:get 0) VToken) (mis:containsKey (as VToken (tok:ops:get 0)):val))
+						(begin
+							(define name (as VToken (tok:ops:get 0)):val)
+							(define l (- (tok:ops:size) 1))
+							(define types (Type[] len:l))
+							(define j 0)
+							(while (!= j l)
+								(aset types j (Type:getType "Token"))
+								(set j (+ j 1))
 							)
+							(define filter (MFilter name types (Type:getType "Token")))
+							(macros:getMethods filter 0 null)
+							(define method (filter:methods0:get 0))
+							(define params (method:getParameterTypes))
+							(define classes (Class[] len:(alen params)))
+							(set j 0)
+							(while (!= j (alen params))
+								(aset classes j ((aget params j):getReflectClass))
+								(set j (+ j 1))
+							)
+							(define args
+								(if (instance? (aget params (- (alen params) 1)) ArrayType)
+									(begin
+										(define var (alen params))
+										(define al (ArrayList (tok:ops:subList 1 var)))
+										(define out (Token[] len:(- (tok:ops:size) var)))
+										((tok:ops:subList var (tok:ops:size)):toArray out)
+										(al:add out)
+										(al:toArray)
+									)
+									((tok:ops:subList 1 (tok:ops:size)):toArray)
+								)
+							)
+							(define block (BlockToken tok:line (Arrays:asList (Token[] (VToken tok:line "mbegin") (as Token ((macrosC:getMethod name classes):invoke null args))))))
+							(this:compileBlock block 0)
+							(toks:set i block)
 						)
-						(toks:set i (as Token ((macrosC:getMethod name classes):invoke null args)))
 					)
-					(this:subst_includes cl mis includes macros macrosC tok:ops)
 				)
-				)
+			)
 			)
 			(set i (+ i 1))
 		)
 	)
-	((compile_types classes Classes newClasses ArrayList tok Token) void
-		(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+	((isCompare s String) bool
+		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare1Ops:containsKey s) (Main:compare2Ops:containsKey s))
+	)
+	((compileClass classes Classes newClasses ArrayList tok Token) Token
+		(if (instance? (tok:ops:get 0) VToken)
 			(begin
-				(define first (tok:ops:get 0))
+				(define first VToken (tok:ops:get 0))
 				(if (first:val:equals "define-class")
 					(begin
-						(define name String (tok:ops:get 1):val)
+						(define name String (as VToken (tok:ops:get 1)):val)
 						(define c (ClassType name))
 						(define supers (tok:ops:get 2):ops)
 						(c:setSuper "java.lang.Object")
@@ -932,16 +949,17 @@
 						)
 						(newClasses:add c)
 						(classes:locals:put name c)
-						(set i 3)
-						(while (!= i (tok:ops:size))
-							(this:compile_method_mods (tok:ops:get i) c)
+						(set i 2)
+						(define run true)
+						(while (&& run (!= i (tok:ops:size)))
 							(set i (+ i 1))
+							(set run (this:compileClassMod (tok:ops:get i) c))
 						)
-						(set tok:val c)
+						(set tok (ClassToken tok:line c (tok:ops:subList i (tok:ops:size))))
 					)
 				(if (first:val:equals "import")
 					(begin
-						(define import String (tok:ops:get 1):val)
+						(define import (as VToken (tok:ops:get 1)):val)
 						(if (import:contains "*")
 							(classes:starImports:add (import:replace "*" ""))
 							(classes:imports:put (import:substring (+ (import:lastIndexOf ".") 1)) (Type:getType import))
@@ -951,749 +969,170 @@
 				)
 			)
 		)
+		tok
 	)
-	((compile_method_mods tok Token c ClassType) void
-		(if (tok:what:equals "'")
+	((compileClassMod tok Token c ClassType) bool
+		(if (instance? tok QuoteToken)
 			(begin
-				(define nmod int (Main:accessModifiers:get (tok:ops:get 0):val))
+				(define nmod int (Main:accessModifiers:get (as VToken (tok:ops:get 0)):val))
 				(c:setModifiers nmod)
+				true
 			)
+			false
 		)
 	)
-	((compile_method_defs classes Classes tok Token) void
-		(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+	((compileMethodDefs classes Classes tok Token) void
+		(if (instance? tok ClassToken)
 			(begin
-				(define first (tok:ops:get 0))
-				(if (first:val:equals "define-class")
-					(begin
-						(define i 3)
-						(while (!= i (tok:ops:size))
-							(this:compile_method_def classes (tok:ops:get i) (as ClassType tok:val))
-							(set i (+ i 1))
-						)
-						null
-					)
+				(define tok ClassToken tok)
+				(define i 0)
+				(while (!= i (tok:ops:size))
+					(tok:ops:set i (this:compileMethodDef classes (tok:ops:get i) tok:c))
+					(set i (+ i 1))
 				)
 			)
 		)
 	)
-	((get_params classes Classes tok Token scope HashMap n int) Type[]
+	((getParams classes Classes tok Token scope HashMap n int) Type[]
 		(define types (Type[] len: (/ (- (tok:ops:size) 1) 2)))
 		(define j 0)
 		(while (!= j (alen types))
 			(define type (classes:get (tok:ops:get (+ (* j 2) 2))))
 			(aset types j type)
-			(scope:put (as String (tok:ops:get (+ (* j 2) 1)):val) (Arg (+ n j) type))
+			(scope:put (as VToken (tok:ops:get (+ (* j 2) 1))):val (Arg (+ n j) type))
 			(set j (+ j 1))
 		)
 		types
 	)
-	((compile_method_def classes Classes tok Token c ClassType) void
-		(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+	((compileMethodDef classes Classes tok Token c ClassType) Token
+		(define first (tok:ops:get 0))
+		(if (instance? first BlockToken) ;method definition
 			(begin
-				(define first (tok:ops:get 0))
-				(if (first:what:equals "(") ;method definition
-					(begin
-						(define scope (HashMap))
-						(define mods 0)
-						(define end false)
-						(define i 2)
-						(while (! (|| end (= i (tok:ops:size))))
-							(define mod (tok:ops:get i))
-							(if (mod:what:equals "'")
-								(begin
-									(set mods (| mods (Main:accessModifiers:get (mod:ops:get 0):val)))
-									(set i (+ i 1))
-								)
-								(set end true)
-							)
-						)
-						(define n 0)
-						(if (= (& mods Access:STATIC) 0)
-							(begin
-								(scope:put "this" (Arg 0 c))
-								(set n 1)
-							)
-						)
-						(define types (this:get_params classes first scope n))
-						(define m Method (c:addMethod (as String (first:ops:get 0):val) types (classes:get (tok:ops:get 1)) mods))
-						(tok:ops:set 0 (Token 0 "(" null -1 (ArrayList (tok:ops:subList i (tok:ops:size)))))
-						(Main:shiftDown tok:ops 1 (- (tok:ops:size) 1))
-						(set tok:val (MethodInfo m scope))
-					)
-					(begin ;field definition
-						(define mods 0)
-						(define end false)
-						(define i 2)
-						(while (! (| (= i (tok:ops:size)) end))
-							(define mod (tok:ops:get i))
-							(if (mod:what:equals "'")
-								(begin
-									(define nmod (Main:accessModifiers:get (mod:ops:get 0):val))
-									(set mods (| mods nmod))
-								)
-								(set end true)
-							)
+				(define scope (HashMap))
+				(define mods 0)
+				(define end false)
+				(define i 2)
+				(while (! (|| end (= i (tok:ops:size))))
+					(define mod (tok:ops:get i))
+					(if (instance? mod QuoteToken)
+						(begin
+							(set mods (| mods (Main:accessModifiers:get (as VToken (mod:ops:get 0)):val)))
 							(set i (+ i 1))
 						)
-						(c:addField (as String first:val) (classes:get (tok:ops:get 1)) mods)
+						(set end true)
 					)
 				)
+				(define n 0)
+				(if (= (& mods Access:STATIC) 0)
+					(begin
+						(scope:put "this" (Arg 0 c))
+						(set n 1)
+					)
+				)
+				(define types (this:getParams classes first scope n))
+				(define m Method (c:addMethod (as VToken (first:ops:get 0)):val types (classes:get (tok:ops:get 1)) mods))
+				(define block (BlockToken tok:line (ArrayList (tok:ops:subList i (tok:ops:size)))))
+				(this:compileBlock block 0)
+				(set tok (MethodToken tok:line block m scope))
+			)
+			(begin ;field definition
+				(define mods 0)
+				(define end false)
+				(define i 2)
+				(while (! (| (= i (tok:ops:size)) end))
+					(define mod (tok:ops:get i))
+					(if (instance? mod QuoteToken)
+						(begin
+							(define nmod (Main:accessModifiers:get (as VToken (mod:ops:get 0)):val))
+							(set mods (| mods nmod))
+						)
+						(set end true)
+					)
+					(set i (+ i 1))
+				)
+				(c:addField (as VToken first):val (classes:get (tok:ops:get 1)) mods)
 			)
 		)
+		tok
 	)
-	((invertComp inv bool n int) int
-		(if inv
-			(Main:compareOpposites:get n)
-			n
-		)
-	)
-	((compile_root classes Classes tok Token) void
-		(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
+	((compileBlock block Token i int) void
+		(if (!= block:ops null)
 			(begin
-				(define first (tok:ops:get 0))
-				(if (first:val:equals "define-class")
-					(this:compile_class classes tok)
+				(if (instance? block BlockToken)
+					(set (as BlockToken block):labels (HashMap))
+				)
+				(while (!= i (block:ops:size))
+					(define tok (block:ops:get i))
+					(this:compileBlock tok 0)
+					(if (&& (instance? tok BlockToken) (> (tok:ops:size) 0) (instance? (tok:ops:get 0) VToken))
+						(begin
+							(define val (as VToken (tok:ops:get 0)):val)
+							(if (val:equals "label")
+								((as BlockToken block):labels:put (as VToken (tok:ops:get 1)):val (Label))
+							)
+							(if (val:equals "mvar")
+								(begin
+									(define v VToken (tok:ops:get 1))
+									(set v:macro true)
+									(block:ops:set i v)
+								)
+							)
+						)
+					)
+					(set i (+ i 1))
 				)
 			)
 		)
 	)
-	((compile_class classes Classes tok Token) void
-		(define i 3)
-		(while (!= i (tok:ops:size))
-			(this:compile_method classes (tok:ops:get i) (as ClassType tok:val))
-			(set i (+ i 1))
+	((compileMethods classes Classes tok Token) void
+		(if (instance? tok ClassToken)
+			(begin
+				(define tok ClassToken tok)
+				(define i 0)
+				(while (!= i (tok:ops:size))
+					(this:compileMethod classes (tok:ops:get i) tok:c)
+					(set i (+ i 1))
+				)
+			)
 		)
 	)
-	((compile_method classes Classes tok Token c ClassType) void ()
-		(if (instance? tok:val MethodInfo)
+	((compileMethod classes Classes tok Token c ClassType) void ()
+		(if (instance? tok MethodToken)
 			(begin ;method definition
-				(define mi MethodInfo tok:val)
-				(if (! (mi:method:isAbstract))
-					(this:compile_method_body mi classes (tok:ops:get 0) c 0)
+				(define tok MethodToken tok)
+				(if (! (tok:method:isAbstract))
+					(this:compileMethodBody tok classes c 0)
 				)
 			)
 		)
 	)
-	((compile_method_body mi MethodInfo classes Classes tok Token c ClassType i int) void
-		(this:compile_labels tok 0)
-		(mi:pushScope null (as HashMap tok:val))
-		(this:compile_al classes tok:ops i (- (tok:ops:size) 1) c mi null Type:voidType)
-		(this:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi null (mi:method:getReturnType))
+	((compileMethodBody mi AMethodToken classes Classes c ClassType i int) void
+		(define tok mi:block)
+		(define h GenHandler:inst)
+		(mi:pushScope null tok:labels)
+		(h:compile_al classes tok:ops i (- (tok:ops:size) 1) c mi null Type:voidType)
+		(h:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi null (mi:method:getReturnType))
 		(mi:popScope null)
 		(define code (mi:method:startCode))
-		(mi:pushScope code (as HashMap tok:val))
-		(this:compile_al classes tok:ops i (- (tok:ops:size) 1) c mi code Type:voidType)
-		(this:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi code (mi:method:getReturnType))
+		(mi:pushScope code tok:labels)
+		(h:compile_al classes tok:ops i (- (tok:ops:size) 1) c mi code Type:voidType)
+		(h:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi code (mi:method:getReturnType))
 		(mi:popScope code)
 		(code:emitReturn)
-	)
-	((compile_labels block Token i int) void
-		(define hm (HashMap))
-		(set block:val hm)
-		(while (!= i (block:ops:size))
-			(define tok (block:ops:get i))
-			(if (tok:what:equals "(")
-				(if (&& (> (tok:ops:size) 0) ((tok:ops:get 0):val:equals "label"))
-					(hm:put (tok:ops:get 1):val (Label))
-					(this:compile_labels tok 0)
-				)
-			)
-			(set i (+ i 1))
-		)
-	)
-	((compile_al classes Classes toks List{Token} i int e int c ClassType mi MethodInfo code CodeAttr needed Object) Type[]
-		(define l (toks:size))
-		(define types (Type[] len: (- e i)))
-		(define j i)
-		(while (! (>= j e))
-			(aset types (- j i)
-				(this:compile_ classes (toks:get j) c mi code
-					(if (= needed null)
-						null
-						(if (instance? needed Type[])
-							(aget (as Type[] needed) (- j i))
-							needed
-						)
-					)
-				)
-			)
-			(set j (+ j 1))
-		)
-		types
-	)
-	((emitInvoke name String type Type classes Classes tok Token c ClassType mi MethodInfo code CodeAttr needed Type i int) Type
-		(define output (!= code null))
-		(define types (this:compile_al classes tok:ops i (tok:ops:size) c mi null Main:unknownType))
-		(if (name:equals "<super>") (begin (if output (code:emitPushThis)) (set name "<init>")))
-		(define filter (MFilter name types type))
-		((as ObjectType (type:getRawType)):getMethods filter 2 null)
-		(define method Method
-			(if (> (filter:methods0:size) 0)
-				(filter:methods0:get 0)
-				(filter:methods1:get 0)
-			)
-		)
-		(define params (method:getParameterTypes))
-		(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
-		(begin
-			(define j 0)
-			(define n
-				(if (&&
-					varargs
-					(||
-						(< (alen types) (alen params))
-						(< ((Main:resolveParam type (aget params (- (alen params) 1))):compare (aget types (- (alen params) 1))) 0)
-					)
-				) 1 0)
-			)
-			(while (!= j (- (alen params) n))
-				(this:compile_ classes (tok:ops:get (+ i j)) c mi code (Main:resolveParam type (aget params j)))
-				(set j (+ j 1))
-			)
-			(if (= n 1)
-				(begin
-					(define at ArrayType (aget params (- (alen params) 1)))
-					(define et (Main:resolveParam type at:elements))
-					(if output (code:emitPushInt (+ 1 (- (alen types) (alen params)))))
-					(if output (code:emitNewArray at:elements))
-					(define oj j)
-					(while (!= j (alen types))
-						(if output (code:emitDup))
-						(if output (code:emitPushInt (- j oj)))
-						(this:compile_ classes (tok:ops:get (+ i j)) c mi code et)
-						(if output (code:emitArrayStore))
-						(set j (+ j 1))
-					)
-				)
-			)
-		)
-		(if output (code:emitInvoke method))
-		(define out (Main:resolveParam type (method:getReturnType)))
-		(if (! (Type:isSame out ((method:getReturnType):getRawType)))
-			(if output (code:emitCheckcast (out:getRawType)))
-		)
-		out
-	)
-	;tok = condition
-	((emitIf_ classes Classes inv bool tok Token i int compare String trueE Emitter falseE Emitter c ClassType mi MethodInfo code CodeAttr needed Type) Type
-		(define output (!= code null))
-		(if (compare:equals "!")
-			(begin
-				(this:emitIf classes (! inv) tok i trueE falseE c mi code needed)
-			)
-		(if (|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
-			(begin
-				(define skipL (Label))
-				(define falseL (Label))
-				(define falseTok (Goto falseL))
-				(define i 1)
-				(while (!= i (- (tok:ops:size) 1))
-					(this:emitIf classes (! inv) tok i falseTok null c mi code needed)
-					(set i (+ i 1))
-				)
-				(this:emitIf classes (! inv) tok (- (tok:ops:size) 1) falseTok null c mi code needed)
-				(define type (trueE:emit this classes c mi code needed))
-				(if output (code:emitGoto skipL))
-				(if output (falseL:define code))
-				(if (!= falseE null)
-					(begin
-						(falseE:emit this classes c mi code needed)
-					)
-				)
-				(if output (skipL:define code))
-				type
-			)
-		(if (|| (&& (! inv) (compare:equals "||")) (&& inv (compare:equals "&&")))
-			(begin
-				(define skipL (Label))
-				(define trueL (Label))
-				(define trueTok (Goto trueL))
-				(define i 1)
-				(while (!= i (- (tok:ops:size) 1))
-					(this:emitIf classes inv tok i trueTok null c mi code needed)
-					(set i (+ i 1))
-				)
-				(this:emitIf classes inv tok (- (tok:ops:size) 1) trueTok null c mi code needed)
-				(if (! (= falseE null))
-					(begin
-						(falseE:emit this classes c mi code needed)
-					)
-				)
-				(if output (code:emitGoto skipL))
-				(if output (trueL:define code))
-				(define type (trueE:emit this classes c mi code needed))
-				(if output (skipL:define code))
-				type
-			)
-			(begin
-				(define skip (Label))
-				(if (Main:compare1Ops:containsKey compare)
-					(begin
-						(this:compile_ classes (tok:ops:get i) c mi code Main:unknownType)
-						(if output (code:emitGotoIfCompare1 skip (this:invertComp inv (Main:compare1Ops:get compare))))
-					)
-					(begin
-						(this:compile_ classes (tok:ops:get i) c mi code Main:unknownType)
-						(this:compile_ classes (tok:ops:get (+ i 1)) c mi code Main:unknownType)
-						(if output (code:emitGotoIfCompare2 skip (this:invertComp inv (Main:compare2Ops:get compare))))
-					)
-				)
-				
-				;(code:emitIf)
-				(define type (trueE:emit this classes c mi code needed))
-				(define end (Label))
-				(if (! (= falseE null))
-					(if output (code:emitGoto end))
-				)
-				(if output (skip:define code))
-				(if (! (= falseE null))
-					(begin
-						;(code:emitElse)
-						(falseE:emit this classes c mi code needed)
-						(if output (end:define code))
-					)
-				)
-				;(code:emitFi)
-				type
-			)
-		)
-		)
-		)
-	)
-	((emitIf classes Classes inv bool tok Token i int trueE Emitter falseE Emitter c ClassType mi MethodInfo code CodeAttr needed Type) Type
-		(define cond (tok:ops:get i))
-		(if (&& (cond:what:equals "(") (this:isCompare (as String (cond:ops:get 0):val)))
-			(this:emitIf_ classes inv cond 1 (as String (cond:ops:get 0):val) trueE falseE c mi code needed)
-			(this:emitIf_ classes inv tok i "!=0" trueE falseE c mi code needed)
-		)
-	)
-	((compile_quasi classes Classes tok Token c ClassType mi MethodInfo code CodeAttr) Type
-		(define output (!= code null))
-		(define c ClassType (Type:getType "Token"))
-		(define t (if (tok:what:equals ",") (this:compile_ classes (tok:ops:get 0) c mi null Main:unknownType) null))
-		(if (&& (tok:what:equals ",") (|| (= c t) (&& (instance? t ArrayType) (= (as ArrayType t):elements c))))
-			(this:compile_ classes (tok:ops:get 0) c mi code Main:unknownType)
-			(begin
-				(if output (code:emitNew c))
-				(if output (code:emitDup))
-				(if output (code:emitPushInt tok:line))
-				(if (tok:what:equals ",")
-					(begin
-						(define const (tok:ops:get 0))
-						(define t (this:compile_ classes const c mi null Main:unknownType))
-						(if (= t Type:charType)
-							(if output (code:emitPushString "C"))
-						(if (instance? t PrimType)
-							(if output (code:emitPushString "N"))
-							(if output (code:emitPushString "S"))
-						)
-						)
-						(this:compile_ classes const c mi code Type:objectType)
-						(if output (code:emitPushInt tok:prec))
-						(if output (code:emitPushNull))
-					)
-					(begin
-						(if output (code:emitPushString tok:what))
-						(if (instance? tok:val String)
-							(if output (code:emitPushString (as String tok:val)))
-						(if (|| (tok:what:equals "N") (tok:what:equals "C"))
-							(this:compile_ classes tok c mi code Type:objectType)
-							(if output (code:emitPushNull))
-						)
-						)
-						(if output (code:emitPushInt tok:prec))
-						(if (= tok:ops null)
-							(if output (code:emitPushNull))
-							(begin
-								(define al ClassType (Type:getType "java.util.ArrayList"))
-								(if output (code:emitNew al))
-								(if output (code:emitDup))
-								(if output (code:emitInvoke (al:getMethod "<init>" (Type[]))))
-								(begin
-									(define i 0)
-									(while (!= i (tok:ops:size))
-										(define t (this:compile_quasi classes (tok:ops:get i) c mi null))
-										(if (= t c)
-											(begin
-												(if output (code:emitDup))
-												(this:compile_quasi classes (tok:ops:get i) c mi code)
-												(if output (code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
-												(if output (code:emitPop 1))
-											)
-											(begin
-												(if output (code:emitDup))
-												(this:compile_quasi classes (tok:ops:get i) c mi code)
-												(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
-												(if output (code:emitPop 1))
-											)
-										)
-										(set i (+ i 1))
-									)
-								)
-							)
-						)
-					)
-				)
-				(if output (code:emitInvoke (c:getMethod "<init>" (Type[] Type:intType Type:javalangStringType Type:objectType Type:intType (Type:getType "java.util.List")))))
-				c
-			)
-		)
-	)
-	((compile_ classes Classes tok Token c ClassType mi MethodInfo code CodeAttr needed Type) Type
-		(define output (!= code null))
-		(if output (code:putLineNumber "abc.java" tok:line))
-		(define result Type
-			(if (tok:what:equals "S")
-				(begin
-					(if output (code:emitPushString (as String tok:val)))
-					Type:javalangStringType
-				)
-			(if (tok:what:equals "C")
-				(begin
-					(define c int (as Character tok:val))
-					(if (! (instance? needed PrimType))
-						(begin
-							(if output (code:emitPushInt c))
-							Type:charType
-						)
-						(begin
-							(if output (code:emitPushConstant c needed))
-							needed
-						)
-					)
-				)
-			(if (tok:what:equals "N")
-				(begin
-					(if (instance? tok:val Double)
-						(begin
-							(if output (code:emitPushDouble (as Double tok:val)))
-							Type:doubleType
-						)
-						(begin
-							(if (! (instance? needed PrimType))
-								(begin
-									(if output (code:emitPushInt (as Integer tok:val)))
-									Type:intType
-								)
-								(begin
-									(if output (code:emitPushConstant (as Integer tok:val) needed))
-									needed
-								)
-							)
-						)
-					)
-				)
-			(if (tok:what:equals ":")
-				(begin
-					(define first (tok:ops:get 0))
-					(define class ClassType (this:compile_ classes first c mi code Main:unknownType))
-					(define field Field (class:getField (as String (tok:ops:get 1):val) -1))
-					(if (field:getStaticFlag)
-						(if output (code:emitGetStatic field))
-						(if output (code:emitGetField field))
-					)
-					(field:getType)
-				)
-			(if (tok:what:equals "`")
-				(this:compile_quasi classes (tok:ops:get 0) c mi code)
-			(if (tok:what:equals "V")
-				(if (tok:val:equals "false")
-					(begin
-						(if output (code:emitPushInt 0))
-						Type:booleanType
-					)
-				(if (tok:val:equals "true")
-					(begin
-						(if output (code:emitPushInt 1))
-						Type:booleanType
-					)
-				(if (tok:val:equals "null")
-					(begin
-						(if output (code:emitPushNull))
-						Type:nullType
-					)
-					(begin
-						(define class ClassType (classes:get tok))
-						(if (= class null)
-							(begin
-								(define found AVar (mi:getVar (as String tok:val)))
-								(if output (found:load code))
-								found:type
-							)
-							class
-						)
-					)
-				)
-				)
-				)
-			(if (&& (tok:what:equals "(") (> (tok:ops:size) 0))
-				(begin
-					(define first (tok:ops:get 0))
-					(if (first:val:equals "begin")
-						(begin
-							(mi:pushScope code (as HashMap tok:val))
-							(this:compile_al classes tok:ops 1 (- (tok:ops:size) 1) c mi code Type:voidType)
-							(define type (this:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi code needed))
-							(mi:popScope code)
-							type
-						)
-					(if (first:val:equals "label")
-						(begin
-							(define label (mi:getLabel (as String (tok:ops:get 1):val)))
-							(if output (label:define code))
-							Type:voidType
-						)
-					(if (first:val:equals "goto")
-						(begin
-							(define label (mi:getLabel (as String (tok:ops:get 1):val)))
-							(if output (code:emitGoto label))
-							Type:voidType
-						)
-					(if (first:val:equals "define")
-						(begin
-							(define type Type
-								(if (= (tok:ops:size) 4)
-									(begin
-										(define type Type (classes:get (tok:ops:get 2)))
-										(this:compile_ classes (tok:ops:get 3) c mi code type)
-										type
-									)
-									(this:compile_ classes (tok:ops:get 2) c mi code Main:unknownType)
-								)
-							)
-							(define name String (tok:ops:get 1):val)
-							(define var Variable (if output (code:addLocal type name) null))
-							(if output (code:emitStore var))
-							((as HashMap (mi:scopes:getFirst)):put name (Var var type))
-							Type:voidType
-						)
-					(if (first:val:equals "try")
-						(begin
-							(if output (code:emitTryStart false needed))
-							(define type (this:compile_ classes (tok:ops:get 1) c mi code needed))
-							(if output (code:emitCatchStart Type:javalangThrowableType))
-							(if output (code:emitPop 1))
-							(this:compile_ classes (tok:ops:get 2) c mi code needed)
-							(if output (code:emitCatchEnd))
-							(if output (code:emitTryCatchEnd))
-							type
-						)
-					(if (first:val:equals "instance?")
-						(begin
-							(this:compile_ classes (tok:ops:get 1) c mi code Main:unknownType)
-							(if output (code:emitInstanceof (classes:get (tok:ops:get 2))))
-							Type:booleanType
-						)
-					(if (first:val:equals "set")
-						(begin
-							(define out (tok:ops:get 1))
-							(if (out:what:equals ":")
-								(begin
-									(define first (out:ops:get 0))
-									(define class ClassType (this:compile_ classes first c mi code Main:unknownType))
-									(define field Field (class:getField (as String (out:ops:get 1):val) -1))
-									(this:compile_ classes (tok:ops:get 2) c mi code (field:getType))
-									(if (field:getStaticFlag)
-										(if output (code:emitPutStatic field))
-										(if output (code:emitPutField field))
-									)
-								)
-								(begin
-									(define var (mi:getVar (as String out:val)))
-									(this:compile_ classes (tok:ops:get 2) c mi code var:type)
-									(if output (var:store code))
-								)
-							)
-							Type:voidType
-						)
-					(if (first:val:equals "aset")
-						(begin
-							(define type ArrayType (this:compile_ classes (tok:ops:get 1) c mi code Main:unknownType))
-							(this:compile_ classes (tok:ops:get 2) c mi code Main:unknownType)
-							(this:compile_ classes (tok:ops:get 3) c mi code type:elements)
-							(if output (code:emitArrayStore))
-							Type:voidType
-						)
-					(if (first:val:equals "aget")
-						(begin
-							(define type ArrayType (this:compile_ classes (tok:ops:get 1) c mi code Main:unknownType))
-							(this:compile_ classes (tok:ops:get 2) c mi code Type:intType)
-							(if output (code:emitArrayLoad))
-							type:elements
-						)
-					(if (first:val:equals "alen")
-						(begin
-							(this:compile_ classes (tok:ops:get 1) c mi code Main:unknownType)
-							(if output (code:emitArrayLength))
-							Type:intType
-						)
-					(if (first:val:equals "as")
-						(begin
-							(define cast (classes:get (tok:ops:get 1)))
-							(define out (this:compile_ classes (tok:ops:get 2) c mi code (cast:getRawType)))
-							(if (instance? cast ParameterizedType)
-								cast
-								out
-							)
-						)
-					(if (first:val:equals "if")
-						(begin
-							(this:emitIf classes false tok 1 (TokenEmitter (tok:ops:get 2)) (if (= (tok:ops:size) 4) (TokenEmitter (tok:ops:get 3)) null) c mi code needed)
-						)
-					(if (first:val:equals "macro")
-						(begin
-							(define name String (tok:ops:get 1):val)
-							(this:emitInvoke name classes:macros classes tok c mi code Main:unknownType 2)
-						)
-					(if (first:val:equals "while")
-						(begin
-							(define start Label (Label))
-							(if output (start:define code))
-							(this:emitIf classes false tok 1 (Emitters (Emitter[] (TokensEmitter tok:ops 2 (tok:ops:size)) (Goto start))) null c mi code needed)
-						)
-					(if (this:isCompare (as String first:val))
-						(begin
-							(this:emitIf_ classes false tok 1 (as String first:val) (TokenEmitter (Token tok:line "V" "true")) (TokenEmitter (Token tok:line "V" "false")) c mi code Type:booleanType)
-						)
-					(if (Main:binOps:containsKey first:val)
-						(begin
-							(define types (Arrays:asList (this:compile_al classes tok:ops 1 (tok:ops:size) c mi null Main:unknownType)))
-							(define otype Type Type:voidType)
-							(if (types:contains Type:doubleType)
-								(set otype Type:doubleType)
-							(if (types:contains Type:longType)
-								(set otype Type:longType)
-								(set otype Type:intType)
-							)
-							)
-							(this:compile_ classes (tok:ops:get 1) c mi code otype)
-							(define i 2)
-							(while (!= i (tok:ops:size))
-								(this:compile_ classes (tok:ops:get i) c mi code otype)
-								(if output (code:emitBinop (Main:binOps:get first:val) otype))
-								(set i (+ i 1))
-							)
-							otype
-						)
-						(begin
-							(if (first:what:equals ":")
-								(begin ;method call
-									(define name String (first:ops:get 1):val)
-									(this:emitInvoke name (this:compile_ classes (first:ops:get 0) c mi code Main:unknownType) classes tok c mi code Main:unknownType 1)
-								)
-								(begin ;constructor
-									(define type Type (classes:get first))
-									(if (instance? type ArrayType)
-										(begin
-											(define array ArrayType type)
-											(define len Token (if (> (tok:ops:size) 1) (tok:ops:get 1) null))
-											(define i0
-												(if (&& (!= len null) (len:what:equals ":") ((len:ops:get 0):val:equals "len"))
-													(begin (this:compile_ classes (len:ops:get 1) c mi code Main:unknownType) 2)
-													(begin (if output (code:emitPushInt (- (tok:ops:size) 1))) 1)
-												)
-											)
-											(if output (code:emitNewArray array:elements))
-											(define i i0)
-											(while (!= i (tok:ops:size))
-												(if output (code:emitDup))
-												(if output (code:emitPushInt (- i i0)))
-												(this:compile_ classes (tok:ops:get i) c mi code array:elements)
-												(if output (code:emitArrayStore))
-												(set i (+ i 1))
-											)
-											type
-										)
-										(begin
-											(define class ClassType (type:getRawType))
-											(if output (code:emitNew class))
-											(if output (code:emitDup))
-											(this:emitInvoke "<init>" type classes tok c mi code Main:unknownType 1)
-											type
-										)
-									)
-								)
-							)
-						)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-					)
-				)
-				Type:voidType
-			)
-			)
-			)
-			)
-			)
-			)
-			)
-		)
-		(this:castMaybe code result needed)
-	)
-	((castMaybe code CodeAttr result Type needed Type) Type
-		(define output (!= code null))
-		(if (= needed Main:unknownType)
-			result
-		(if (= needed Type:voidType)
-			(begin
-				(if (!= result Type:voidType)
-					(if output (code:emitPop 1))
-				)
-				Type:voidType
-			)
-		(if (! (Type:isSame needed result))
-			(begin
-				(if (instance? result PrimType)
-					(begin
-						(if (instance? needed ClassType)
-							(if output (code:emitInvoke (((as PrimType result):boxedType):getMethod "valueOf" (Type[] result))))
-							(if output (code:emitConvert (as PrimType result) (as PrimType needed)))
-						)
-					)
-				(if (instance? needed PrimType)
-					(begin
-						(define unbox (Main:unboxMethods:get result))
-						(if output (code:emitInvoke unbox))
-						(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
-					)
-					(if output (code:emitCheckcast needed))
-				)
-				)
-				needed
-			)
-			result
-		)
-		)
-		)
 	)
 	((compile toks ArrayList{Token} locals HashMap) void
 		(define classes (Classes locals))
 		(define newClasses (ArrayList))
 
-
 		(define i 0)
 		(while (!= i (toks:size))
-			(this:compile_types classes newClasses (toks:get i))
+			(toks:set i (this:compileClass classes newClasses (toks:get i)))
 			(set i (+ i 1))
 		)
 
 		(set i 0)
 		(while (!= i (toks:size))
-			(this:compile_method_defs classes (toks:get i))
+			(this:compileMethodDefs classes (toks:get i))
 			(set i (+ i 1))
 		)
 
@@ -1701,7 +1140,7 @@
 
 		(set i 0)
 		(while (!= i (toks:size))
-			(this:compile_root classes (toks:get i))
+			(this:compileMethods classes (toks:get i))
 			(set i (+ i 1))
 		)
 
@@ -1741,5 +1180,1184 @@
 				)
 			)
 		)
+	)
+)
+
+
+(define-class Emitter () 'interface
+	((emit compiler Handler classes Classes c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public 'abstract)
+)
+
+(define-class TokensEmitter (Emitter)
+	(toks List{Token})
+	(i int)
+	(l int)
+	((<init> toks0 List{Token} i0 int l0 int) void
+		(Object:<super>)
+		(set this:toks toks0)
+		(set this:i i0)
+		(set this:l l0)
+	)
+	((emit compiler Handler classes Classes c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define type Type:voidType)
+		(define j this:i)
+		(while (!= j this:l)
+			(set type (compiler:compile_ classes (this:toks:get j) c mi code needed))
+			(set j (+ j 1))
+		)
+		type
+	)
+)
+
+(define-class TokenEmitter (Emitter)
+	(tok Token)
+	((<init> tok0 Token) void
+		(Object:<super>)
+		(set this:tok tok0)
+	)
+	((emit compiler Handler classes Classes c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(compiler:compile_ classes this:tok c mi code needed)
+	)
+)
+
+(define-class Goto (Emitter)
+	(label Label)
+	((<init> label0 Label) void (Object:<super>) (set this:label label0))
+	((emit compiler Handler classes Classes c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public (if (! (= code null)) (code:emitGoto this:label)) Type:voidType)
+)
+
+(define-class Emitters (Emitter)
+	(emitters Emitter[])
+	((<init> emitters0 Emitter[]) void (Object:<super>) (set this:emitters emitters0))
+	((emit compiler Handler classes Classes c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define type Type Type:voidType)
+		(define i 0)
+		(while (< i (alen this:emitters))
+			(set type ((aget this:emitters i):emit compiler classes c mi code needed))
+			(set i (+ i 1))
+		)
+		type
+	)
+)
+
+(define-class MFilter (Filter)
+	(methods0 ArrayList{Method})
+	(methods1 ArrayList{Method})
+	(name String)
+	(types Type[])
+	(pt Type)
+	((<init> name0 String types0 Type[] pt0 Type) void
+		(Object:<super>)
+		(set this:methods0 (ArrayList{Method}))
+		(set this:methods1 (ArrayList{Method}))
+		(set this:name name0)
+		(set this:types types0)
+		(set this:pt pt0)
+	)
+	((select v Object) bool 'public
+		(define method Method v)
+		(if ((method:getName):equals this:name)
+			(begin
+				(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
+				(define na (alen this:types))
+				(define np (alen (method:getParameterTypes)))
+				(if (|| (= na np) (&& varargs (>= na (- np 1))))
+					(begin
+						(define stop false)
+						(define minLevel 1)
+						(define i 0)
+						(while (! (|| stop (= i (alen this:types))))
+							(define at
+								(if (&&
+										varargs
+										(>= i (- np 1))
+										(||
+											(!= i (- np 1))
+											(< ((Main:resolveParam this:pt (aget (method:getParameterTypes) i)):compare (aget this:types i)) 0)
+										)
+									)
+									(as ArrayType (aget (method:getParameterTypes) (- np 1))):elements
+									(aget (method:getParameterTypes) i)
+								)
+							)
+							(define level ((Main:resolveParam this:pt at):compare (aget this:types i)))
+							(if (< level minLevel)
+								(set minLevel level)
+							)
+							(if (< level 0)
+								(set stop true)
+							)
+							(set i (+ i 1))
+						)
+						(if (! stop)
+							(if (= minLevel 1)
+								(this:methods1:add method)
+								(this:methods0:add method)
+							)
+						)
+					)
+				)
+			)
+		)
+		false
+	)
+)
+
+(define-class Handler ()
+	((<init>) void (Object:<super>))
+	((valid tok Token) bool false)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type null)
+	((compile_ classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type
+		(this:compile_ this classes tok c mi code needed)
+	)
+	((compile_al h Handler classes Classes toks List{Token} i int e int c ClassType mi AMethodToken code CodeAttr needed Object) Type[]
+		(define l (toks:size))
+		(define types (Type[] len: (- e i)))
+		(define j i)
+		(while (! (>= j e))
+			(aset types (- j i)
+				(h:compile_ classes (toks:get j) c mi code
+					(if (instance? needed Type[])
+						(aget (as Type[] needed) (- j i))
+						needed
+					)
+				)
+			)
+			(set j (+ j 1))
+		)
+		types
+	)
+	((compile_al classes Classes toks List{Token} i int e int c ClassType mi AMethodToken code CodeAttr needed Object) Type[]
+		(this:compile_al this classes toks i e c mi code needed)
+	)
+	((tryHandlers h Handler default Type handlers Handler[] classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'static
+		(define i 0)
+		(define type default)
+		(define run true)
+		(while (&& run (< i (alen handlers)))
+			(define s (aget handlers i))
+			(if (s:valid tok)
+				(begin
+					(set type (s:compile_ h classes tok c mi code needed))
+					(set run false)
+				)
+			)
+			(set i (+ i 1))
+		)
+		type
+	)
+	((castMaybe code CodeAttr result Type needed Type) Type
+		(define output (!= code null))
+		(if (= needed Main:unknownType)
+			result
+		(if (= needed Type:voidType)
+			(begin
+				(if (!= result Type:voidType)
+					(if output (code:emitPop 1))
+				)
+				Type:voidType
+			)
+		(if (! (Type:isSame needed result))
+			(begin
+				(if (instance? result PrimType)
+					(begin
+						(if (instance? needed ClassType)
+							(if output (code:emitInvoke (((as PrimType result):boxedType):getMethod "valueOf" (Type[] result))))
+							(if output (code:emitConvert (as PrimType result) (as PrimType needed)))
+						)
+					)
+				(if (instance? needed PrimType)
+					(begin
+						(define unbox (Main:unboxMethods:get result))
+						(if output (code:emitInvoke unbox))
+						(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
+					)
+					(if output (code:emitCheckcast needed))
+				)
+				)
+				needed
+			)
+			result
+		)
+		)
+		)
+	)
+)
+
+(define-class GenHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set GenHandler:inst (GenHandler)))
+	(handlers Handler[])
+	((<init> handlers Handler[]) void
+		(Handler:<super>)
+		(set this:handlers handlers)
+	)
+	((<init>) void
+		(GenHandler:<super> (Handler[]
+			SHandler:inst
+			CHandler:inst
+			NHandler:inst
+			ColonHandler:inst
+			QuasiHandler:inst
+			ConstsHandler:inst
+			VHandler:inst
+			BlockHandler:inst
+		))
+	)
+	((compile_ classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type
+		(define output (!= code null))
+		(if output (code:putLineNumber "abc.java" tok:line))
+		(define type (Handler:tryHandlers this Type:voidType this:handlers classes tok c mi code needed))
+		(this:castMaybe code type needed)
+	)
+)
+
+(define-class SHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set SHandler:inst (SHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(instance? tok SToken)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if output (code:emitPushString (as SToken tok):val))
+		Type:javalangStringType
+	)
+)
+
+(define-class CHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set CHandler:inst (CHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(instance? tok CToken)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define c int (as CToken tok):val)
+		(if (! (instance? needed PrimType))
+			(begin
+				(if output (code:emitPushInt c))
+				Type:charType
+			)
+			(begin
+				(if output (code:emitPushConstant c needed))
+				needed
+			)
+		)
+	)
+)
+
+(define-class NHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set NHandler:inst (NHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(instance? tok NToken)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define tok NToken tok)
+		(if (instance? tok:val Double)
+			(begin
+				(if output (code:emitPushDouble (as Double tok:val)))
+				Type:doubleType
+			)
+			(begin
+				(if (! (instance? needed PrimType))
+					(begin
+						(if output (code:emitPushInt (as Integer tok:val)))
+						Type:intType
+					)
+					(begin
+						(if output (code:emitPushConstant (as Integer tok:val) needed))
+						needed
+					)
+				)
+			)
+		)
+	)
+)
+
+(define-class ColonHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set ColonHandler:inst (ColonHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(instance? tok ColonToken)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define class ClassType (h:compile_ classes first c mi code Main:unknownType))
+		(define field Field (class:getField (as VToken (tok:ops:get 1)):val -1))
+		(if (field:getStaticFlag)
+			(if output (code:emitGetStatic field))
+			(if output (code:emitGetField field))
+		)
+		(field:getType)
+	)
+)
+
+(define-class QuasiHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set QuasiHandler:inst (QuasiHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(instance? tok QuoteToken)
+	)
+	((compile_quasi h Handler classes Classes o Object c ClassType mi AMethodToken code CodeAttr needed Type macro bool) Type
+		(define output (!= code null))
+		(define result
+			(if (= o null)
+				(begin
+					(if output (code:emitPushNull))
+					Type:nullType
+				)
+			(if (instance? o Token)
+				(begin
+					(define tok Token o)
+					(if (instance? tok VToken)
+						(set (as VToken tok):macro true)
+					)
+					(define t (if (instance? tok UnquoteToken) (h:compile_ classes (tok:ops:get 0) c mi null Main:unknownType) null))
+					(if (&& (instance? tok UnquoteToken) (|| (= t (Type:getType "Token")) (&& (instance? t ArrayType) (= (as ArrayType t):elements (Type:getType "Token"))) (Type:isSame t (Type:getType "java.util.List"))))
+						(h:compile_ classes (tok:ops:get 0) c mi code Main:unknownType)
+						(if (instance? tok UnquoteToken)
+							(begin
+								(define const (tok:ops:get 0))
+								(define t (h:compile_ classes const c mi null Main:unknownType))
+								(define type ClassType
+									(if (= t Type:charType)
+										(Type:getType "CToken")
+									(if (instance? t PrimType)
+										(Type:getType "NToken")
+										(Type:getType "SToken")
+									)
+									)
+								)
+								(if output (code:emitNew type))
+								(if output (code:emitDup))
+								(if output (code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
+								(if output (code:emitDup))
+								(h:compile_ classes const c mi code Type:objectType)
+								(if output (code:emitPutField (type:getField "val")))
+								(Type:getType "Token")
+							)	
+							(begin
+								(define type ClassType (Type:getType ((o:getClass):getName)))
+								(if output (code:emitNew type))
+								(if output (code:emitDup))
+								(if output (code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
+								(define super type)
+								(while (!= super null)
+									(define field (super:getFields))
+									(while (!= field null)
+										(if output (code:emitDup))
+										(if (= (field:getType) Type:intType)
+											(this:compile_quasi h classes ((field:getReflectField):getInt tok) c mi code (field:getType) macro)
+										(if (= (field:getType) (Type:getType "java.util.HashMap"))
+											(if output (code:emitPushNull))
+											(this:compile_quasi h classes ((field:getReflectField):get tok) c mi code (field:getType) macro)
+										)
+										)
+										(if output (code:emitPutField field))
+										(set field (field:getNext))
+									)
+									(set super (super:getSuperclass))
+								)
+								(Type:getType "Token")
+							)
+						)
+					)
+				)
+			(if (instance? o String)
+				(begin
+					(if output (code:emitPushString (as String o)))
+					Type:javalangStringType
+				)
+			(if (instance? o Integer)
+				(begin
+					(if output (code:emitPushInt (as Integer o)))
+					Type:intType
+				)
+			(if (instance? o Boolean)
+				(begin
+					(if output (code:emitPushInt (as int (as Boolean o))))
+					Type:booleanType
+				)
+			(if (instance? o List)
+				(begin
+					(define o List o)
+					(define al ClassType (Type:getType "java.util.ArrayList"))
+					(if output (code:emitNew al))
+					(if output (code:emitDup))
+					(if output (code:emitInvoke (al:getMethod "<init>" (Type[]))))
+					(define i 0)
+					(while (!= i (o:size))
+						(define t (this:compile_quasi h classes (o:get i) c mi null Main:unknownType macro))
+						(if (= t (Type:getType "Token"))
+							(begin
+								(if output (code:emitDup))
+								(this:compile_quasi h classes (o:get i) c mi code Main:unknownType macro)
+								(if output (code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
+								(if output (code:emitPop 1))
+							)
+						(if (instance? t ArrayType)
+							(begin
+								(if output (code:emitDup))
+								(this:compile_quasi h classes (o:get i) c mi code Main:unknownType macro)
+								(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
+								(if output (code:emitPop 1))
+							)
+							(begin
+								(if output (code:emitDup))
+								(this:compile_quasi h classes (o:get i) c mi code Main:unknownType macro)
+								(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.List")):getDeclaredMethod "addAll" 1)))
+								(if output (code:emitPop 1))
+							)
+						)
+						)
+						(set i (+ i 1))
+					)
+					al
+				)
+				Main:unknownType
+			)
+			)
+			)
+			)
+			)
+			)
+		)
+		(this:castMaybe code result needed)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(this:compile_quasi h classes (tok:ops:get 0) c mi code (Type:getType "Token") (tok:what:equals "`"))
+	)
+)
+
+(define-class ConstsHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void (set ConstsHandler:inst (ConstsHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(|| (tok:what:equals "true") (tok:what:equals "false") (tok:what:equals "null"))
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if (tok:what:equals "true")
+			(begin
+				(if output (code:emitPushInt 1))
+				Type:booleanType
+			)
+		(if (tok:what:equals "false")
+			(begin
+				(if output (code:emitPushInt 0))
+				Type:booleanType
+			)
+			(begin
+				(if output (code:emitPushNull))
+				Type:nullType
+			)
+		)
+		)
+	)
+)
+
+(define-class VHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set VHandler:inst (VHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(instance? tok VToken)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define class ClassType (classes:get tok))
+		(if (= class Main:unknownType)
+			(begin
+				(define tok VToken tok)
+				(define found AVar (mi:getVar tok:val (if tok:macro mi:mscopes mi:scopes)))
+				(if output (found:load code))
+				found:type
+			)
+			class
+		)
+	)
+)
+
+(define-class BeginBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set BeginBlockHandler:inst (BeginBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(|| (first:val:equals "begin") (first:val:equals "mbegin"))
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first VToken (tok:ops:get 0))
+		(if (first:val:equals "mbegin") (mi:mscopes:push (HashMap)))
+		(mi:pushScope code (as BlockToken tok):labels)
+		(h:compile_al classes tok:ops 1 (- (tok:ops:size) 1) c mi code Type:voidType)
+		(define type (h:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi code needed))
+		(if (first:val:equals "mbegin") (mi:mscopes:pop))
+		(mi:popScope code)
+		type
+	)
+)
+
+(define-class LabelBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set LabelBlockHandler:inst (LabelBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "label")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define label (mi:getLabel (as VToken (tok:ops:get 1)):val))
+		(if output (label:define code))
+		Type:voidType
+	)
+)
+
+(define-class GotoBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set GotoBlockHandler:inst (GotoBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "goto")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define label (mi:getLabel (as VToken (tok:ops:get 1)):val))
+		(if output (code:emitGoto label))
+		Type:voidType
+	)
+)
+
+(define-class DefineBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set DefineBlockHandler:inst (DefineBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "define")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define type Type
+			(if (= (tok:ops:size) 4)
+				(begin
+					(define type Type (classes:get (tok:ops:get 2)))
+					(h:compile_ classes (tok:ops:get 3) c mi code type)
+					type
+				)
+				(h:compile_ classes (tok:ops:get 2) c mi code Main:unknownType)
+			)
+		)
+		(define tname VToken (tok:ops:get 1))
+		(define name tname:val)
+		(define var Variable (if output (code:addLocal type name) null))
+		(if output (code:emitStore var))
+		(if tname:macro
+			((as HashMap (mi:mscopes:getFirst)):put name (Var var type))
+			((as HashMap (mi:scopes:getFirst)):put name (Var var type))
+		)
+		Type:voidType
+	)
+)
+
+(define-class TryBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set TryBlockHandler:inst (TryBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "try")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define type (h:compile_ classes (tok:ops:get 1) c mi null Main:unknownType))
+		(if output (code:emitTryStart false null))
+		(h:compile_ classes (tok:ops:get 1) c mi code type)
+		(if output (code:emitCatchStart Type:javalangThrowableType))
+		(if output (code:emitPop 1))
+		(h:compile_ classes (tok:ops:get 2) c mi code type)
+		(if output (code:emitCatchEnd))
+		(if output (code:emitTryCatchEnd))
+		type
+	)
+)
+
+(define-class InstanceBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set InstanceBlockHandler:inst (InstanceBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "instance?")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(h:compile_ classes (tok:ops:get 1) c mi code Main:unknownType)
+		(if output (code:emitInstanceof (classes:get (tok:ops:get 2))))
+		Type:booleanType
+	)
+)
+
+(define-class SetBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set SetBlockHandler:inst (SetBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "set")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define out (tok:ops:get 1))
+		(if (instance? out ColonToken)
+			(begin
+				(define first (out:ops:get 0))
+				(define class ClassType (h:compile_ classes first c mi code Main:unknownType))
+				(define field Field (class:getField (as VToken (out:ops:get 1)):val -1))
+				(h:compile_ classes (tok:ops:get 2) c mi code (field:getType))
+				(if (field:getStaticFlag)
+					(if output (code:emitPutStatic field))
+					(if output (code:emitPutField field))
+				)
+			)
+			(begin
+				(define tname VToken (tok:ops:get 1))
+				(define name tname:val)
+				(define var
+					(if tname:macro
+						(mi:getVar name mi:mscopes)
+						(mi:getVar name mi:scopes)
+					)
+				)
+				(h:compile_ classes (tok:ops:get 2) c mi code var:type)
+				(if output (var:store code))
+			)
+		)
+		Type:voidType
+	)
+)
+
+(define-class ASetBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set ASetBlockHandler:inst (ASetBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "aset")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define type ArrayType (h:compile_ classes (tok:ops:get 1) c mi code Main:unknownType))
+		(h:compile_ classes (tok:ops:get 2) c mi code Main:unknownType)
+		(h:compile_ classes (tok:ops:get 3) c mi code type:elements)
+		(if output (code:emitArrayStore))
+		Type:voidType
+	)
+)
+
+(define-class AGetBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set AGetBlockHandler:inst (AGetBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "aget")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define type ArrayType (h:compile_ classes (tok:ops:get 1) c mi code Main:unknownType))
+		(h:compile_ classes (tok:ops:get 2) c mi code Type:intType)
+		(if output (code:emitArrayLoad))
+		type:elements
+	)
+)
+
+(define-class ALenBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set ALenBlockHandler:inst (ALenBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "alen")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(h:compile_ classes (tok:ops:get 1) c mi code Main:unknownType)
+		(if output (code:emitArrayLength))
+		Type:intType
+	)
+)
+
+(define-class AsBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set AsBlockHandler:inst (AsBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "as")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define cast (classes:get (tok:ops:get 1)))
+		(define out (h:compile_ classes (tok:ops:get 2) c mi code (cast:getRawType)))
+		(if (instance? cast ParameterizedType)
+			cast
+			out
+		)
+	)
+)
+
+(define-class BinOpsBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set BinOpsBlockHandler:inst (BinOpsBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(Main:binOps:containsKey first:val)
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first VToken (tok:ops:get 0))
+		(define types (Arrays:asList (h:compile_al classes tok:ops 1 (tok:ops:size) c mi null Main:unknownType)))
+		(define otype Type Type:voidType)
+		(if (types:contains Type:doubleType)
+			(set otype Type:doubleType)
+		(if (types:contains Type:longType)
+			(set otype Type:longType)
+			(set otype Type:intType)
+		)
+		)
+		(h:compile_ classes (tok:ops:get 1) c mi code otype)
+		(define i 2)
+		(while (!= i (tok:ops:size))
+			(h:compile_ classes (tok:ops:get i) c mi code otype)
+			(if output (code:emitBinop (Main:binOps:get first:val) otype))
+			(set i (+ i 1))
+		)
+		otype
+	)
+)
+
+(define-class IfBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set IfBlockHandler:inst (IfBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "if")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(BlockHandler:emitIf h classes false tok 1 (TokenEmitter (tok:ops:get 2)) (if (= (tok:ops:size) 4) (TokenEmitter (tok:ops:get 3)) null) c mi code needed)
+	)
+)
+
+(define-class MacroBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set MacroBlockHandler:inst (MacroBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "macro")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define name String (as VToken (tok:ops:get 1)):val)
+		(BlockHandler:emitInvoke h name classes:macros classes tok c mi code Main:unknownType 2)
+	)
+)
+
+(define-class WhileBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set WhileBlockHandler:inst (WhileBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "while")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(mi:pushScope code (as BlockToken tok):labels)
+		(define start Label (Label))
+		(if output (start:define code))
+		(define t (BlockHandler:emitIf h classes false tok 1 (Emitters (Emitter[] (TokensEmitter tok:ops 2 (tok:ops:size)) (Goto start))) null c mi code needed))
+		(mi:popScope code)
+		t
+	)
+)
+
+(define-class CompareBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set CompareBlockHandler:inst (CompareBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(BlockHandler:isCompare first:val)
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(BlockHandler:emitIf_ h classes false tok 1 (as VToken first):val (TokenEmitter (Token tok:line "true")) (TokenEmitter (Token tok:line "false")) c mi code Type:booleanType)
+	)
+)
+
+(define-class ColonBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set ColonBlockHandler:inst (ColonBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) ColonToken)
+			true
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define name (as VToken (first:ops:get 1)):val)
+		(BlockHandler:emitInvoke h name (h:compile_ classes (first:ops:get 0) c mi code Main:unknownType) classes tok c mi code Main:unknownType 1)
+	)
+)
+
+(define-class ConsBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set ConsBlockHandler:inst (ConsBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		true
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:ops:get 0))
+		(define type Type (classes:get first))
+		(if (instance? type ArrayType)
+			(begin
+				(define array ArrayType type)
+				(define len Token (if (> (tok:ops:size) 1) (tok:ops:get 1) null))
+				(define i0
+					(if (&& (!= len null) (instance? len ColonToken) ((as VToken (len:ops:get 0)):val:equals "len"))
+						(begin (h:compile_ classes (len:ops:get 1) c mi code Main:unknownType) 2)
+						(begin (if output (code:emitPushInt (- (tok:ops:size) 1))) 1)
+					)
+				)
+				(if output (code:emitNewArray array:elements))
+				(define i i0)
+				(while (!= i (tok:ops:size))
+					(if output (code:emitDup))
+					(if output (code:emitPushInt (- i i0)))
+					(h:compile_ classes (tok:ops:get i) c mi code array:elements)
+					(if output (code:emitArrayStore))
+					(set i (+ i 1))
+				)
+				type
+			)
+			(begin
+				(define class ClassType (type:getRawType))
+				(if output (code:emitNew class))
+				(if output (code:emitDup))
+				(BlockHandler:emitInvoke h "<init>" type classes tok c mi code Main:unknownType 1)
+				type
+			)
+		)
+	)
+)
+
+(define-class BlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set BlockHandler:inst (BlockHandler)))
+	(handlers Handler[])
+	((<init> handlers Handler[]) void
+		(Handler:<super>)
+		(set this:handlers handlers)
+	)
+	((<init>) void
+		(BlockHandler:<super> (Handler[]
+			BeginBlockHandler:inst
+			LabelBlockHandler:inst
+			GotoBlockHandler:inst
+			DefineBlockHandler:inst
+			TryBlockHandler:inst
+			InstanceBlockHandler:inst
+			SetBlockHandler:inst
+			ASetBlockHandler:inst
+			AGetBlockHandler:inst
+			ALenBlockHandler:inst
+			AsBlockHandler:inst
+			BinOpsBlockHandler:inst
+			IfBlockHandler:inst
+			MacroBlockHandler:inst
+			WhileBlockHandler:inst
+			CompareBlockHandler:inst
+			ColonBlockHandler:inst
+			ConsBlockHandler:inst
+		))
+	)
+	((valid tok Token) bool 'public
+		(&& (instance? tok BlockToken) (> (tok:ops:size) 0))
+	)
+	((isCompare s String) bool 'static
+		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare1Ops:containsKey s) (Main:compare2Ops:containsKey s))
+	)
+	((invertComp inv bool n int) int 'static
+		(if inv
+			(Main:compareOpposites:get n)
+			n
+		)
+	)
+	((emitInvoke h Handler name String type Type classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type i int) Type 'static
+		(define output (!= code null))
+		(define types (h:compile_al classes tok:ops i (tok:ops:size) c mi null Main:unknownType))
+		(if (name:equals "<super>") (begin (if output (code:emitPushThis)) (set name "<init>")))
+		(define filter (MFilter name types type))
+		((as ObjectType (type:getRawType)):getMethods filter 2 null)
+		(define method Method
+			(if (> (filter:methods0:size) 0)
+				(filter:methods0:get 0)
+				(filter:methods1:get 0)
+			)
+		)
+		(define params (method:getParameterTypes))
+		(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
+		(begin
+			(define j 0)
+			(define n
+				(if (&&
+					varargs
+					(||
+						(< (alen types) (alen params))
+						(< ((Main:resolveParam type (aget params (- (alen params) 1))):compare (aget types (- (alen params) 1))) 0)
+					)
+				) 1 0)
+			)
+			(while (!= j (- (alen params) n))
+				(h:compile_ classes (tok:ops:get (+ i j)) c mi code (Main:resolveParam type (aget params j)))
+				(set j (+ j 1))
+			)
+			(if (= n 1)
+				(begin
+					(define at ArrayType (aget params (- (alen params) 1)))
+					(define et (Main:resolveParam type at:elements))
+					(if output (code:emitPushInt (+ 1 (- (alen types) (alen params)))))
+					(if output (code:emitNewArray at:elements))
+					(define oj j)
+					(while (!= j (alen types))
+						(if output (code:emitDup))
+						(if output (code:emitPushInt (- j oj)))
+						(h:compile_ classes (tok:ops:get (+ i j)) c mi code et)
+						(if output (code:emitArrayStore))
+						(set j (+ j 1))
+					)
+				)
+			)
+		)
+		(if output (code:emitInvoke method))
+		(define out (Main:resolveParam type (method:getReturnType)))
+		(if (! (Type:isSame out ((method:getReturnType):getRawType)))
+			(if output (code:emitCheckcast (out:getRawType)))
+		)
+		out
+	)
+	;tok = condition
+	((emitIf_ h Handler classes Classes inv bool tok Token i int compare String trueE Emitter falseE Emitter c ClassType mi AMethodToken code CodeAttr needed Type) Type 'static
+		(define output (!= code null))
+		(if (compare:equals "!")
+			(begin
+				(BlockHandler:emitIf h classes (! inv) tok i trueE falseE c mi code needed)
+			)
+		(if (|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
+			(begin
+				(define skipL (Label))
+				(define falseL (Label))
+				(define falseTok (Goto falseL))
+				(define i 1)
+				(while (!= i (- (tok:ops:size) 1))
+					(BlockHandler:emitIf h classes (! inv) tok i falseTok null c mi code needed)
+					(set i (+ i 1))
+				)
+				(BlockHandler:emitIf h classes (! inv) tok (- (tok:ops:size) 1) falseTok null c mi code needed)
+				(define type (trueE:emit h classes c mi code needed))
+				(if output (code:emitGoto skipL))
+				(if output (falseL:define code))
+				(if (!= falseE null)
+					(begin
+						(falseE:emit h classes c mi code needed)
+					)
+				)
+				(if output (skipL:define code))
+				type
+			)
+		(if (|| (&& (! inv) (compare:equals "||")) (&& inv (compare:equals "&&")))
+			(begin
+				(define skipL (Label))
+				(define trueL (Label))
+				(define trueTok (Goto trueL))
+				(define i 1)
+				(while (!= i (- (tok:ops:size) 1))
+					(BlockHandler:emitIf h classes inv tok i trueTok null c mi code needed)
+					(set i (+ i 1))
+				)
+				(BlockHandler:emitIf h classes inv tok (- (tok:ops:size) 1) trueTok null c mi code needed)
+				(if (! (= falseE null))
+					(begin
+						(falseE:emit h classes c mi code needed)
+					)
+				)
+				(if output (code:emitGoto skipL))
+				(if output (trueL:define code))
+				(define type (trueE:emit h classes c mi code needed))
+				(if output (skipL:define code))
+				type
+			)
+			(begin
+				(define skip (Label))
+				(if (Main:compare1Ops:containsKey compare)
+					(begin
+						(h:compile_ classes (tok:ops:get i) c mi code Main:unknownType)
+						(if output (code:emitGotoIfCompare1 skip (BlockHandler:invertComp inv (Main:compare1Ops:get compare))))
+					)
+					(begin
+						(h:compile_ classes (tok:ops:get i) c mi code Main:unknownType)
+						(h:compile_ classes (tok:ops:get (+ i 1)) c mi code Main:unknownType)
+						(if output (code:emitGotoIfCompare2 skip (BlockHandler:invertComp inv (Main:compare2Ops:get compare))))
+					)
+				)
+				
+				;(code:emitIf)
+				(define type (trueE:emit h classes c mi code needed))
+				(define end (Label))
+				(if (! (= falseE null))
+					(if output (code:emitGoto end))
+				)
+				(if output (skip:define code))
+				(if (! (= falseE null))
+					(begin
+						;(code:emitElse)
+						(falseE:emit h classes c mi code needed)
+						(if output (end:define code))
+					)
+				)
+				;(code:emitFi)
+				type
+			)
+		)
+		)
+		)
+	)
+	((emitIf h Handler classes Classes inv bool tok Token i int trueE Emitter falseE Emitter c ClassType mi AMethodToken code CodeAttr needed Type) Type 'static
+		(define cond (tok:ops:get i))
+		(if (&& (instance? cond BlockToken) (instance? (cond:ops:get 0) VToken) (BlockHandler:isCompare (as VToken (cond:ops:get 0)):val))
+			(BlockHandler:emitIf_ h classes inv cond 1 (as VToken (cond:ops:get 0)):val trueE falseE c mi code needed)
+			(BlockHandler:emitIf_ h classes inv tok i "!=0" trueE falseE c mi code needed)
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define type (Handler:tryHandlers h null this:handlers classes tok c mi code needed))
+		type
 	)
 )

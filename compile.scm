@@ -1151,7 +1151,7 @@
 						)
 					(if (first:val:equals "try")
 						(begin
-							(if output (code:emitTryStart #f needed))
+							(if output (code:emitTryStart #f #!null))
 							(define type ::Type (compile_ classes (tok:ops:get 1) c mi code needed))
 							(if output (code:emitCatchStart Type:javalangThrowableType))
 							(if output (code:emitPop 1))
@@ -1225,8 +1225,11 @@
 					(if (first:val:equals "while")
 						(begin
 							(define start ::Label (Label))
+							(mi:pushScope code tok:val)
 							(if output (start:define code))
-							(emitIf classes #f tok 1 (Emitters (Emitter[] (TokensEmitter tok:ops 2 (length tok:ops)) (Goto start))) #!null c mi code needed)
+							(define t (emitIf classes #f tok 1 (Emitters (Emitter[] (TokensEmitter tok:ops 2 (length tok:ops)) (Goto start))) #!null c mi code needed))
+							(mi:popScope code)
+							t
 						)
 					(if (isCompare first:val)
 						(begin
