@@ -2,6 +2,8 @@
 (import java.nio.file.*)
 (import gnu.bytecode.*)
 (import java.io.*)
+(import net.sourceforge.argparse4j.ArgumentParsers)
+(import net.sourceforge.argparse4j.inf.*)
 
 (define-class Main () 'public
 	(ML int 'static) ;max length of a special token
@@ -125,15 +127,30 @@
 			)
 			(set i (+ i 1))
 		)
-		(define s (String (Files:readAllBytes (Paths:get (aget args 0) (String[])))))
-		(define toks ((Lexer s):lex))
-		((Parser toks):parse 0 (toks:size) Main:MP 0)
+
+		(define parser (ArgumentParsers:newArgumentParser "sJava compiler"))
+		((parser:addArgument (String[] "-d")):setDefault "out")
+		((parser:addArgument (String[] "file")):nargs "*")
+
+		(define res Namespace null)
+		(set res (parser:parseArgs args))
+		(define fileNames List{String} (res:getList "file"))
+		(define files (HashMap{String List{Token}}))
+		(define it (fileNames:iterator))
+
+		(while (it:hasNext)
+			(define name String (it:next))
+			(define s (String (Files:readAllBytes (Paths:get name (String[])))))
+			(define toks ((Lexer s):lex))
+			((Parser toks):parse 0 (toks:size) Main:MP 0)
+			(files:put name toks)
+		)
 		;((System:console):readLine)
-		((Compiler):compile toks (HashMap))
+		((Compiler):compile files (res:getString "d"))
 		;((System:console):readLine)
 	)
 	((resolveParam pt Type t Type) Type 'static 'public
-		(if (&& (instance? t TypeVariable) (instance? pt ParameterizedType))
+		(if (&& (instance? pt ParameterizedType) (instance? t TypeVariable))
 			(begin
 				(define tvs ((as ClassType ((as ParameterizedType pt):getRawType)):getTypeParameters))
 				(define s String ((as TypeVariable t):getName))
@@ -151,7 +168,19 @@
 				)
 				ret
 			)
+		(if (&& (instance? pt ParameterizedType) (instance? t ParameterizedType))
+			(begin
+				(define types ((as ParameterizedType t):getTypeArgumentTypes))
+				(define parameterized (Type[] len:(alen types)))
+				(define i 0)
+				(while (!= i (alen types))
+					(aset parameterized i (Main:resolveParam pt (aget types i)))
+					(set i (+ i 1))
+				)
+				(ParameterizedType (as ClassType (t:getRawType)) parameterized)
+			)
 			(t:getRawType)
+		)
 		)
 	)
 	((shiftDown toks List i int n int) void 'static
@@ -245,10 +274,13 @@
 (define-class VToken (Token) 'public
 	(val String 'public)
 	(macro bool 'public)
-	((<init> line int val String) void
+	((<init> line int val String macro bool) void
 		(Token:<super> line "V")
 		(set this:val val)
-		(set this:macro false)
+		(set this:macro macro)
+	)
+	((<init> line int val String) void
+		(VToken:<super> line val false)
 	)
 	((toString) String
 		this:val
@@ -363,7 +395,7 @@
 )
 
 (define-class BlockToken (Token) 'public
-	(labels HashMap 'public)
+	(labels HashMap)
 	((<init> line0 int ops0 List{Token}) void 'public
 		(Token:<super> line0 "block" -1 ops0)
 	)
@@ -608,13 +640,17 @@
 	(starImports ArrayList)
 	(found HashMap{String Boolean})
 	(macros ClassType)
-	((<init> locals0 HashMap) void
+	(newClasses List{ClassType})
+	(package String)
+	((<init> locals0 HashMap macros ClassType) void
 		(Object:<super>)
 		(set this:locals locals0)
+		(set this:macros macros)
 		(set this:imports (HashMap))
 		(set this:starImports (ArrayList))
 		(this:starImports:add "java.lang.")
 		(set this:found (HashMap{String Boolean}))
+		(set this:newClasses (ArrayList{ClassType}))
 	)
 	((classExists name String) bool
 		(if (this:found:containsKey name)
@@ -626,6 +662,7 @@
 							(java.lang.Class:forName name)
 							true
 						)
+						e
 						false
 					)
 				)
@@ -757,6 +794,16 @@
 		)
 		found
 	)
+	((newVar code CodeAttr tok VToken type Type) Variable
+		(define output (!= code null))
+		(define name tok:val)
+		(define var Variable (if output (code:addLocal (type:getRawType) name) null))
+		(if tok:macro
+			((as HashMap (this:mscopes:getFirst)):put name (Var var type))
+			((as HashMap (this:scopes:getFirst)):put name (Var var type))
+		)
+		var
+	)
 )
 
 (define-class MethodToken (AMethodToken)
@@ -779,13 +826,9 @@
 
 (define-class Compiler ()
 	((<init>) void (Object:<super>))
-	((compile_macros classes Classes toks ArrayList{Token}) void
-		(define macros (ClassType "Macros"))
-		(set classes:macros macros)
-		(macros:setSuper "java.lang.Object")
-		(macros:setModifiers Access:PUBLIC)
+	((compileMacros classes Classes toks ArrayList{Token} mis HashMap{String Boolean}) void
 		(define i 0)
-		(define mis (HashMap{String Boolean}))
+		(define macros classes:macros)
 		(while (!= i (toks:size))
 			(define tok (toks:get i))
 			(if (&& (instance? tok BlockToken) (> (tok:ops:size) 0) (instance? (tok:ops:get 0) VToken))
@@ -893,7 +936,7 @@
 							)
 							(define filter (MFilter name types (Type:getType "Token")))
 							(macros:getMethods filter 0 null)
-							(define method (filter:methods0:get 0))
+							(define method (filter:getMethod))
 							(define params (method:getParameterTypes))
 							(define classes (Class[] len:(alen params)))
 							(set j 0)
@@ -902,7 +945,7 @@
 								(set j (+ j 1))
 							)
 							(define args
-								(if (instance? (aget params (- (alen params) 1)) ArrayType)
+								(if (&& (> (alen params) 0) (instance? (aget params (- (alen params) 1)) ArrayType))
 									(begin
 										(define var (alen params))
 										(define al (ArrayList (tok:ops:subList 1 var)))
@@ -914,7 +957,7 @@
 									((tok:ops:subList 1 (tok:ops:size)):toArray)
 								)
 							)
-							(define block (BlockToken tok:line (Arrays:asList (Token[] (VToken tok:line "mbegin") (as Token ((macrosC:getMethod name classes):invoke null args))))))
+							(define block (BlockToken tok:line (Arrays:asList (Token[] (VToken tok:line "begin" true) (as Token ((macrosC:getMethod name classes):invoke null args))))))
 							(this:compileBlock block 0)
 							(toks:set i block)
 						)
@@ -928,13 +971,16 @@
 	((isCompare s String) bool
 		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare1Ops:containsKey s) (Main:compare2Ops:containsKey s))
 	)
-	((compileClass classes Classes newClasses ArrayList tok Token) Token
+	((compileClass classes Classes tok Token) Token
 		(if (instance? (tok:ops:get 0) VToken)
 			(begin
 				(define first VToken (tok:ops:get 0))
 				(if (first:val:equals "define-class")
 					(begin
-						(define name String (as VToken (tok:ops:get 1)):val)
+						(define name (as VToken (tok:ops:get 1)):val)
+						(if (!= classes:package null)
+							(set name ((classes:package:concat "."):concat name))
+						)
 						(define c (ClassType name))
 						(define supers (tok:ops:get 2):ops)
 						(c:setSuper "java.lang.Object")
@@ -947,7 +993,7 @@
 							)
 							(set i (+ i 1))
 						)
-						(newClasses:add c)
+						(classes:newClasses:add c)
 						(classes:locals:put name c)
 						(set i 2)
 						(define run true)
@@ -1120,66 +1166,122 @@
 		(mi:popScope code)
 		(code:emitReturn)
 	)
-	((compile toks ArrayList{Token} locals HashMap) void
-		(define classes (Classes locals))
-		(define newClasses (ArrayList))
+	((compile files HashMap{String ArrayList{Token}} dir String) void
+		(define macros (ClassType "Macros"))
+		(macros:setSuper "java.lang.Object")
+		(macros:setModifiers Access:PUBLIC)
 
-		(define i 0)
-		(while (!= i (toks:size))
-			(toks:set i (this:compileClass classes newClasses (toks:get i)))
-			(set i (+ i 1))
+		(define locals (HashMap))
+		(define classes (HashMap{String Classes}))
+		(define mis (HashMap{String Boolean}))
+
+		(begin
+			(define it ((files:entrySet):iterator))
+			(while (it:hasNext)
+				(define entry (it:next))
+				(define class (Classes locals macros))
+				(classes:put (entry:getKey) class)
+				(define toks (entry:getValue))
+				(if (&&
+						(instance? (toks:get 0) BlockToken)
+						(instance? ((toks:get 0):ops:get 0) VToken)
+						((as VToken ((toks:get 0):ops:get 0)):val:equals "package")
+					)
+					(set class:package (as VToken ((toks:get 0):ops:get 1)):val)
+				)
+				(define i 0)
+				(while (!= i (toks:size))
+					(toks:set i (this:compileClass class (toks:get i)))
+					(set i (+ i 1))
+				)
+			)
 		)
 
-		(set i 0)
-		(while (!= i (toks:size))
-			(this:compileMethodDefs classes (toks:get i))
-			(set i (+ i 1))
+		(begin
+			(define it ((files:entrySet):iterator))
+			(while (it:hasNext)
+				(define entry (it:next))
+				(define toks (entry:getValue))
+				(define i 0)
+				(while (!= i (toks:size))
+					(this:compileMethodDefs (classes:get (entry:getKey)) (toks:get i))
+					(set i (+ i 1))
+				)
+			)
 		)
 
-		(this:compile_macros classes toks)
+		(begin
+			(define it ((files:entrySet):iterator))
+			(while (it:hasNext)
+				(define entry (it:next))
+				(define toks (entry:getValue))
+				(this:compileMacros (classes:get (entry:getKey)) toks mis)
+			)
+		)
 
-		(set i 0)
-		(while (!= i (toks:size))
-			(this:compileMethods classes (toks:get i))
-			(set i (+ i 1))
+		(begin
+			(define it ((files:entrySet):iterator))
+			(while (it:hasNext)
+				(define entry (it:next))
+				(define toks (entry:getValue))
+				(define i 0)
+				(while (!= i (toks:size))
+					(this:compileMethods (classes:get (entry:getKey)) (toks:get i))
+					(set i (+ i 1))
+				)
+			)
 		)
 
 		(define cl (ArrayClassLoader))
 
-		((java.io.File "out"):mkdir)
+		(begin
+			(define it ((classes:entrySet):iterator))
+			(while (it:hasNext)
+				(define entry (it:next))
+				(define classes (entry:getValue))
+				(define newClasses classes:newClasses)
+				(define i 0)
+				(while (!= i (newClasses:size))
+					(define class ClassType (newClasses:get i))
+					(define classFile (class:writeToArray))
+					(cl:addClass (class:getSimpleName) classFile)
+					(define pre
+						(if (= classes:package null)
+							dir
+							((dir:concat (classes:package:replace "." "/")):concat "/")
+						)
+					)
+					((java.io.File pre):mkdirs)
+					(Files:write (Paths:get ((pre:concat (class:getSimpleName)):concat ".class") (String[])) classFile (OpenOption[]))
+					(set i (+ i 1))
+				)
+			)
+		)
 
 		(define argTypes (Class[] (Class:forName "[Ljava.lang.String;")))
 		(define main java.lang.reflect.Method null)
 
-		(set i 0)
-		(while (!= i (newClasses:size))
-			(define class ClassType (newClasses:get i))
-			(define classFile (class:writeToArray))
-			(cl:addClass (class:getSimpleName) classFile)
-			(Files:write (Paths:get (("out/":concat (class:getSimpleName)):concat ".class") (String[])) classFile (OpenOption[]))
-			(set i (+ i 1))
-		)
+		; (if false
+		; 	(begin
+		; 		(define i 0)
+		; 		(while (!= i (newClasses:size))
+		; 			(define class ClassType (newClasses:get i))
+		; 			(try
+		; 				(set main ((cl:loadClass (class:getSimpleName) true):getMethod "main" argTypes))
+		; 				e
+		; 				()
+		; 			)
+		; 			(set i (+ i 1))
+		; 		)
 
-		(if false
-			(begin
-				(set i 0)
-				(while (!= i (newClasses:size))
-					(define class ClassType (newClasses:get i))
-					(try
-						(set main ((cl:loadClass (class:getSimpleName) true):getMethod "main" argTypes))
-						()
-					)
-					(set i (+ i 1))
-				)
-
-				(if (!= main null)
-					(main:invoke
-						null
-						(Object[] (String[]))
-					)
-				)
-			)
-		)
+		; 		(if (!= main null)
+		; 			(main:invoke
+		; 				null
+		; 				(Object[] (String[]))
+		; 			)
+		; 		)
+		; 	)
+		; )
 	)
 )
 
@@ -1243,6 +1345,7 @@
 (define-class MFilter (Filter)
 	(methods0 ArrayList{Method})
 	(methods1 ArrayList{Method})
+	(varmethods ArrayList{Method})
 	(name String)
 	(types Type[])
 	(pt Type)
@@ -1250,6 +1353,7 @@
 		(Object:<super>)
 		(set this:methods0 (ArrayList{Method}))
 		(set this:methods1 (ArrayList{Method}))
+		(set this:varmethods (ArrayList{Method}))
 		(set this:name name0)
 		(set this:types types0)
 		(set this:pt pt0)
@@ -1290,9 +1394,12 @@
 							(set i (+ i 1))
 						)
 						(if (! stop)
-							(if (= minLevel 1)
-								(this:methods1:add method)
-								(this:methods0:add method)
+							(if varargs
+								(this:varmethods:add method)
+								(if (= minLevel 1)
+									(this:methods1:add method)
+									(this:methods0:add method)
+								)
 							)
 						)
 					)
@@ -1300,6 +1407,15 @@
 			)
 		)
 		false
+	)
+	((getMethod) Method
+		(if (= (this:methods0:size) 0)
+			(if (= (this:methods1:size) 0)
+				(this:varmethods:get 0)
+				(this:methods1:get 0)
+			)
+			(this:methods0:get 0)
+		)
 	)
 )
 
@@ -1372,7 +1488,7 @@
 						(if output (code:emitInvoke unbox))
 						(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
 					)
-					(if output (code:emitCheckcast needed))
+					(if output (code:emitCheckcast (needed:getRawType)))
 				)
 				)
 				needed
@@ -1407,8 +1523,17 @@
 	((compile_ classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type
 		(define output (!= code null))
 		(if output (code:putLineNumber "abc.java" tok:line))
-		(define type (Handler:tryHandlers this Type:voidType this:handlers classes tok c mi code needed))
-		(this:castMaybe code type needed)
+		(try
+			(begin
+				(define type (Handler:tryHandlers this Type:voidType this:handlers classes tok c mi code needed))
+				(this:castMaybe code type needed)
+			)
+			e
+			(begin
+				(System:out:println ("Error compiling line ":concat (Integer:toString tok:line)))
+				(throw e)
+			)
+		)
 	)
 )
 
@@ -1554,15 +1679,16 @@
 								(while (!= super null)
 									(define field (super:getFields))
 									(while (!= field null)
-										(if output (code:emitDup))
-										(if (= (field:getType) Type:intType)
-											(this:compile_quasi h classes ((field:getReflectField):getInt tok) c mi code (field:getType) macro)
-										(if (= (field:getType) (Type:getType "java.util.HashMap"))
-											(if output (code:emitPushNull))
-											(this:compile_quasi h classes ((field:getReflectField):get tok) c mi code (field:getType) macro)
+										(if (!= (& (field:getModifiers) Access:PUBLIC) 0)
+											(begin
+												(if output (code:emitDup))
+												(if (= (field:getType) Type:intType)
+													(this:compile_quasi h classes ((field:getReflectField):getInt tok) c mi code (field:getType) macro)
+													(this:compile_quasi h classes ((field:getReflectField):get tok) c mi code (field:getType) macro)
+												)
+												(if output (code:emitPutField field))
+											)
 										)
-										)
-										(if output (code:emitPutField field))
 										(set field (field:getNext))
 									)
 									(set super (super:getSuperclass))
@@ -1696,7 +1822,7 @@
 		(if (instance? (tok:ops:get 0) VToken)
 			(begin
 				(define first VToken (tok:ops:get 0))
-				(|| (first:val:equals "begin") (first:val:equals "mbegin"))
+				(first:val:equals "begin")
 			)
 			false
 		)
@@ -1704,11 +1830,11 @@
 	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define first VToken (tok:ops:get 0))
-		(if (first:val:equals "mbegin") (mi:mscopes:push (HashMap)))
+		(if first:macro (mi:mscopes:push (HashMap)))
 		(mi:pushScope code (as BlockToken tok):labels)
 		(h:compile_al classes tok:ops 1 (- (tok:ops:size) 1) c mi code Type:voidType)
 		(define type (h:compile_ classes (tok:ops:get (- (tok:ops:size) 1)) c mi code needed))
-		(if (first:val:equals "mbegin") (mi:mscopes:pop))
+		(if first:macro (mi:mscopes:pop))
 		(mi:popScope code)
 		type
 	)
@@ -1784,14 +1910,8 @@
 				(h:compile_ classes (tok:ops:get 2) c mi code Main:unknownType)
 			)
 		)
-		(define tname VToken (tok:ops:get 1))
-		(define name tname:val)
-		(define var Variable (if output (code:addLocal type name) null))
+		(define var (mi:newVar code (as VToken (tok:ops:get 1)) type))
 		(if output (code:emitStore var))
-		(if tname:macro
-			((as HashMap (mi:mscopes:getFirst)):put name (Var var type))
-			((as HashMap (mi:scopes:getFirst)):put name (Var var type))
-		)
 		Type:voidType
 	)
 )
@@ -1812,12 +1932,11 @@
 	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define first (tok:ops:get 0))
-		(define type (h:compile_ classes (tok:ops:get 1) c mi null Main:unknownType))
 		(if output (code:emitTryStart false null))
-		(h:compile_ classes (tok:ops:get 1) c mi code type)
-		(if output (code:emitCatchStart Type:javalangThrowableType))
-		(if output (code:emitPop 1))
-		(h:compile_ classes (tok:ops:get 2) c mi code type)
+		(define type (h:compile_ classes (tok:ops:get 1) c mi code needed))
+		(define var (mi:newVar code (as VToken (tok:ops:get 2)) Type:javalangThrowableType))
+		(if output (code:emitCatchStart var))
+		(h:compile_ classes (tok:ops:get 3) c mi code Main:unknownType)
 		(if output (code:emitCatchEnd))
 		(if output (code:emitTryCatchEnd))
 		type
@@ -2168,6 +2287,27 @@
 	)
 )
 
+(define-class ThrowBlockHandler (Handler)
+	(inst Handler 'static)
+	((<clinit>) void 'static (set ThrowBlockHandler:inst (ThrowBlockHandler)))
+	((<init>) void (Handler:<super>))
+	((valid tok Token) bool 'public
+		(if (instance? (tok:ops:get 0) VToken)
+			(begin
+				(define first VToken (tok:ops:get 0))
+				(first:val:equals "throw")
+			)
+			false
+		)
+	)
+	((compile_ h Handler classes Classes tok Token c ClassType mi AMethodToken code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(h:compile_ classes (tok:ops:get 1) c mi code Main:unknownType)
+		(if output (code:emitThrow))
+		Type:voidType
+	)
+)
+
 (define-class BlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set BlockHandler:inst (BlockHandler)))
@@ -2195,6 +2335,7 @@
 			WhileBlockHandler:inst
 			CompareBlockHandler:inst
 			ColonBlockHandler:inst
+			ThrowBlockHandler:inst
 			ConsBlockHandler:inst
 		))
 	)
@@ -2216,12 +2357,7 @@
 		(if (name:equals "<super>") (begin (if output (code:emitPushThis)) (set name "<init>")))
 		(define filter (MFilter name types type))
 		((as ObjectType (type:getRawType)):getMethods filter 2 null)
-		(define method Method
-			(if (> (filter:methods0:size) 0)
-				(filter:methods0:get 0)
-				(filter:methods1:get 0)
-			)
-		)
+		(define method (filter:getMethod))
 		(define params (method:getParameterTypes))
 		(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
 		(begin
@@ -2327,7 +2463,6 @@
 						(if output (code:emitGotoIfCompare2 skip (BlockHandler:invertComp inv (Main:compare2Ops:get compare))))
 					)
 				)
-				
 				;(code:emitIf)
 				(define type (trueE:emit h classes c mi code needed))
 				(define end (Label))

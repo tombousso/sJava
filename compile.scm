@@ -494,6 +494,12 @@
 		)
 		found
 	)
+	((newVar code ::CodeAttr name type ::Type) ::Variable
+		(define output (not (eq? code #!null)))
+		(define var ::Variable (if output (code:addLocal (type:getRawType) name) #!null))
+		((as java.util.HashMap (scopes:getFirst)):put name (Var var type))
+		var
+	)
 )
 
 (define unboxMethods ::java.util.HashMap (java.util.HashMap))
@@ -637,7 +643,7 @@
 )
 
 (define (resolveParam pt ::Type t ::Type) ::Type
-	(if (and (instance? t TypeVariable) (instance? pt ParameterizedType))
+	(if (and (instance? pt ParameterizedType) (instance? t TypeVariable))
 		(begin
 			(define tvs ::TypeVariable[] (*:getTypeParameters ((as ParameterizedType pt):getRawType)))
 			(define s ::String ((as TypeVariable t):getName))
@@ -654,7 +660,18 @@
 			)
 			ret
 		)
+	(if (and (instance? pt ParameterizedType) (instance? t ParameterizedType))
+		(begin
+			(define types ((as ParameterizedType t):getTypeArgumentTypes))
+			(define parameterized ::Type[] (Type[] length:(length types)))
+			(do ((i 0 (+ i 1)))
+				((= i (length types)))
+				(set! (parameterized i) (resolveParam pt (types i)))
+			)
+			(ParameterizedType (t:getRawType) parameterized)
+		)
 		(t:getRawType)
+	)
 	)
 )
 
@@ -1017,6 +1034,12 @@
 		out
 	)
 	((compile_ classes ::Classes tok ::Token c ::ClassType mi ::MethodInfo code ::CodeAttr needed ::Type) ::Type
+		(try-catch
+			(compile__ classes tok c mi code needed)
+			(exp java.lang.Throwable (println (string-append "Error compiling line " (number->string tok:line))) (throw exp))
+		)
+	)
+	((compile__ classes ::Classes tok ::Token c ::ClassType mi ::MethodInfo code ::CodeAttr needed ::Type) ::Type
 		(define output (not (eq? code #!null)))
 		(if output (code:putLineNumber "abc.java" tok:line))
 		;(println tok:line);code output tok needed)
@@ -1144,21 +1167,26 @@
 								)
 							)
 							(define name (as Token (tok:ops:get 1)):val)
-							(define var ::Variable (if output (code:addLocal type name) #!null))
+							(define var (mi:newVar code name type))
 							(if output (code:emitStore var))
-							((as java.util.HashMap (mi:scopes:getFirst)):put name (Var var type))
 							Type:voidType
 						)
 					(if (first:val:equals "try")
 						(begin
 							(if output (code:emitTryStart #f #!null))
 							(define type ::Type (compile_ classes (tok:ops:get 1) c mi code needed))
-							(if output (code:emitCatchStart Type:javalangThrowableType))
-							(if output (code:emitPop 1))
-							(compile_ classes (tok:ops:get 2) c mi code needed)
+							(define var (mi:newVar code (as Token (tok:ops:get 2)):val Type:javalangThrowableType))
+							(if output (code:emitCatchStart var))
+							(compile_ classes (tok:ops:get 3) c mi code unknownType)
 							(if output (code:emitCatchEnd))
 							(if output (code:emitTryCatchEnd))
 							type
+						)
+					(if (first:val:equals "throw")
+						(begin
+							(compile_ classes (tok:ops:get 1) c mi code unknownType)
+							(if output (code:emitThrow))
+							Type:voidType
 						)
 					(if (first:val:equals "instance?")
 						(begin
@@ -1309,6 +1337,7 @@
 					)
 					)
 					)
+					)
 				)
 				Type:voidType
 			)
@@ -1343,7 +1372,7 @@
 						(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
 
 					)
-					(if output (code:emitCheckcast needed))
+					(if output (code:emitCheckcast (needed:getRawType)))
 				)
 				)
 				needed
@@ -1382,13 +1411,13 @@
 		(define argTypes ::Class[] (Class[] String[]:class))
 		(define main ::java.lang.reflect.Method #!null)
 
-		((java.io.File "out"):mkdir)
+		((java.io.File "bin/out"):mkdirs)
 
 		(for-each
 			(lambda (class ::ClassType)
 				(define classFile :: byte[] (*:writeToArray class))
 				(cl:addClass (*:getSimpleName class) classFile)
-				(java.nio.file.Files:write (java.nio.file.Paths:get (string-append "out/" (*:getSimpleName class) ".class")) classFile)
+				(java.nio.file.Files:write (java.nio.file.Paths:get (string-append "bin/out/" (*:getSimpleName class) ".class")) classFile)
 			)
 			newClasses
 		)

@@ -1,0 +1,6 @@
+(package x)
+(define-class y () 'public
+	((wow) void 'public 'static
+		(System:out:println "abc")
+	)
+)

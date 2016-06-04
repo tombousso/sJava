@@ -1,0 +1,13 @@
+(import java.util.*)
+(import java.nio.file.*)
+(import gnu.bytecode.*)
+(import java.io.*)
+(import net.sourceforge.argparse4j.ArgumentParsers)
+(import net.sourceforge.argparse4j.inf.*)
+(define-class Main () 'public
+	((main args String[]) void 'public 'static
+		(define l (ArrayList{String}))
+		(l:add "ABC")
+		(System:out:println (((l:iterator):next):concat "a"))
+	)
+)
