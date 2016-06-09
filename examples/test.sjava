@@ -8,6 +8,13 @@
 	((main args String[]) void 'public 'static
 		(define l (ArrayList{String}))
 		(l:add "ABC")
+		(l:add "DEF")
+		(forEach s l (System:out:println s))
+		(forEach s (l:toArray) (System:out:println s))
+		(forEachI s l i (println i ":" s))
 		(System:out:println (((l:iterator):next):concat "a"))
+		(define x 2)
+		(inc x)
+		(System:out:println (concat x " == " 3))
 	)
 )

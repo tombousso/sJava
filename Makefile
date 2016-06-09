@@ -7,6 +7,8 @@ classpathify=$(subst $(eval) ,$(SEPARATOR),$1)
 
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
+STD=$(wildcard std/*)
+
 JARS=$(wildcard lib/*)
 
 EXAMPLE_FILES=$(wildcard examples/*.sjava)
@@ -18,8 +20,9 @@ EXAMPLE_FOLDERS_NAME=$(patsubst examples/%/,%,$(EXAMPLE_FOLDERS))
 EXAMPLE_FOLDERS_MAINCLASS=$(patsubst %,bin/%/Main.class,$(EXAMPLE_FOLDERS_NAME))
 
 TARGETS=$(EXAMPLE_FILES_NAME) $(EXAMPLE_FOLDERS_NAME)
+CLEAN_TARGETS=$(patsubst %,clean-%,$(TARGETS))
 
-.PHONY: all recompile clean diff $(TARGETS)
+.PHONY: all recompile clean diff $(TARGETS) $(CLEAN_TARGETS)
 
 all: bin/compile/Main.class $(TARGETS)
 
@@ -29,14 +32,14 @@ recompile:
 
 $(EXAMPLE_FILES_NAME): %: bin/%/Main.class
 
-$(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: bin/out/Main.class examples/%.sjava
-	java -classpath $(call classpathify,$(JARS) bin/out) Main $(word 2,$^) -d bin/$*/
+$(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: bin/out/Main.class examples/%.sjava $(STD)
+	java -classpath $(call classpathify,$(JARS) bin/out) Main $(word 2,$^) $(STD) -d bin/$*/
 
 $(EXAMPLE_FOLDERS_NAME): %: bin/%/Main.class
 
 .SECONDEXPANSION:
 $(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: bin/out/Main.class $$(call rwildcard,examples/%/,*.sjava)
-	java -classpath $(call classpathify,$(JARS) bin/out) Main $(filter-out $<,$^) -d bin/$*/
+	java -classpath $(call classpathify,$(JARS) bin/out) Main $(filter-out $<,$^) $(STD) -d bin/$*/
 
 diff: bin/compile/Main.class
 	diff bin/out bin/compile
@@ -50,5 +53,5 @@ bin/out/Main.class: compile.scm compile.sjava
 clean:
 	rm -rf bin
 
-clean-%:
+$(CLEAN_TARGETS): clean-%:
 	rm -rf bin/$*
