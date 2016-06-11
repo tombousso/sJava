@@ -43,7 +43,7 @@
 			)
 		)))
 		(System:out:println ("Runtime random number up to 1000: ": concat (rand 1000)))
-		(println "abc")
+		(include `(System:out:println "abc"))
 
 		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
 		(begin (System:out:format "%d:%s\n" 5 "wow"))

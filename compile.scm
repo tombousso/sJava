@@ -769,7 +769,7 @@
 		(if (tok:what:equals "'")
 			(begin
 				(define nmod (accessModifiers:get (as Token (tok:ops:get 0)):val))
-				(*:setModifiers c nmod)
+				(*:addModifiers c nmod)
 			)
 		)
 	)
@@ -1014,7 +1014,7 @@
 		;(println tok:line type name types output)
 		(if (name:equals "<super>") (begin (if output (code:emitPushThis)) (set! name "<init>")))
 		(define filter ::MFilter (MFilter name types type))
-		(*:getMethods (as ObjectType (type:getRawType)) filter 2 #!null)
+		(*:getMethods (as ObjectType (type:getRawType)) filter 1 #!null)
 		(define method ::Method
 			(if (> (length filter:methods0) 0)
 				(filter:methods0:get 0)

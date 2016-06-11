@@ -38,7 +38,7 @@ $(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: bin/out/Main.class examples/%.sjav
 $(EXAMPLE_FOLDERS_NAME): %: bin/%/Main.class
 
 .SECONDEXPANSION:
-$(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: bin/out/Main.class $$(call rwildcard,examples/%/,*.sjava)
+$(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: bin/out/Main.class $$(call rwildcard,examples/%/,*.sjava) $(STD)
 	java -classpath $(call classpathify,$(JARS) bin/out) Main $(filter-out $<,$^) $(STD) -d bin/$*/
 
 diff: bin/compile/Main.class

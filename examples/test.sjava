@@ -16,5 +16,42 @@
 		(define x 2)
 		(inc x)
 		(System:out:println (concat x " == " 3))
+
+		(define runnable (object (Runnable)
+			((run) void
+				(System:out:println "AA")
+			)
+		))
+		(runnable)
+		(runnable:run)
+
+		(define add
+			(lambda (BinOp) (c d)
+				(System:out:println this)
+				(+ c d)
+			)
+		)
+		(System:out:println (add 1 2))
+
+		(define sub
+			(object (BinOp)
+				((calc c int d int) int
+					(System:out:println this)
+					(- c d)
+				)
+			)
+		)
+		(System:out:println (sub 1 2))
+
+		(define al (object (java.util.ArrayList 10)
+			((run) void
+				(System:out:println "B")
+			)
+		))
+		(al:run)
 	)
+)
+
+(define-class BinOp () 'public 'interface
+	((calc a int b int) int 'public 'abstract)
 )
