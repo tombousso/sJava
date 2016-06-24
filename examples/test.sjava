@@ -4,9 +4,26 @@
 (import java.io.*)
 (import net.sourceforge.argparse4j.ArgumentParsers)
 (import net.sourceforge.argparse4j.inf.*)
+
+(define-class AlString (ArrayList{String})
+	((<init>) void
+		(ArrayList:<super>)
+	)
+)
+
+(define-class Ref{E} ()
+	(val E)
+	((<init>) void
+		(Object:<super>)
+	)
+)
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
-		(define l (ArrayList{String}))
+		(define n (Ref{Integer}))
+		(set n:val 5)
+		(System:out:println (* 3 n:val))
+		(define l (AlString))
 		(l:add "ABC")
 		(l:add "DEF")
 		(forEach s l (System:out:println s))
@@ -26,12 +43,38 @@
 		(runnable:run)
 
 		(define add
-			(lambda (BinOp) (c d)
+			(lambda BinOp (c d)
 				(System:out:println this)
 				(+ c d)
 			)
 		)
 		(System:out:println (add 1 2))
+
+		(define mul1
+			(lambda Function2{int int int} (c d)
+				(System:out:println this)
+				(* c d)
+			)
+		)
+		(System:out:println (mul1 1 2))
+
+		(define mul2
+			(object (Function2{int int int})
+				((apply c int d int) int
+					(System:out:println this)
+					(* c d)
+				)
+			)
+		)
+		(System:out:println (mul2 1 2))
+
+		(define mul3
+			(lambda (c int d int)
+				(System:out:println this)
+				(* c d)
+			)
+		)
+		(System:out:println (mul3 1 2))
 
 		(define sub
 			(object (BinOp)
