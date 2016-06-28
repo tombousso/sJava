@@ -1,9 +1,9 @@
 (import java.util.*)
+(import java.util.stream.*)
+(import java.util.function.*)
 (import java.nio.file.*)
 (import gnu.bytecode.*)
 (import java.io.*)
-(import net.sourceforge.argparse4j.ArgumentParsers)
-(import net.sourceforge.argparse4j.inf.*)
 
 (define-class AlString (ArrayList{String})
 	((<init>) void
@@ -26,10 +26,10 @@
 		(define l (AlString))
 		(l:add "ABC")
 		(l:add "DEF")
+		(System:out:println (((l:iterator):next):concat "a"))
 		(forEach s l (System:out:println s))
 		(forEach s (l:toArray) (System:out:println s))
 		(forEachI s l i (println i ":" s))
-		(System:out:println (((l:iterator):next):concat "a"))
 		(define x 2)
 		(inc x)
 		(System:out:println (concat x " == " 3))
@@ -50,17 +50,17 @@
 		)
 		(System:out:println (add 1 2))
 
-		(define mul1
-			(lambda Function2{int int int} (c d)
+		(define mul1 Function2{Integer Integer Integer}
+			(lambda Function2{Integer Integer Integer} (c d)
 				(System:out:println this)
 				(* c d)
 			)
 		)
-		(System:out:println (mul1 1 2))
+		(System:out:println (/ (mul1 1 2) 1))
 
 		(define mul2
-			(object (Function2{int int int})
-				((apply c int d int) int
+			(object (Function2{Integer Integer Integer})
+				((apply c Integer d Integer) Integer
 					(System:out:println this)
 					(* c d)
 				)
@@ -69,7 +69,7 @@
 		(System:out:println (mul2 1 2))
 
 		(define mul3
-			(lambda (c int d int)
+			(lambda (c Integer d Integer)
 				(System:out:println this)
 				(* c d)
 			)
@@ -92,9 +92,27 @@
 			)
 		))
 		(al:run)
+
+		(define al (ArrayList{Object}))
+		(al:add 5)
+		(System:out:println (al:get 0))
+
+		(define list (ArrayList{Integer} (Arrays:asList 5 9 3 8 2 9)))
+		(define stream (list:stream))
+		(set stream (stream:filter
+			(lambda Predicate{Integer} (i)
+				(> i 5)
+			)
+		))
+		(define collector (Collectors:toList))
+		(System:out:println (stream:collect collector))
+
+		(define a (int[] 1 2 3))
+		(println (a:clone))
+		(println (Arrays:toString a))
 	)
 )
 
-(define-class BinOp () 'public 'interface
+(define-class BinOp () 'public 'interface 'abstract
 	((calc a int b int) int 'public 'abstract)
 )

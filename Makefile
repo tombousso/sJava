@@ -22,33 +22,35 @@ EXAMPLE_FOLDERS_MAINCLASS=$(patsubst %,bin/%/Main.class,$(EXAMPLE_FOLDERS_NAME))
 TARGETS=$(EXAMPLE_FILES_NAME) $(EXAMPLE_FOLDERS_NAME)
 CLEAN_TARGETS=$(patsubst %,clean-%,$(TARGETS))
 
+JAVA=java
+
 .PHONY: all recompile clean diff $(TARGETS) $(CLEAN_TARGETS)
 
-all: bin/compile/Main.class $(TARGETS)
+all: bin/compile/Compiler.class $(TARGETS)
 
 recompile:
-	java -classpath $(call classpathify,$(JARS) bin/compile) Main compile.sjava -d bin/compile/
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/compile) Compiler compile.sjava -d bin/compile/
 	diff bin/out bin/compile
 
 $(EXAMPLE_FILES_NAME): %: bin/%/Main.class
 
-$(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: bin/out/Main.class examples/%.sjava $(STD)
-	java -classpath $(call classpathify,$(JARS) bin/out) Main $(word 2,$^) $(STD) -d bin/$*/
+$(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: bin/out/Compiler.class examples/%.sjava $(STD)
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/out) Compiler $(word 2,$^) $(STD) -d bin/$*/
 
 $(EXAMPLE_FOLDERS_NAME): %: bin/%/Main.class
 
 .SECONDEXPANSION:
-$(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: bin/out/Main.class $$(call rwildcard,examples/%/,*.sjava) $(STD)
-	java -classpath $(call classpathify,$(JARS) bin/out) Main $(filter-out $<,$^) $(STD) -d bin/$*/
+$(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: bin/out/Compiler.class $$(call rwildcard,examples/%/,*.sjava) $(STD)
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/out) Compiler $(filter-out $<,$^) $(STD) -d bin/$*/
 
-diff: bin/compile/Main.class
+diff: bin/compile/Compiler.class
 	diff bin/out bin/compile
 
-bin/compile/Main.class: bin/out/Main.class compile.sjava
-	java -classpath $(call classpathify,$(JARS) bin/out) Main compile.sjava -d bin/compile/
+bin/compile/Compiler.class: bin/out/Compiler.class compile.sjava
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/out) Compiler compile.sjava -d bin/compile/
 
-bin/out/Main.class: compile.scm compile.sjava
-	java -classpath $(call classpathify,$(JARS)) kawa.repl compile.scm compile.sjava
+bin/out/Compiler.class: compile.scm compile.sjava
+	$(JAVA) -classpath $(call classpathify,$(JARS)) kawa.repl compile.scm compile.sjava
 
 clean:
 	rm -rf bin
