@@ -18,7 +18,6 @@
 			)
 		)
 		(goto a)
-		(System:out:println "Unreachable")
 		(label end)
 	)
 )

@@ -16,13 +16,19 @@
 	((<init>) void
 		(Object:<super>)
 	)
+	((get) E
+		this:val
+	)
+	((set val E) void
+		(set this:val val)
+	)
 )
 
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(define n (Ref{Integer}))
-		(set n:val 5)
-		(System:out:println (* 3 n:val))
+		(n:set 5)
+		(System:out:println (* 3 (n:get)))
 		(define l (AlString))
 		(l:add "ABC")
 		(l:add "DEF")
@@ -56,9 +62,9 @@
 				(* c d)
 			)
 		)
-		(System:out:println (/ (mul1 1 2) 1))
+		(System:out:println (mul1 1 2))
 
-		(define mul2
+		(define mul2 Function2{Integer Integer Integer}
 			(object (Function2{Integer Integer Integer})
 				((apply c Integer d Integer) Integer
 					(System:out:println this)
@@ -68,7 +74,7 @@
 		)
 		(System:out:println (mul2 1 2))
 
-		(define mul3
+		(define mul3 Function2{Integer Integer Integer}
 			(lambda (c Integer d Integer)
 				(System:out:println this)
 				(* c d)
@@ -86,16 +92,12 @@
 		)
 		(System:out:println (sub 1 2))
 
-		(define al (object (java.util.ArrayList 10)
+		(define al (object ((java.util.ArrayList 10))
 			((run) void
 				(System:out:println "B")
 			)
 		))
 		(al:run)
-
-		(define al (ArrayList{Object}))
-		(al:add 5)
-		(System:out:println (al:get 0))
 
 		(define list (ArrayList{Integer} (Arrays:asList 5 9 3 8 2 9)))
 		(define stream (list:stream))

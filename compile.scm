@@ -698,7 +698,7 @@
 	)
 	((select v ::java.lang.Object) ::boolean
 		(define method ::Method v)
-		(if ((method:getName):equals name)
+		(if (and ((method:getName):equals name) (= 0 (bitwise-and (method:getModifiers) Access:SYNTHETIC)))
 			(if (= (length (method:getParameterTypes)) (length types))
 				(begin
 					(define stop #f)
@@ -727,6 +727,7 @@
 )
 
 (define unknownType #!null)
+(define returnType (Type:getType "returnType"))
 
 (define-simple-class AndOrEmitter (Emitter)
 	(tok ::Token)
@@ -926,15 +927,16 @@
 	((compile_method_body mi ::MethodInfo classes ::Classes tok ::Token c ::ClassType)
 		(compile_labels tok 0)
 		(mi:pushScope #!null tok:val)
-		(compile_al classes tok:ops 0 (- (length tok:ops) 1) c mi #!null Type:voidType)
-		(compile_ classes (tok:ops:get (- (length tok:ops) 1)) c mi #!null (mi:method:getReturnType))
+		(compile_al classes tok:ops 0 (length tok:ops) c mi #!null Type:voidType)
 		(mi:popScope #!null)
 		(define code ::CodeAttr (mi:method:startCode))
 		(mi:pushScope code tok:val)
 		(compile_al classes tok:ops 0 (- (length tok:ops) 1) c mi code Type:voidType)
-		(compile_ classes (tok:ops:get (- (length tok:ops) 1)) c mi code (mi:method:getReturnType))
+		(define ret (compile_ classes (tok:ops:get (- (length tok:ops) 1)) c mi code (mi:method:getReturnType)))
 		(mi:popScope code)
-		(code:emitReturn)
+		(if (and (not (eq? ret returnType)) (code:reachableHere))
+			(code:emitReturn)
+		)
 	)
 	((compile_labels block ::Token i)
 		(define hm ::java.util.HashMap (java.util.HashMap))
@@ -1009,7 +1011,7 @@
 					(begin
 						(define end ::Label (Label))
 						(if (not (eq? false #!null))
-							(if output (code:emitGoto end))
+							(if (and output (code:reachableHere)) (code:emitGoto end))
 						)
 						(if output (skip:define code))
 						(if (not (eq? false #!null))
@@ -1244,6 +1246,14 @@
 							)
 							Type:voidType
 						)
+					(if (first:val:equals "return")
+						(begin
+							(if (= (tok:ops:size) 2)
+								(compile_ classes (tok:ops:get 1) c mi code (mi:method:getReturnType))
+							)
+							(if output (code:emitReturn))
+							returnType
+						)
 					(if (first:val:equals "aset")
 						(begin
 							(define type ::ArrayType (compile_ classes (tok:ops:get 1) c mi code unknownType))
@@ -1366,6 +1376,7 @@
 					)
 					)
 					)
+					)
 				)
 				Type:voidType
 			)
@@ -1375,6 +1386,12 @@
 			)
 			)
 		)
+		(castMaybe code result needed)
+	)
+	((castMaybe code ::CodeAttr result ::Type needed ::Type) ::Type
+		(define output (not (eq? code #!null)))
+		(if (eq? result returnType)
+			result
 		(if (eq? needed unknownType)
 			result
 		(if (eq? needed Type:voidType)
@@ -1406,6 +1423,7 @@
 				needed
 			)
 			result
+		)
 		)
 		)
 		)
