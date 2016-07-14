@@ -1,28 +1,11 @@
-(define-macro (repeat n @block)
-	(macro for `(i 0) `(!= i ,n) `(i (+ i 1)) block)
-)
 (define-macro (getTimestamp f)
-	`,((java.text.SimpleDateFormat (as SToken f):val):format (java.util.Date))
-)
-(define-macro (for def cond inc @block)
-	`(begin
-		(define ,def:ops)
-		(while ,cond (begin ,block (set ,inc:ops)))
-	)
+	`,$((java.text.SimpleDateFormat (as SToken f):val):format (java.util.Date))
 )
 (define-macro (timestwo1 expr)
 	`(begin
 		(define x 0)
 		(set x 2)
 		(* ,expr x)
-	)
-)
-;mvars are automatically added to timestwo1 at compile time
-(define-macro (timestwo2 expr)
-	`(begin
-		(define (mvar x) 0)
-		(set (mvar x) 2)
-		(* ,expr (mvar x))
 	)
 )
 (define-macro (rand n)
@@ -39,7 +22,7 @@
 			;inline macro
 			(begin
 				(System:out:println "Compile time")
-				`,(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
+				`,$(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
 			)
 		)))
 		(System:out:println ("Runtime random number up to 1000: ": concat (rand 1000)))
@@ -50,15 +33,8 @@
 	
 		(begin (System:out:println "A") (System:out:println "B") (System:out:println "C"))
 
-		(for (i 0) (!= i 4) (i (+ i 1))
-			(for (j 0) (!= j 4) (j (+ j 1))
-				(System:out:println ((Integer:toString i):concat (Integer:toString j)))
-			)
-		)
-
 		(define x 3)
 		(inc x)
 		(println (timestwo1 x))
-		(println (timestwo2 x))
 	)
 )

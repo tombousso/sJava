@@ -1041,7 +1041,6 @@
 		(define output (not (eq? code #!null)))
 		(define types (compile_al classes tok:ops 1 (length tok:ops) c mi #!null unknownType))
 		;(println tok:line type name types output)
-		(if (name:equals "<super>") (begin (if output (code:emitPushThis)) (set! name "<init>")))
 		(define filter ::MFilter (MFilter name types type))
 		(*:getMethods (as ObjectType (type:getRawType)) filter 1 #!null)
 		(define method ::Method
@@ -1164,6 +1163,11 @@
 			(if (and (tok:what:equals "(") (> (length tok:ops) 0))
 				(begin
 					(define first ::Token (as Token (tok:ops:get 0)))
+					(if (first:val:equals "class")
+						(begin
+							(if output (code:emitPushClass (as ObjectType (classes:get (as Token (tok:ops:get 1))))))
+							Type:javalangClassType
+						)
 					(if (first:val:equals "begin")
 						(begin
 							(mi:pushScope code tok:val)
@@ -1325,6 +1329,7 @@
 							(if (first:what:equals ":")
 								(begin ;method call
 									(define name (as Token (first:ops:get 1)):val)
+									(if (name:equals "<init>") (if output (code:emitPushThis)))
 									(emitInvoke name (compile_ classes (first:ops:get 0) c mi code unknownType) classes tok c mi code unknownType)
 								)
 								(begin ;constructor
@@ -1360,6 +1365,7 @@
 								)
 							)
 						)
+					)
 					)
 					)
 					)

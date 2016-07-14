@@ -1,9 +1,0 @@
-(define-macro (concat @objects)
-	(define appends (Token[] len:(alen objects)))
-	(forEachI o objects i (aset appends i `(sb:append ,o)))
-	`(begin
-		(define sb (StringBuilder))
-		,appends
-		(sb:toString)
-	)
-)

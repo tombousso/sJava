@@ -7,14 +7,14 @@
 
 (define-class AlString (ArrayList{String})
 	((<init>) void
-		(ArrayList:<super>)
+		(ArrayList:<init>)
 	)
 )
 
 (define-class Ref{E} ()
 	(val E)
 	((<init>) void
-		(Object:<super>)
+		(Object:<init>)
 	)
 	((get) E
 		this:val
@@ -36,12 +36,14 @@
 		(forEach s l (System:out:println s))
 		(forEach s (l:toArray) (System:out:println s))
 		(forEachI s l i (println i ":" s))
-		(define x 2)
+		(define x 1)
+		(inc x 5)
 		(inc x)
-		(System:out:println (concat x " == " 3))
+		(dec x 4)
 
 		(define runnable (object (Runnable)
-			((run) void
+			((run) void 'public
+				(System:out:println (concat x " == " 3))
 				(System:out:println "AA")
 			)
 		))
@@ -56,7 +58,7 @@
 		)
 		(System:out:println (add 1 2))
 
-		(define mul1 Function2{Integer Integer Integer}
+		(define mul1
 			(lambda Function2{Integer Integer Integer} (c d)
 				(System:out:println this)
 				(* c d)
@@ -64,7 +66,7 @@
 		)
 		(System:out:println (mul1 1 2))
 
-		(define mul2 Function2{Integer Integer Integer}
+		(define mul2
 			(object (Function2{Integer Integer Integer})
 				((apply c Integer d Integer) Integer
 					(System:out:println this)
@@ -74,8 +76,8 @@
 		)
 		(System:out:println (mul2 1 2))
 
-		(define mul3 Function2{Integer Integer Integer}
-			(lambda (c Integer d Integer)
+		(define mul3
+			(lambda (c Integer d Integer) Integer
 				(System:out:println this)
 				(* c d)
 			)
@@ -84,20 +86,13 @@
 
 		(define sub
 			(object (BinOp)
-				((calc c int d int) int
+				((calc c int d int) int 'public
 					(System:out:println this)
 					(- c d)
 				)
 			)
 		)
 		(System:out:println (sub 1 2))
-
-		(define al (object ((java.util.ArrayList 10))
-			((run) void
-				(System:out:println "B")
-			)
-		))
-		(al:run)
 
 		(define list (ArrayList{Integer} (Arrays:asList 5 9 3 8 2 9)))
 		(define stream (list:stream))
@@ -112,6 +107,8 @@
 		(define a (int[] 1 2 3))
 		(println (a:clone))
 		(println (Arrays:toString a))
+
+		((lambdaWrap System:out:println Object) 3)
 	)
 )
 
