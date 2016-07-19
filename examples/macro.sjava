@@ -1,7 +1,7 @@
 (define-macro (getTimestamp f)
 	`,$((java.text.SimpleDateFormat (as SToken f):val):format (java.util.Date))
 )
-(define-macro (timestwo1 expr)
+(define-macro (timestwo expr)
 	`(begin
 		(define x 0)
 		(set x 2)
@@ -29,12 +29,13 @@
 		(include `(System:out:println "abc"))
 
 		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
-		(begin (System:out:format "%d:%s\n" 5 "wow"))
+		(System:out:format "%d:%s\n" 5 "wow")
+		(System:out:format "5:wow\n")
 	
-		(begin (System:out:println "A") (System:out:println "B") (System:out:println "C"))
+		(System:out:println "A") (System:out:println "B") (System:out:println "C")
 
 		(define x 3)
 		(inc x)
-		(println (timestwo1 x))
+		(println (timestwo x))
 	)
 )

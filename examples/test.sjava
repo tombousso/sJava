@@ -52,7 +52,6 @@
 
 		(define add
 			(lambda BinOp (c d)
-				(System:out:println this)
 				(+ c d)
 			)
 		)
@@ -60,7 +59,6 @@
 
 		(define mul1
 			(lambda Function2{Integer Integer Integer} (c d)
-				(System:out:println this)
 				(* c d)
 			)
 		)
@@ -69,7 +67,6 @@
 		(define mul2
 			(object (Function2{Integer Integer Integer})
 				((apply c Integer d Integer) Integer
-					(System:out:println this)
 					(* c d)
 				)
 			)
@@ -77,8 +74,7 @@
 		(System:out:println (mul2 1 2))
 
 		(define mul3
-			(lambda (c Integer d Integer) Integer
-				(System:out:println this)
+			(lambda (c Integer d Integer)
 				(* c d)
 			)
 		)
@@ -87,14 +83,14 @@
 		(define sub
 			(object (BinOp)
 				((calc c int d int) int 'public
-					(System:out:println this)
 					(- c d)
 				)
 			)
 		)
 		(System:out:println (sub 1 2))
 
-		(define list (ArrayList{Integer} (Arrays:asList 5 9 3 8 2 9)))
+		(define list (Arrays:asList 5 9 3 8 2 9))
+		(System:out:println (+ (list:get 0) 1))
 		(define stream (list:stream))
 		(set stream (stream:filter
 			(lambda Predicate{Integer} (i)
@@ -105,10 +101,35 @@
 		(System:out:println (stream:collect collector))
 
 		(define a (int[] 1 2 3))
-		(println (a:clone))
 		(println (Arrays:toString a))
 
 		((lambdaWrap System:out:println Object) 3)
+
+		(println (mapA x (int[] 0 1 2) (Main:toggle1 x)))
+
+		(println (mapA x (int[] 0 1 2) (Main:toggle2 x)))
+	)
+	((toggle1 x int) int 'static
+		(matchDefault
+			((= x 0)
+				1
+			)
+			((= x 1)
+				0
+			)
+			-1
+		)
+	)
+	((toggle2 x int) int 'static
+		(match
+			((= x 0)
+				(set x 1)
+			)
+			((= x 1)
+				(set x 0)
+			)
+		)
+		x
 	)
 )
 
