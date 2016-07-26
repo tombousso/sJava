@@ -4,4 +4,4 @@ make %1 || exit /b
 setlocal ENABLEDELAYEDEXPANSION
 set "_args=%*"
 set "_args=!_args:*%1=!"
-java -cp "bin/%1;lib/*" Main %_args%
+java -cp "bin;bin/%1;lib/*" Main %_args%

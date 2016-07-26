@@ -1,3 +1,5 @@
+(package sjava.std)
+
 (define-class Function0{R} () 'public 'interface 'abstract
 	((apply) R 'public 'abstract)
 )

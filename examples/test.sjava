@@ -98,10 +98,11 @@
 			)
 		))
 		(define collector (Collectors:toList))
-		(System:out:println (stream:collect collector))
+		(define filtered (stream:collect collector))
+		(println filtered)
 
 		(define a (int[] 1 2 3))
-		(println (Arrays:toString a))
+		(println a)
 
 		((lambdaWrap System:out:println Object) 3)
 
@@ -110,18 +111,20 @@
 		(println (mapA x (int[] 0 1 2) (Main:toggle2 x)))
 	)
 	((toggle1 x int) int 'static
-		(matchDefault
+		(cond
 			((= x 0)
 				1
 			)
 			((= x 1)
 				0
 			)
-			-1
+			(true
+				-1
+			)
 		)
 	)
 	((toggle2 x int) int 'static
-		(match
+		(cond
 			((= x 0)
 				(set x 1)
 			)

@@ -1,3 +1,6 @@
+(import gnu.bytecode.*)
+(import %tokens%)
+
 ;(define-macro (while cond @block)
 ;	`(begin
 ;		(label start)
@@ -17,7 +20,7 @@
 	`(dec ,v 1)
 )
 (define-macro (forEachI item iterable index @block)
-	(if (instance? (type iterable) gnu.bytecode.ArrayType)
+	(if (instance? (type iterable) ArrayType)
 		`(begin
 			(define array ,iterable)
 			(define ,index 0)
@@ -49,7 +52,7 @@
 	`(System:out:println (concat ,objects))
 )
 (define-macro (mapAI item iterable i @block)
-	(define t gnu.bytecode.ArrayType (type iterable))
+	(define t ArrayType (type iterable))
 	(define o (type `(begin (define ,item ,((t:getComponentType):getName)) (define ,i int) ,block)))
 	`(begin
 		(define iterable ,iterable)
@@ -64,7 +67,7 @@
 (define-macro (concat @objects)
 	(define appends
 		(mapA o objects
-			(if (instance? (type o) gnu.bytecode.ArrayType)
+			(if (instance? (type o) ArrayType)
 				`(sb:append (java.util.Arrays:toString ,o))
 				`(sb:append ,o)
 			)
@@ -101,11 +104,23 @@
 	)
 )
 (define-macro (repeat n @block)
-	`(for (define i 0) (!= i ,n) (inc i) ,block)
+	`(for (define i ,n) (> i 0) (dec i) ,block)
 )
-(define-macro (matchDefault @cases)
+(define-macro (cond @cases)
 	(define out (aget cases (- (alen cases) 1)))
-	(for (define i (- (alen cases) 2)) (>= i 0) (dec i)
+	(define n
+		(if ((out:toks:get 0):what:equals "true")
+			(begin
+				(set out `(begin ,(out:toks:subList 1 (out:toks:size))))
+				2
+			)
+			(begin
+				(set out `())
+				1
+			)
+		)	
+	)
+	(for (define i (- (alen cases) n)) (>= i 0) (dec i)
 		(define case (aget cases i))
 		(set out
 			`(if ,(case:toks:get 0)
@@ -117,9 +132,4 @@
 		)
 	)
 	out
-)
-(define-macro (match @cases)
-	(define newCases (java.util.Arrays:copyOf cases (+ (alen cases) 1)))
-	(aset newCases (alen cases) `())
-	`(matchDefault ,newCases)
 )

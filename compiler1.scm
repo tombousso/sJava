@@ -606,8 +606,8 @@
 		(define type ::Type
 			(if (constTypes:containsKey name)
 				(constTypes:get name)
-			(if (locals:containsKey name)
-				(locals:get name)
+			(if (locals:containsKey ("compiler2.":concat name))
+				(locals:get ("compiler2.":concat name))
 			(if (imports:containsKey name)
 				(imports:get name)
 			(if (classExists name)
@@ -763,7 +763,7 @@
 				(define first ::Token (as Token (tok:ops:get 0)))
 				(if (first:val:equals "define-class")
 					(begin
-						(define name (as Token (tok:ops:get 1)):val)
+						(define name ("compiler2.":concat (as Token (tok:ops:get 1)):val))
 						(define c ::ClassType (ClassType name))
 						(*:setClassfileVersion c ClassType:JDK_1_8_VERSION)
 						(define supers (as Token (tok:ops:get 2)):ops)
@@ -1070,7 +1070,7 @@
 	)
 	((compile__ classes ::Classes tok ::Token c ::ClassType mi ::MethodInfo code ::CodeAttr needed ::Type) ::Type
 		(define output (not (eq? code #!null)))
-		(if output (code:putLineNumber "abc.java" tok:line))
+		(if output (code:putLineNumber "compiler2.sjava" tok:line))
 		;(println tok:line);code output tok needed)
 		(define result ::Type
 			(if (tok:what:equals "S")
@@ -1463,13 +1463,13 @@
 		(define argTypes ::Class[] (Class[] String[]:class))
 		(define main ::java.lang.reflect.Method #!null)
 
-		((java.io.File "bin/out"):mkdirs)
+		((java.io.File "bin/1-2/compiler2"):mkdirs)
 
 		(for-each
 			(lambda (class ::ClassType)
 				(define classFile :: byte[] (*:writeToArray class))
 				(cl:addClass (*:getSimpleName class) classFile)
-				(java.nio.file.Files:write (java.nio.file.Paths:get (string-append "bin/out/" (*:getSimpleName class) ".class")) classFile)
+				(java.nio.file.Files:write (java.nio.file.Paths:get (string-append "bin/1-2/compiler2/" (*:getSimpleName class) ".class")) classFile)
 			)
 			newClasses
 		)

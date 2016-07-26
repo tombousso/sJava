@@ -1,0 +1,111 @@
+(package sjava.compiler.emitters)
+
+(import sjava.compiler.*)
+(import sjava.compiler.handlers.*)
+
+(import java.util.*)
+(import gnu.bytecode.*)
+
+(define-class Emitter () 'public
+	((<init>) void 'public
+		(Object:<init>)
+	)
+	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define types (this:emitAll h mi code needed))
+		(if (= types null)
+			Type:voidType
+			(begin
+				(define l (alen types))
+				(if (= l 0)
+					Type:voidType
+					(aget types (- l 1))
+				)
+			)
+		)
+	)
+	((emitAll h Handler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
+		(Type[] (this:emit h mi code (as Type needed)))
+	)
+)
+
+(define-class Goto (Emitter) 'public
+	(label Label 'public)
+	((<init> label Label) void 'public (Emitter:<init>) (set this:label label))
+	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if (&& output (code:reachableHere)) (code:emitGoto this:label))
+		Type:voidType
+	)
+)
+
+(define-class Null (Emitter)
+	((<init>) void (Emitter:<init>))
+	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(if (!= code null) (code:emitPushNull))
+		Type:nullType
+	)
+)
+
+(define-class LoadAVar (Emitter) 'public
+	(avar AVar)
+	((<init> avar AVar) void 'public
+		(Emitter:<init>)
+		(set this:avar avar)
+	)
+	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(this:avar:load code)
+	)
+)
+
+(define-class Emitters (Emitter) 'public
+	(emitters List{Emitter} 'public)
+	((<init> emitters Emitter[]) void 'public (Emitter:<init>) (set this:emitters (Arrays:asList emitters)))
+	((<init> emitters List{Emitter}) void 'public (Emitter:<init>) (set this:emitters emitters))
+	((emitAll h Handler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
+		(define types (Type[] len:(this:emitters:size)))
+		(define i 0)
+		(while (< i (alen types))
+			(define emitter (this:emitters:get i))
+			(if (!= emitter null)
+				(begin
+					(aset types i (emitter:emit h mi code
+						(if (instance? needed Type[])
+							(aget (as Type[] needed) i)
+							(as Type needed)
+						)
+					))
+				)
+			)
+			(set i (+ i 1))
+		)
+		types
+	)
+)
+
+(define-class Add1 (Emitter)
+	(e Emitter)
+	((<init> e Emitter) void
+		(Emitter:<init>)
+		(set this:e e)
+	)
+	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(this:e:emit h mi code needed)
+		(if output (code:emitPushInt 1))
+		(if output (code:emitAdd Type:intType))
+		Type:intType
+	)
+)
+
+(define-class Nothing (Emitter) 'public
+	(inst Nothing 'static 'public)
+	((<clinit>) void 'static
+		(set Nothing:inst (Nothing))
+	)
+	((<init>) void
+		(Emitter:<init>)
+	)
+	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+		Type:voidType
+	)
+)

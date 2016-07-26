@@ -7,8 +7,6 @@ classpathify=$(subst $(eval) ,$(SEPARATOR),$1)
 
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
-STD=$(wildcard std/*)
-
 JARS=$(wildcard lib/*)
 
 EXAMPLE_FILES=$(wildcard examples/*.sjava)
@@ -24,36 +22,55 @@ CLEAN_TARGETS=$(patsubst %,clean-%,$(TARGETS))
 
 JAVA=java
 
-.PHONY: all recompile clean diff $(TARGETS) $(CLEAN_TARGETS)
+STD=bin/sjava/std/Function0.class
 
-all: bin/compile/Compiler.class $(TARGETS)
+COMPILER1=bin/1-2/compiler2/Main.class
+COMPILER2=bin/2-2/compiler2/Main.class
+COMPILER3=bin/2-3/sjava/compiler/Main.class
+COMPILER=bin/sjava/compiler/Main.class
 
-recompile:
-	$(JAVA) -classpath $(call classpathify,$(JARS) bin/compile) Compiler compile.sjava -d bin/compile/
-	diff bin/out bin/compile
+COMPILER3_FILES=$(call rwildcard,compiler3,*.sjava)
+
+.PHONY: all clean diff12 diff23 diff recompile $(TARGETS) $(CLEAN_TARGETS)
+
+all: diff $(TARGETS)
+
+$(STD): $(COMPILER) $(wildcard std/*)
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin) sjava.compiler.Main $(word 2,$^) $(wildcard std/*) -d bin/
 
 $(EXAMPLE_FILES_NAME): %: bin/%/Main.class
 
-$(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: bin/compile/Compiler.class examples/%.sjava $(STD)
-	$(JAVA) -classpath $(call classpathify,$(JARS) bin/compile) Compiler $(word 2,$^) $(STD) -d bin/$*/
+$(EXAMPLE_FILES_MAINCLASS): bin/%/Main.class: $(COMPILER) $(STD) examples/%.sjava
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin) sjava.compiler.Main $(word 3,$^) std/macros.sjava -d bin/$*/
 
 $(EXAMPLE_FOLDERS_NAME): %: bin/%/Main.class
 
 .SECONDEXPANSION:
-$(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: bin/compile/Compiler.class $$(call rwildcard,examples/%/,*.sjava) $(STD)
-	$(JAVA) -classpath $(call classpathify,$(JARS) bin/compile) Compiler $(filter-out $<,$^) $(STD) -d bin/$*/
+$(EXAMPLE_FOLDERS_MAINCLASS): bin/%/Main.class: $(COMPILER) $(STD) $$(call rwildcard,examples/%,*.sjava)
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin) sjava.compiler.Main $(call rwildcard,examples/$*,*.sjava) std/macros.sjava -d bin/$*/
 
-diff: bin/compile/Compiler.class
-	diff bin/out bin/compile
+diff12: $(COMPILER2)
+	diff -r bin/1-2 bin/2-2
 
-bin/compile/Compiler.class: bin/out/Compiler.class compile.sjava
-	$(JAVA) -classpath $(call classpathify,$(JARS) bin/out) Compiler compile.sjava -d bin/compile/
+diff23: $(COMPILER)
+	diff -r bin/2-3/sjava/compiler bin/sjava/compiler
 
-bin/out/Compiler.class: compile.scm compile.sjava
-	$(JAVA) -classpath $(call classpathify,$(JARS)) kawa.repl compile.scm compile.sjava
+$(COMPILER1): compiler1.scm compiler2.sjava
+	$(JAVA) -classpath $(call classpathify,$(JARS)) kawa.repl compiler1.scm compiler2.sjava
+
+$(COMPILER2): $(COMPILER1) compiler2.sjava
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/1-2) compiler2.Main compiler2.sjava -d bin/2-2/
+
+$(COMPILER3): $(COMPILER2) $(call rwildcard,compiler3,*.sjava)
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/2-2) compiler2.Main $(COMPILER3_FILES) std/macros.sjava -d bin/2-3/
+
+$(COMPILER): $(COMPILER3) $(COMPILER3_FILES)
+	$(JAVA) -classpath $(call classpathify,$(JARS) bin/2-3) sjava.compiler.Main $(COMPILER3_FILES) std/macros.sjava -d bin/
 
 clean:
 	rm -rf bin
 
 $(CLEAN_TARGETS): clean-%:
 	rm -rf bin/$*
+
+diff: diff12 diff23
