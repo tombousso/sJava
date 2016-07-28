@@ -8,13 +8,9 @@
 (import java.util.*)
 (import gnu.bytecode.*)
 
-(define-class Handler () 'public
+(define-class Handler () 'abstract 'public
 	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool false)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type null)
-	((compile tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(this:compile null tok mi code needed)
-	)
 	((compileAll toks List{Token} i int e int mi AMethodInfo code CodeAttr needed Object) Type[] 'public
 		(define l (toks:size))
 		(define types (Type[] len: (- e i)))
@@ -32,172 +28,59 @@
 		)
 		types
 	)
-	((tryHandlers h Handler default Type handlers List{Handler} tok Token mi AMethodInfo code CodeAttr needed Type) Type 'static
-		(define i 0)
-		(define type default)
-		(define run true)
-		(while (&& run (< i (handlers:size)))
-			(define s (handlers:get i))
-			(if (s:valid tok mi needed)
-				(begin
-					(set type (s:compile h tok mi code needed))
-					(set run false)
-				)
-			)
-			(set i (+ i 1))
-		)
-		type
+	((compile tok EmptyToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok SToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok CToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok NToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ColonToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok QuoteToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ConstToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok VToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok IncludeToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ObjectToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok MacroCallToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok BeginToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok LabelToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok GotoToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok DefineToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok TryToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok InstanceToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok SetToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ASetToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok AGetToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ALenToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok AsToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok BinOpToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok IfToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok WhileToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok CompareToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ThrowToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ClassToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok SynchronizedToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok TypeToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok ReturnToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok CallToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok DefaultToken mi AMethodInfo code CodeAttr needed Type) Type 'public 'abstract)
+	((compile tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(doubleDispatch (this:compile _ mi code needed) tok)
 	)
 )
 
 (define-class GenHandler (Handler) 'public
 	(inst GenHandler 'static 'public)
 	((<clinit>) void 'static (set GenHandler:inst (GenHandler)))
-	(handlers List{Handler})
-	((<init> handlers List{Handler}) void
-		(super:<init>)
-		(set this:handlers handlers)
-	)
 	((<init>) void
-		(this:<init> (Arrays:asList (Object[]
-			SHandler:inst
-			CHandler:inst
-			NHandler:inst
-			ColonHandler:inst
-			QuasiHandler:inst
-			ConstsHandler:inst
-			VHandler:inst
-			IncludeHandler:inst
-			ObjectHandler:inst
-			MacroCallHandler:inst
-			BlockHandler:inst
-		)))
+		(super:<init>)
 	)
-	((compile tok Token mi AMethodInfo code CodeAttr needed Type) Type
-		(define output (!= code null))
-		(if output (code:putLineNumber (mi:ci:fs:name:substring (+ (mi:ci:fs:name:lastIndexOf "/") 1)) tok:line))
-		(try
-			(begin
-				(define type (Handler:tryHandlers this Type:voidType this:handlers tok mi code needed))
-				(Main:castMaybe code type needed)
-			)
-			e
-			(begin
-				(System:out:println (mi:ci:fs:name:concat (": Error compiling line ":concat (Integer:toString tok:line))))
-				(throw e)
-			)
-		)
+	((compile tok EmptyToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		Type:voidType
 	)
-)
-
-(define-class MacroCallHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set MacroCallHandler:inst (MacroCallHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok MacroCallToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define tok MacroCallToken tok)
-		(if (= tok:ret null)
-			(begin
-				(define name (as VToken (tok:toks:get 0)):val)
-				(define o 4)
-				(define l (- (tok:toks:size) 1))
-				(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.Handler")))
-				(define j 0)
-				(while (!= j l)
-					(aset types (+ o j) (Main:getCompilerType "tokens.Token"))
-					(set j (+ j 1))
-				)
-				(define method Method null)
-				(define ci ClassInfo null)
-				(define i 0)
-				(while (= method null)
-					(set ci ((mi:ci:fs:macroNames:get name):get i))
-					(define filter (MFilter name types ci:c))
-					(filter:searchDeclared)
-					(set method (filter:getMethod))
-					(set i (+ i 1))
-				)
-				(define params (method:getGenericParameterTypes))
-				(define classes (Class[] len:(alen params)))
-				(set j 0)
-				(while (!= j (alen params))
-					(aset classes j ((aget params j):getReflectClass))
-					(set j (+ j 1))
-				)
-				(define args (ArrayList (Arrays:asList (Object[] mi needed (mi:scopes:size) h))))
-				(args:addAll
-					(if (&& (> (alen params) 0) (instance? (aget params (- (alen params) 1)) ArrayType))
-						(begin
-							(define var (- (alen params) o))
-							(define al (ArrayList (tok:toks:subList 1 var)))
-							(define out (Token[] len:(- (tok:toks:size) var)))
-							((tok:toks:subList var (tok:toks:size)):toArray out)
-							(al:add out)
-							al
-						)
-						(tok:toks:subList 1 (tok:toks:size))
-					)
-				)
-				(set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))))
-			)
-		)
-		(mi:pushLevel)
-		(define out (h:compile tok:ret mi code needed))
-		(mi:popLevel)
-		out
-	)
-)
-
-(define-class IncludeHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set IncludeHandler:inst (IncludeHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok IncludeToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define tok IncludeToken tok)
-		(if (= tok:ret null)
-			(set tok:ret
-				((mi:ci:fs:includes:rc:getMethod ((as IncludeToken tok):mi:method:getName) (Class[]
-					(class AMethodInfo)
-					(class gnu.bytecode.Type)
-					Integer:TYPE
-					(class Handler)
-				)):invoke null (Object[] mi needed 0 h))
-			)
-		)
-		(h:compile tok:ret mi code needed)
-	)
-)
-
-(define-class SHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set SHandler:inst (SHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok SToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok SToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(if output (code:emitPushString (as SToken tok):val))
 		Type:javalangStringType
 	)
-)
-
-(define-class CHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set CHandler:inst (CHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok CToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok CToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define c int (as CToken tok):val)
 		(if (! (instance? needed PrimType))
@@ -211,16 +94,7 @@
 			)
 		)
 	)
-)
-
-(define-class NHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set NHandler:inst (NHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok NToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok NToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define tok NToken tok)
 		(if (instance? tok:val Double)
@@ -242,21 +116,12 @@
 			)
 		)
 	)
-)
-
-(define-class ColonHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ColonHandler:inst (ColonHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok ColonToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok ColonToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define first (tok:toks:get 0))
 		(define t (mi:getType first))
 		(if (= t null)
-			(set t (h:compile first mi code Main:unknownType))
+			(set t (this:compile first mi code Main:unknownType))
 		)
 		(define class ClassType (t:getRawType))
 		(define field Field (class:getField (as VToken (tok:toks:get 1)):val -1))
@@ -270,16 +135,7 @@
 		)
 		out
 	)
-)
-
-(define-class QuasiHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set QuasiHandler:inst (QuasiHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok QuoteToken)
-	)
-	((compileQuasi h Handler o Object mi AMethodInfo code CodeAttr needed Type) Type
+	((compileQuasi o Object mi AMethodInfo code CodeAttr needed Type) Type
 		(define output (!= code null))
 		(define result
 			(if (= o null)
@@ -290,7 +146,8 @@
 			(if (instance? o Token)
 				(begin
 					(define tok Token o)
-					(define t (if (instance? tok UnquoteToken) (h:compile (tok:toks:get 0) mi null Main:unknownType) null))
+					;(println (tok:getClass))
+					(define t (if (instance? tok UnquoteToken) (this:compile (tok:toks:get 0) mi null Main:unknownType) null))
 					(if (&&
 							(instance? tok UnquoteToken)
 							(||
@@ -302,11 +159,11 @@
 								((t:getRawType):isSubtype (Type:getType "java.util.List"))
 							)
 						)
-						(h:compile (tok:toks:get 0) mi code Main:unknownType)
+						(this:compile (tok:toks:get 0) mi code Main:unknownType)
 						(if (instance? tok UnquoteToken)
 							(begin
 								(define const (tok:toks:get 0))
-								(define t (h:compile const mi null Main:unknownType))
+								(define t (this:compile const mi null Main:unknownType))
 								(define type ClassType
 									(Main:getCompilerType
 										(if (as UnquoteToken tok):s
@@ -325,7 +182,7 @@
 								(if output (code:emitDup))
 								(if output (code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
 								(if output (code:emitDup))
-								(h:compile const mi code Type:objectType)
+								(this:compile const mi code Type:objectType)
 								(if output (code:emitPutField (type:getField "val")))
 								(Main:getCompilerType "tokens.Token")
 							)	
@@ -345,8 +202,8 @@
 											(begin
 												(if output (code:emitDup))
 												(if (= (field:getType) Type:intType)
-													(this:compileQuasi h ((field:getReflectField):getInt tok) mi code (field:getType))
-													(this:compileQuasi h ((field:getReflectField):get tok) mi code (field:getType))
+													(this:compileQuasi ((field:getReflectField):getInt tok) mi code (field:getType))
+													(this:compileQuasi ((field:getReflectField):get tok) mi code (field:getType))
 												)
 												(if output (code:emitPutField field))
 											)
@@ -391,24 +248,24 @@
 					(if output (code:emitInvoke (al:getMethod "<init>" (Type[]))))
 					(define i 0)
 					(while (!= i (o:size))
-						(define t (this:compileQuasi h (o:get i) mi null Main:unknownType))
+						(define t (this:compileQuasi (o:get i) mi null Main:unknownType))
 						(if (= t (Main:getCompilerType "tokens.Token"))
 							(begin
 								(if output (code:emitDup))
-								(this:compileQuasi h (o:get i) mi code Main:unknownType)
+								(this:compileQuasi (o:get i) mi code Main:unknownType)
 								(if output (code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
 								(if output (code:emitPop 1))
 							)
 						(if (instance? t ArrayType)
 							(begin
 								(if output (code:emitDup))
-								(this:compileQuasi h (o:get i) mi code Main:unknownType)
+								(this:compileQuasi (o:get i) mi code Main:unknownType)
 								(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
 								(if output (code:emitPop 1))
 							)
 							(begin
 								(if output (code:emitDup))
-								(this:compileQuasi h (o:get i) mi code Main:unknownType)
+								(this:compileQuasi (o:get i) mi code Main:unknownType)
 								(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.List")):getDeclaredMethod "addAll" 1)))
 								(if output (code:emitPop 1))
 							)
@@ -428,23 +285,18 @@
 		)
 		(Main:castMaybe code result needed)
 	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok QuoteToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(define out (this:compileQuasi h (tok:toks:get 0) mi code (Main:getCompilerType "tokens.Token")))
-		(if output (code:emitLoad (code:getArg 0)))
-		(if output (code:emitInvoke ((as ClassType (Main:getCompilerType "Main")):getDeclaredMethod "transformBlock" 2)))
+		(define out (this:compileQuasi (tok:toks:get 0) mi code (Main:getCompilerType "tokens.Token")))
+		(if (as QuoteToken tok):transform
+			(begin
+				(if output (code:emitLoad (code:getArg 0)))
+				(if output (code:emitInvoke ((as ClassType (Main:getCompilerType "Main")):getDeclaredMethod "transformBlock" 2)))
+			)
+		)
 		out
 	)
-)
-
-(define-class ConstsHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ConstsHandler:inst (ConstsHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(|| (tok:what:equals "true") (tok:what:equals "false") (tok:what:equals "null"))
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok ConstToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(if (tok:what:equals "true")
 			(begin
@@ -463,670 +315,27 @@
 		)
 		)
 	)
-)
-
-(define-class VHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set VHandler:inst (VHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok VToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		;(println mi:scopes)
+	((compile tok VToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define found (mi:getVar (as VToken tok)))
 		(found:load code)
 	)
-)
-
-(define-class CaptureVHandler (Handler)
-	(enc AMethodInfo)
-	(captured Map{AVar Field})
-	(n int)
-	((<init> enc AMethodInfo) void
-		(super:<init>)
-		(set this:enc enc)
-		(set this:captured (LinkedHashMap))
-	)
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok VToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok IncludeToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(define found (mi:getVar (as VToken tok)))
-		(if (= found null)
-			(begin
-				(define outer (this:enc:getVar (as VToken tok)))
-				(if (= outer null) (throw (Exception)))
-				(define field
-					(if output
-						(if (this:captured:containsKey outer)
-							(this:captured:get outer)
-							(begin
-								(define new (mi:ci:c:addField ("captured$":concat (Integer:toString this:n)) outer:type Access:SYNTHETIC))
-								(set this:n (+ this:n 1))
-								(this:captured:put outer new)
-								new
-							)
-						)
-						null
-					)
-				)
-				(if output (code:emitPushThis))
-				(if output (code:emitGetField field))
-				outer:type
+		(define tok IncludeToken tok)
+		(if (= tok:ret null)
+			(set tok:ret
+				((mi:ci:fs:includes:rc:getMethod ((as IncludeToken tok):mi:method:getName) (Class[]
+					(class AMethodInfo)
+					(class gnu.bytecode.Type)
+					Integer:TYPE
+					(class Handler)
+				)):invoke null (Object[] mi needed 0 this))
 			)
-			(found:load code)
 		)
+		(this:compile tok:ret mi code needed)
 	)
-)
-
-(define-class BeginBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set BeginBlockHandler:inst (BeginBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "begin")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((compile tok ObjectToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(define first VToken (tok:toks:get 0))
-		;(define newLevel (= first:macro (mi:scopes:size)))
-		;(if (< (mi:scopes:size) first:macro)
-		;	(throw (Exception))
-		;)
-		;(if newLevel (mi:scopes:add (ArrayDeque)))
-		(mi:pushScope code (as BlockToken tok):labels)
-		(h:compileAll tok:toks 1 (- (tok:toks:size) 1) mi code Type:voidType)
-		(define type (h:compile (tok:toks:get (- (tok:toks:size) 1)) mi code needed))
-		;(if newLevel (mi:scopes:remove (- (mi:scopes:size) 1)))
-		(mi:popScope code)
-		type
-	)
-)
-
-(define-class LabelBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set LabelBlockHandler:inst (LabelBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "label")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define label (mi:getLabel (as VToken (tok:toks:get 1)):val))
-		(if output (label:define code))
-		Type:voidType
-	)
-)
-
-(define-class GotoBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set GotoBlockHandler:inst (GotoBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "goto")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define label (mi:getLabel (as VToken (tok:toks:get 1)):val))
-		(if output (code:emitGoto label))
-		Type:voidType
-	)
-)
-
-(define-class DefineBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set DefineBlockHandler:inst (DefineBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "define")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first VToken (tok:toks:get 0))
-		(define type (mi:getType (tok:toks:get 2)))
-		(if (= type null)
-			(set type (h:compile (tok:toks:get 2) mi code Main:unknownType))
-		(if (= (tok:toks:size) 4)
-			(h:compile (tok:toks:get 3) mi code type)
-			(if output (code:emitPushDefaultValue needed))
-		)
-		)
-		(define var (mi:newVar code (as VToken (tok:toks:get 1)) type))
-		(if output (code:emitStore var))
-		Type:voidType
-	)
-)
-
-(define-class TryBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set TryBlockHandler:inst (TryBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "try")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(if output (code:emitTryStart false null))
-		(define type (h:compile (tok:toks:get 1) mi code needed))
-		(define var (mi:newVar code (as VToken (tok:toks:get 2)) Type:javalangThrowableType))
-		(if output (code:emitCatchStart var))
-		(h:compile (tok:toks:get 3) mi code Main:unknownType)
-		(if output (code:emitCatchEnd))
-		(if output (code:emitTryCatchEnd))
-		type
-	)
-)
-
-(define-class InstanceBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set InstanceBlockHandler:inst (InstanceBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "instance?")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(h:compile (tok:toks:get 1) mi code Main:unknownType)
-		(if output (code:emitInstanceof (mi:getType (tok:toks:get 2))))
-		Type:booleanType
-	)
-)
-
-(define-class SetBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set SetBlockHandler:inst (SetBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "set")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define out (tok:toks:get 1))
-		(if (instance? out ColonToken)
-			(begin
-				(define first (out:toks:get 0))
-				(define t (mi:getType first))
-				(if (= t null)
-					(set t (h:compile first mi code Main:unknownType))
-				)
-				(define class ClassType (t:getRawType))
-				(define field Field (class:getField (as VToken (out:toks:get 1)):val -1))
-				(h:compile (tok:toks:get 2) mi code (Main:resolveType t (field:getType)))
-				(if (field:getStaticFlag)
-					(if output (code:emitPutStatic field))
-					(if output (code:emitPutField field))
-				)
-			)
-			(begin
-				(define var (mi:getVar (as VToken (tok:toks:get 1))))
-				(h:compile (tok:toks:get 2) mi code var:type)
-				(var:store code)
-			)
-		)
-		Type:voidType
-	)
-)
-
-(define-class ASetBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ASetBlockHandler:inst (ASetBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "aset")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define type ArrayType (h:compile (tok:toks:get 1) mi code Main:unknownType))
-		(h:compile (tok:toks:get 2) mi code Main:unknownType)
-		(h:compile (tok:toks:get 3) mi code type:elements)
-		(if output (code:emitArrayStore))
-		Type:voidType
-	)
-)
-
-(define-class AGetBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set AGetBlockHandler:inst (AGetBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "aget")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define type ArrayType (h:compile (tok:toks:get 1) mi code Main:unknownType))
-		(h:compile (tok:toks:get 2) mi code Type:intType)
-		(if output (code:emitArrayLoad))
-		type:elements
-	)
-)
-
-(define-class ALenBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ALenBlockHandler:inst (ALenBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "alen")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(h:compile (tok:toks:get 1) mi code Main:unknownType)
-		(if output (code:emitArrayLength))
-		Type:intType
-	)
-)
-
-(define-class AsBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set AsBlockHandler:inst (AsBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "as")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define cast (mi:getType (tok:toks:get 1)))
-		(h:compile (tok:toks:get 2) mi code cast)
-	)
-)
-
-(define-class BinOpsBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set BinOpsBlockHandler:inst (BinOpsBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(Main:binOps:containsKey first:val)
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first VToken (tok:toks:get 0))
-		(define otype (Main:numericOpType (h:compileAll tok:toks 1 (tok:toks:size) mi null Main:unknownType)))
-		(h:compile (tok:toks:get 1) mi code otype)
-		(define i 2)
-		(while (!= i (tok:toks:size))
-			(h:compile (tok:toks:get i) mi code otype)
-			(if output (code:emitBinop (Main:binOps:get first:val) otype))
-			(set i (+ i 1))
-		)
-		otype
-	)
-)
-
-(define-class IfBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set IfBlockHandler:inst (IfBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "if")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(Main:emitIf h false tok 1 (tok:toks:get 2) (if (= (tok:toks:size) 4) (tok:toks:get 3) null) mi code needed)
-	)
-)
-
-(define-class WhileBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set WhileBlockHandler:inst (WhileBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "while")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(mi:pushScope code (as BlockToken tok):labels)
-		(define start Label (Label))
-		(if output (start:define code))
-		(define t (Main:emitIf h false tok 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) null mi code needed))
-		(mi:popScope code)
-		t
-	)
-)
-
-(define-class CompareBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set CompareBlockHandler:inst (CompareBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(Main:isCompare first:val)
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(Main:emitIf_ h false tok 1 (tok:toks:size) (as VToken first):val (Token tok:line -1 "true") (Token tok:line -1 "false") mi code Type:booleanType)
-	)
-)
-
-(define-class ColonBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ColonBlockHandler:inst (ColonBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? (tok:toks:get 0) ColonToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define name (as VToken (first:toks:get 1)):val)
-		(define special
-			(&&
-				(instance? (first:toks:get 0) VToken)
-				((as VToken (first:toks:get 0)):val:equals "super")
-			)
-		)
-		(define t
-			(if special
-				(begin
-					(if output (code:emitPushThis))
-					(mi:ci:c:getGenericSuperclass)
-				)
-				(mi:getType (first:toks:get 0))
-			)
-		)
-		(if (= t null)
-			(set t (h:compile (first:toks:get 0) mi code Main:unknownType))
-		)
-		(Main:emitInvoke h name t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType special)
-	)
-)
-
-(define-class DefaultBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set DefaultBlockHandler:inst (DefaultBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		true
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define first (tok:toks:get 0))
-		(define type Type (mi:getType first))
-		(if (= type null)
-			(begin
-				(define t (h:compile first mi code Main:unknownType))
-				(define c ClassType (t:getRawType))
-				(define method (c:getDeclaredMethods))
-				(define i 0)
-				(define tocall Method null)
-				(while (!= method null)
-					(if (&& (! ((method:getName):equals "<init>")) (= 0 (& Access:SYNTHETIC (method:getModifiers))))
-						(if (= tocall null)
-							(set tocall method)
-							(throw (Exception))
-						)
-					)
-					(set method (method:getNext))
-				)
-				(Main:emitInvoke h (tocall:getName) t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType)
-			)
-			(if (instance? type ArrayType)
-				(begin
-					(define array ArrayType type)
-					(define len Token (if (> (tok:toks:size) 1) (tok:toks:get 1) null))
-					(define i0
-						(if (&& (!= len null) (instance? len ColonToken) ((as VToken (len:toks:get 0)):val:equals "len"))
-							(begin (h:compile (len:toks:get 1) mi code Main:unknownType) 2)
-							(begin (if output (code:emitPushInt (- (tok:toks:size) 1))) 1)
-						)
-					)
-					(if output (code:emitNewArray (array:elements:getRawType)))
-					(define i i0)
-					(while (!= i (tok:toks:size))
-						(if output (code:emitDup))
-						(if output (code:emitPushInt (- i i0)))
-						(h:compile (tok:toks:get i) mi code array:elements)
-						(if output (code:emitArrayStore))
-						(set i (+ i 1))
-					)
-					type
-				)
-				(begin
-					(define class ClassType (type:getRawType))
-					(if output (code:emitNew class))
-					(if output (code:emitDup))
-					(Main:emitInvoke h "<init>" type (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType)
-					type
-				)
-			)
-		)
-	)
-)
-
-(define-class ThrowBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ThrowBlockHandler:inst (ThrowBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "throw")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(h:compile (tok:toks:get 1) mi code Main:unknownType)
-		(if output (code:emitThrow))
-		Main:throwType
-	)
-)
-
-(define-class ClassBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ClassBlockHandler:inst (ClassBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "class")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(if output (code:emitPushClass (as ObjectType (mi:getType (tok:toks:get 1)))))
-		Type:javalangClassType
-	)
-)
-
-(define-class SynchronizedBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set SynchronizedBlockHandler:inst (SynchronizedBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "synchronized")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(h:compile (tok:toks:get 1) mi code Main:unknownType)
-		(mi:pushScope code (as BlockToken tok):labels)
-		(if output (code:emitDup))
-		(if output (code:emitMonitorEnter))
-		(h:compileAll tok:toks 2 (- (tok:toks:size) 1) mi code Type:voidType)
-		(define type (h:compile (tok:toks:get (- (tok:toks:size) 1)) mi code needed))
-		(if output (code:emitMonitorExit))
-		(mi:popScope code)
-		type
-	)
-)
-
-(define-class TypeBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set TypeBlockHandler:inst (TypeBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "type")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(if output (code:emitLoad (code:getArg 0)))
-		(if output (code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "pushLevel" 0)))
-		(if output (code:emitLoad (code:getArg 3)))
-		(h:compile (tok:toks:get 1) mi code Main:unknownType)
-		(if output (code:emitLoad (code:getArg 0)))
-		(if output (code:emitInvoke ((Main:getCompilerType "Main"):getDeclaredMethod "transformBlock" 2)))
-		(if output (code:emitLoad (code:getArg 0)))
-		(if output (code:emitPushNull))
-		(if output (code:emitGetStatic ((Main:getCompilerType "Main"):getField "unknownType")))
-		(if output (code:emitInvoke ((Main:getCompilerType "handlers.Handler"):getDeclaredMethod "compile" 4)))
-		(if output (code:emitLoad (code:getArg 0)))
-		(if output (code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "popLevel" 0)))
-		(Type:getType "gnu.bytecode.Type")
-	)
-)
-
-(define-class ReturnBlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ReturnBlockHandler:inst (ReturnBlockHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(if (instance? (tok:toks:get 0) VToken)
-			(begin
-				(define first VToken (tok:toks:get 0))
-				(first:val:equals "return")
-			)
-			false
-		)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(if (= (tok:toks:size) 2)
-			(h:compile (tok:toks:get 1) mi code Main:unknownType)
-		)
-		(if output (code:emitReturn))
-		Main:returnType
-	)
-)
-
-(define-class ObjectHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set ObjectHandler:inst (ObjectHandler)))
-	((<init>) void (super:<init>))
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(instance? tok ObjectToken)
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define output (!= code null))
-		(define tok ObjectToken tok)
 		(define lambda (instance? tok LambdaToken))
 		(define ci tok:ci)
 		(define superT (tok:toks:get 1))
@@ -1141,10 +350,7 @@
 		)
 		(if (= ci null)
 			(begin
-				(define handlers (ArrayList GenHandler:inst:handlers))
 				(define captureH (CaptureVHandler mi))
-				(handlers:set (handlers:indexOf VHandler:inst) captureH)
-				(define h (GenHandler handlers))
 				(if output
 					(begin
 						(set ci (ClassInfo ((mi:ci:c:getName):concat ("$":concat (Integer:toString mi:ci:anonymous))) mi:ci:fs))
@@ -1159,10 +365,9 @@
 						(define params (Main:getParams mi:ci superT scope 0 1))
 						(define generics (Type[] len:(+ (alen params) 1)))
 						(System:arraycopy params 0 generics 0 (alen params))
-						(define block (BlockToken tok:line (tok:toks:subList 2 (tok:toks:size))))
-						(define fakemi (MethodInfo (ClassInfo null mi:ci:fs) block null scope))
-						(h:compileAll block:toks 0 (- (block:toks:size) 1) fakemi null Type:voidType)
-						(define ret (Main:tryBox (h:compile (block:toks:get (- (block:toks:size) 1)) fakemi null Main:unknownType)))
+						(define toks (tok:toks:subList 2 (tok:toks:size)))
+						(define fakemi (MethodInfo (ClassInfo null mi:ci:fs) toks null scope))
+						(define ret (Main:tryBox (captureH:compile fakemi:block fakemi null Main:unknownType)))
 						(aset generics (alen params) ret)
 						(define t (ParameterizedType (ClassType:make ("sjava.std.Function":concat (Integer:toString (alen params)))) generics))
 						(set tok:t t)
@@ -1170,8 +375,8 @@
 							(begin
 								(define m (ci:c:addMethod "apply" params ret Access:PUBLIC))
 								(ci:c:addInterface t)
-								(ci:methods:add (MethodInfo ci block m scope))
-								(ci:compileMethods h)
+								(ci:methods:add (MethodInfo ci toks m scope))
+								(ci:compileMethods captureH)
 							)
 						)
 					)
@@ -1195,9 +400,8 @@
 								)
 								(ci:c:addInterface t)
 								(define m (ci:c:addMethod (sam:getName) params (Main:resolveType t (sam:getReturnType)) Access:PUBLIC))
-								(define block (BlockToken tok:line (tok:toks:subList 3 (tok:toks:size))))
-								(ci:methods:add (MethodInfo ci block m scope))
-								(ci:compileMethods h)
+								(ci:methods:add (MethodInfo ci (tok:toks:subList 3 (tok:toks:size)) m scope))
+								(ci:compileMethods captureH)
 							)
 						)
 					)
@@ -1220,7 +424,7 @@
 									(ci:compileDef (tok:toks:get i))
 									(set i (+ i 1))
 								)
-								(ci:compileMethods h)
+								(ci:compileMethods captureH)
 							)
 						)
 					)
@@ -1229,7 +433,7 @@
 				(if output
 					(begin
 						(define superC (ci:c:getSuperclass))
-						(define types (emitters:emitAll h mi null Main:unknownType))
+						(define types (emitters:emitAll captureH mi null Main:unknownType))
 						(define filter (MFilter "<init>" types superC))
 						(filter:searchDeclared)
 						(define superCons (filter:getMethod))
@@ -1275,52 +479,392 @@
 					(emitters:emitters:add (LoadAVar (aget tok:captured i)))
 					(set i (+ i 1))
 				)
-				(Main:emitInvoke h "<init>" ci:c emitters mi code Main:unknownType)
+				(Main:emitInvoke this "<init>" ci:c emitters mi code Main:unknownType)
 			)
 		)
 		tok:t
 	)
+	((compile tok MacroCallToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if (= tok:ret null)
+			(begin
+				(define name (as VToken (tok:toks:get 0)):val)
+				(define o 4)
+				(define l (- (tok:toks:size) 1))
+				(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.Handler")))
+				(define j 0)
+				(while (!= j l)
+					(aset types (+ o j) (Main:getCompilerType "tokens.Token"))
+					(set j (+ j 1))
+				)
+				(define method Method null)
+				(define ci ClassInfo null)
+				(define i 0)
+				(while (= method null)
+					(set ci ((mi:ci:fs:macroNames:get name):get i))
+					(define filter (MFilter name types ci:c))
+					(filter:searchDeclared)
+					(set method (filter:getMethod))
+					(set i (+ i 1))
+				)
+				(define params (method:getGenericParameterTypes))
+				(define classes (Class[] len:(alen params)))
+				(set j 0)
+				(while (!= j (alen params))
+					(aset classes j ((aget params j):getReflectClass))
+					(set j (+ j 1))
+				)
+				(define args (ArrayList (Arrays:asList (Object[] mi needed (mi:scopes:size) this))))
+				(args:addAll
+					(if (&& (> (alen params) 0) (instance? (aget params (- (alen params) 1)) ArrayType))
+						(begin
+							(define var (- (alen params) o))
+							(define al (ArrayList (tok:toks:subList 1 var)))
+							(define out (Token[] len:(- (tok:toks:size) var)))
+							((tok:toks:subList var (tok:toks:size)):toArray out)
+							(al:add out)
+							al
+						)
+						(tok:toks:subList 1 (tok:toks:size))
+					)
+				)
+				(set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))))
+			)
+		)
+		(mi:pushLevel)
+		(define out (this:compile tok:ret mi code needed))
+		(mi:popLevel)
+		out
+	)
+	((compile tok BeginToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first VToken (tok:toks:get 0))
+		(mi:pushScope code (as BlockToken tok):labels)
+		(this:compileAll tok:toks 1 (- (tok:toks:size) 1) mi code Type:voidType)
+		(define type (this:compile (tok:toks:get (- (tok:toks:size) 1)) mi code needed))
+		(mi:popScope code)
+		type
+	)
+	((compile tok LabelToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define label (mi:getLabel (as VToken (tok:toks:get 1)):val))
+		(if output (label:define code))
+		Type:voidType
+	)
+	((compile tok GotoToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define label (mi:getLabel (as VToken (tok:toks:get 1)):val))
+		(if output (code:emitGoto label))
+		Type:voidType
+	)
+	((compile tok DefineToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first VToken (tok:toks:get 0))
+		(define type (mi:getType (tok:toks:get 2)))
+		(if (= type null)
+			(set type (this:compile (tok:toks:get 2) mi code Main:unknownType))
+		(if (= (tok:toks:size) 4)
+			(this:compile (tok:toks:get 3) mi code type)
+			(if output (code:emitPushDefaultValue needed))
+		)
+		)
+		(define var (mi:newVar code (as VToken (tok:toks:get 1)) type))
+		(if output (code:emitStore var))
+		Type:voidType
+	)
+	((compile tok TryToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(if output (code:emitTryStart false null))
+		(define type (this:compile (tok:toks:get 1) mi code needed))
+		(define var (mi:newVar code (as VToken (tok:toks:get 2)) Type:javalangThrowableType))
+		(if output (code:emitCatchStart var))
+		(this:compile (tok:toks:get 3) mi code Main:unknownType)
+		(if output (code:emitCatchEnd))
+		(if output (code:emitTryCatchEnd))
+		type
+	)
+	((compile tok InstanceToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(this:compile (tok:toks:get 1) mi code Main:unknownType)
+		(if output (code:emitInstanceof (mi:getType (tok:toks:get 2))))
+		Type:booleanType
+	)
+	((compile tok SetToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define out (tok:toks:get 1))
+		(if (instance? out ColonToken)
+			(begin
+				(define first (out:toks:get 0))
+				(define t (mi:getType first))
+				(if (= t null)
+					(set t (this:compile first mi code Main:unknownType))
+				)
+				(define class ClassType (t:getRawType))
+				(define field Field (class:getField (as VToken (out:toks:get 1)):val -1))
+				(this:compile (tok:toks:get 2) mi code (Main:resolveType t (field:getType)))
+				(if (field:getStaticFlag)
+					(if output (code:emitPutStatic field))
+					(if output (code:emitPutField field))
+				)
+			)
+			(begin
+				(define var (mi:getVar (as VToken (tok:toks:get 1))))
+				(this:compile (tok:toks:get 2) mi code var:type)
+				(var:store code)
+			)
+		)
+		Type:voidType
+	)
+	((compile tok ASetToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define type ArrayType (this:compile (tok:toks:get 1) mi code Main:unknownType))
+		(this:compile (tok:toks:get 2) mi code Main:unknownType)
+		(this:compile (tok:toks:get 3) mi code type:elements)
+		(if output (code:emitArrayStore))
+		Type:voidType
+	)
+	((compile tok AGetToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define type ArrayType (this:compile (tok:toks:get 1) mi code Main:unknownType))
+		(this:compile (tok:toks:get 2) mi code Type:intType)
+		(if output (code:emitArrayLoad))
+		type:elements
+	)
+	((compile tok ALenToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(this:compile (tok:toks:get 1) mi code Main:unknownType)
+		(if output (code:emitArrayLength))
+		Type:intType
+	)
+	((compile tok AsToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define cast (mi:getType (tok:toks:get 1)))
+		(this:compile (tok:toks:get 2) mi code cast)
+	)
+	((compile tok BinOpToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first VToken (tok:toks:get 0))
+		(define otype (Main:numericOpType (this:compileAll tok:toks 1 (tok:toks:size) mi null Main:unknownType)))
+		(this:compile (tok:toks:get 1) mi code otype)
+		(define i 2)
+		(while (!= i (tok:toks:size))
+			(this:compile (tok:toks:get i) mi code otype)
+			(if output (code:emitBinop (Main:binOps:get first:val) otype))
+			(set i (+ i 1))
+		)
+		otype
+	)
+	((compile tok IfToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define hasElse (= (tok:toks:size) 4))
+		(Main:emitIf this false tok 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) null) mi code (if hasElse needed Type:voidType))
+	)
+	((compile tok WhileToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(mi:pushScope code (as BlockToken tok):labels)
+		(define start Label (Label))
+		(if output (start:define code))
+		(define t (Main:emitIf this false tok 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) null mi code needed))
+		(mi:popScope code)
+		t
+	)
+	((compile tok CompareToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(Main:emitIf_ this false tok 1 (tok:toks:size) (as VToken first):val (ConstToken tok:line "true") (ConstToken tok:line "false") mi code Type:booleanType)
+	)
+	((compile tok ThrowToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(this:compile (tok:toks:get 1) mi code Main:unknownType)
+		(if output (code:emitThrow))
+		Main:throwType
+	)
+	((compile tok ClassToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if output (code:emitPushClass (as ObjectType (mi:getType (tok:toks:get 1)))))
+		Type:javalangClassType
+	)
+	((compile tok SynchronizedToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(this:compile (tok:toks:get 1) mi code Main:unknownType)
+		(mi:pushScope code (as BlockToken tok):labels)
+		(if output (code:emitDup))
+		(if output (code:emitMonitorEnter))
+		(this:compileAll tok:toks 2 (- (tok:toks:size) 1) mi code Type:voidType)
+		(define type (this:compile (tok:toks:get (- (tok:toks:size) 1)) mi code needed))
+		(if output (code:emitMonitorExit))
+		(mi:popScope code)
+		type
+	)
+	((compile tok TypeToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if output (code:emitLoad (code:getArg 0)))
+		(if output (code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "pushLevel" 0)))
+		(if output (code:emitLoad (code:getArg 3)))
+		(this:compile (tok:toks:get 1) mi code Main:unknownType)
+		(if output (code:emitLoad (code:getArg 0)))
+		(if output (code:emitInvoke ((Main:getCompilerType "Main"):getDeclaredMethod "transformBlock" 2)))
+		(if output (code:emitLoad (code:getArg 0)))
+		(if output (code:emitPushNull))
+		(if output (code:emitGetStatic ((Main:getCompilerType "Main"):getField "unknownType")))
+		(if output (code:emitInvoke ((Main:getCompilerType "handlers.Handler"):getDeclaredMethod "compile" (Type[]
+			(Main:getCompilerType "tokens.Token")
+			(Main:getCompilerType "AMethodInfo")
+			(ClassType:make "gnu.bytecode.CodeAttr")
+			(ClassType:make "gnu.bytecode.Type")
+		))))
+		(if output (code:emitLoad (code:getArg 0)))
+		(if output (code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "popLevel" 0)))
+		(Type:getType "gnu.bytecode.Type")
+	)
+	((compile tok ReturnToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(if (= (tok:toks:size) 2)
+			(this:compile (tok:toks:get 1) mi code Main:unknownType)
+		)
+		(if output (code:emitReturn))
+		Main:returnType
+	)
+	((compile tok CallToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define name (as VToken (first:toks:get 1)):val)
+		(define special
+			(&&
+				(instance? (first:toks:get 0) VToken)
+				((as VToken (first:toks:get 0)):val:equals "super")
+			)
+		)
+		(define t
+			(if special
+				(begin
+					(if output (code:emitPushThis))
+					(mi:ci:c:getGenericSuperclass)
+				)
+				(mi:getType (first:toks:get 0))
+			)
+		)
+		(if (= t null)
+			(set t (this:compile (first:toks:get 0) mi code Main:unknownType))
+		)
+		(Main:emitInvoke this name t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType special)
+	)
+	((compile tok DefaultToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define first (tok:toks:get 0))
+		(define type Type (mi:getType first))
+		(if (= type null)
+			(begin
+				(define t (this:compile first mi code Main:unknownType))
+				(define c ClassType (t:getRawType))
+				(define method (c:getDeclaredMethods))
+				(define i 0)
+				(define tocall Method null)
+				(while (!= method null)
+					(if (&& (! ((method:getName):equals "<init>")) (= 0 (& Access:SYNTHETIC (method:getModifiers))))
+						(if (= tocall null)
+							(set tocall method)
+							(throw (Exception))
+						)
+					)
+					(set method (method:getNext))
+				)
+				(Main:emitInvoke this (tocall:getName) t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType)
+			)
+			(if (instance? type ArrayType)
+				(begin
+					(define array ArrayType type)
+					(define len Token (if (> (tok:toks:size) 1) (tok:toks:get 1) null))
+					(define i0
+						(if (&& (!= len null) (instance? len ColonToken) ((as VToken (len:toks:get 0)):val:equals "len"))
+							(begin (this:compile (len:toks:get 1) mi code Main:unknownType) 2)
+							(begin (if output (code:emitPushInt (- (tok:toks:size) 1))) 1)
+						)
+					)
+					(if output (code:emitNewArray (array:elements:getRawType)))
+					(define i i0)
+					(while (!= i (tok:toks:size))
+						(if output (code:emitDup))
+						(if output (code:emitPushInt (- i i0)))
+						(this:compile (tok:toks:get i) mi code array:elements)
+						(if output (code:emitArrayStore))
+						(set i (+ i 1))
+					)
+					type
+				)
+				(begin
+					(define class ClassType (type:getRawType))
+					(if output (code:emitNew class))
+					(if output (code:emitDup))
+					(Main:emitInvoke this "<init>" type (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType)
+					type
+				)
+			)
+		)
+	)
+	((compile tok Token mi AMethodInfo code CodeAttr needed Type) Type
+		(define output (!= code null))
+		(if output (code:putLineNumber (mi:ci:fs:name:substring (+ (mi:ci:fs:name:lastIndexOf "/") 1)) tok:line))
+		(try
+			(begin
+				(define type (super:compile tok mi code needed))
+				(Main:castMaybe code type needed)
+			)
+			e
+			(begin
+				(System:out:println (mi:ci:fs:name:concat (": Error compiling line ":concat (Integer:toString tok:line))))
+				(throw e)
+			)
+		)
+	)
 )
 
-(define-class BlockHandler (Handler)
-	(inst Handler 'static)
-	((<clinit>) void 'static (set BlockHandler:inst (BlockHandler)))
-	(handlers List{Handler})
-	((<init> handlers List{Handler}) void
+(define-class CaptureVHandler (GenHandler)
+	(enc AMethodInfo)
+	(captured Map{AVar Field})
+	(n int)
+	((<init> enc AMethodInfo) void
 		(super:<init>)
-		(set this:handlers handlers)
+		(set this:enc enc)
+		(set this:captured (LinkedHashMap))
 	)
-	((<init>) void
-		(this:<init> (Arrays:asList (Object[]
-			BeginBlockHandler:inst
-			LabelBlockHandler:inst
-			GotoBlockHandler:inst
-			DefineBlockHandler:inst
-			TryBlockHandler:inst
-			InstanceBlockHandler:inst
-			SetBlockHandler:inst
-			ASetBlockHandler:inst
-			AGetBlockHandler:inst
-			ALenBlockHandler:inst
-			AsBlockHandler:inst
-			BinOpsBlockHandler:inst
-			IfBlockHandler:inst
-			WhileBlockHandler:inst
-			CompareBlockHandler:inst
-			ColonBlockHandler:inst
-			ThrowBlockHandler:inst
-			ClassBlockHandler:inst
-			SynchronizedBlockHandler:inst
-			TypeBlockHandler:inst
-			ReturnBlockHandler:inst
-			DefaultBlockHandler:inst
-		)))
-	)
-	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(&& (instance? tok BlockToken) (> (tok:toks:size) 0))
-	)
-	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
-		(define type (Handler:tryHandlers h null this:handlers tok mi code needed))
-		type
+	((compile tok VToken mi AMethodInfo code CodeAttr needed Type) Type 'public
+		(define output (!= code null))
+		(define found (mi:getVar (as VToken tok)))
+		(if (= found null)
+			(begin
+				(define outer (this:enc:getVar (as VToken tok)))
+				(if (= outer null) (throw (Exception)))
+				(define field
+					(if output
+						(if (this:captured:containsKey outer)
+							(this:captured:get outer)
+							(begin
+								(define new (mi:ci:c:addField ("captured$":concat (Integer:toString this:n)) outer:type Access:SYNTHETIC))
+								(set this:n (+ this:n 1))
+								(this:captured:put outer new)
+								new
+							)
+						)
+						null
+					)
+				)
+				(if output (code:emitPushThis))
+				(if output (code:emitGetField field))
+				outer:type
+			)
+			(found:load code)
+		)
 	)
 )

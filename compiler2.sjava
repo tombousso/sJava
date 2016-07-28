@@ -92,7 +92,7 @@
 		
 		(set Main:precs (String[][]
 			(String[] ":" "{")
-			(String[] "(" ")" "}" "'" "," ",$" "`" "\n" "\r\n" ";")
+			(String[] "(" ")" "}" "'" "," ",$" "`" "~" "\n" "\r\n" ";")
 		))
 
 		(set Main:specialChars (HashMap{String Character}))
@@ -374,14 +374,13 @@
 						)
 					)
 				)
-				(if transform (set block:transformed true))
 				(if (&& transform (instance? block BlockToken))
 					(set (as BlockToken block):labels (HashMap))
 				)
 				(define i 0)
 				(while (!= i (block:toks:size))
 					(define tok (block:toks:get i))
-					(block:toks:set i (Main:transformBlock tok mi
+					(define ntok (Main:transformBlock tok mi
 						(||
 							(&&
 								transform
@@ -390,6 +389,8 @@
 							block:alwaysTransform
 						)
 					))
+					(if transform (set ntok:transformed true))
+					(block:toks:set i ntok)
 					(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
 						(begin
 							(define val (as VToken (tok:toks:get 0)):val)
@@ -731,7 +732,7 @@
 	(toks List{Token} 'public)
 	(alwaysTransform bool 'public)
 	(neverTransform bool 'public)
-	(transformed bool)
+	(transformed bool 'public 'transient)
 	((<init>) void 'public
 		(super:<init>)
 		(set this:prec -1)
@@ -968,9 +969,11 @@
 )
 
 (define-class QuoteToken (Token) 'public
-	((<init> line int toks List{Token}) void
+	(transform bool 'public)
+	((<init> line int toks List{Token} transform bool) void
 		(super:<init> line toks)
 		(set this:neverTransform true)
+		(set this:transform transform)
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -1027,12 +1030,12 @@
 					)
 					null
 				)
-			(if (|| (w:equals "'") (w:equals "`") (w:equals ",$") (w:equals ","))
+			(if (|| (w:equals "'") (w:equals "`") (w:equals "~") (w:equals ",$") (w:equals ","))
 				(begin
 					(define al (ArrayList (Arrays:asList (Object[] (this:parse 0)))))
 					(if (|| (w:equals ",") (w:equals ",$"))
 						(UnquoteToken t:line al (w:equals ",$"))
-						(QuoteToken t:line al)
+						(QuoteToken t:line al (w:equals "`"))
 					)
 				)
 			(if (&& (!= (w:length) 0) (Character:isWhitespace (w:charAt 0)))
@@ -1356,12 +1359,12 @@
 	)
 )
 
-(define-class ClassInfo ()
+(define-class ClassInfo () 'public
 	(name String)
 	(c ClassType)
 	(fs FileScope)
 	(toks List{Token})
-	(methods List{AMethodInfo})
+	(methods List{AMethodInfo} 'public)
 	(anonymous int)
 	(rc Class)
 	(tvs HashMap{String TypeVariable})
@@ -1556,9 +1559,9 @@
 )
 
 (define-class AMethodInfo () 'public
-	(ci ClassInfo)
+	(ci ClassInfo 'public)
 	(block BlockToken)
-	(method Method)
+	(method Method 'public)
 	(scopes ArrayList{ArrayDeque{HashMap}})
 	(labels ArrayDeque{HashMap})
 	((<init> ci ClassInfo block BlockToken method Method scope HashMap) void
@@ -2391,8 +2394,12 @@
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define out (this:compileQuasi h (tok:toks:get 0) mi code (Type:getType "compiler2.Token")))
-		(if output (code:emitLoad (code:getArg 0)))
-		(if output (code:emitInvoke ((ClassType:make "compiler2.Main"):getDeclaredMethod "transformBlock" 2)))
+		(if (as QuoteToken tok):transform
+			(begin
+				(if output (code:emitLoad (code:getArg 0)))
+				(if output (code:emitInvoke ((ClassType:make "compiler2.Main"):getDeclaredMethod "transformBlock" 2)))
+			)
+		)
 		out
 	)
 )

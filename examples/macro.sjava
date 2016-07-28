@@ -15,7 +15,6 @@
 	((main args String[]) void 'public 'static
 		(define i -1)
 		(repeat 5 (System:out:println i))
-		(repeat 5 (System:out:println (mvar i)))
 
 		(System:out:println ("Compiled at ":concat (getTimestamp "HH:mm:ss MM/dd/yyyy")))
 		(System:out:println ("Compile time dice roll result: ":concat (include

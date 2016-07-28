@@ -113,6 +113,8 @@
 		(let ((x 1) (y 2))
 			(println "(" x ", " y ")")
 		)
+
+		(println (instance? "a" Object))
 	)
 	((toggle1 x int) int 'static
 		(cond

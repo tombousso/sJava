@@ -172,20 +172,31 @@
 		)
 		(inc j)
 	)
-	(define conds (java.util.ArrayList{Token}))
+	(define conds (ArrayList{Token}))
+	(define mname (as VToken ((call:toks:get 0):toks:get 1)):val)
+	(define nargs (alen (mi:method:getParameterTypes)))
 	(forEach omi mi:ci:methods
-		(if (&& ((omi:method:getName):equals (mi:method:getName)) (!= mi omi))
+		(if (&&
+				((omi:method:getName):equals mname) (!= mi omi)
+				(= nargs (alen (omi:method:getParameterTypes)))
+			)
 			(begin
 				(define t (aget (omi:method:getParameterTypes) (- special 1)))
-				(define ncall `(,call:toks))
-				(ncall:toks:set special `(as ,(t:getName) ,arg))
+				(define ncall ~(,call:toks))
+				(ncall:toks:set special ~(as ,(t:getName) ,arg))
 				(conds:add
-					`((instance? ,arg ,(t:getName))
+					~((instance? ,arg ,(t:getName))
 						,ncall
 					)
 				)
 			)
 		)
 	)
-	`(cond ,conds)
+	(define out
+		`(cond
+			,conds
+			(true (throw (Exception "Double dispatch")))
+		)
+	)
+	out
 )
