@@ -16,8 +16,8 @@
 	(neverTransform bool 'public)
 	(transformed bool 'public 'transient)
 	((<init>) void 'public
-		(Emitter:<init>)
-		(set this:prec -1)
+		(super:<init>)
+		(set this:prec 0)
 		(set this:what "")
 		(set this:alwaysTransform false)
 		(set this:neverTransform false)
@@ -25,18 +25,18 @@
 	)
 	((<init> line int) void
 		(set this:line line)
-		(Token:<init>)
+		(this:<init>)
 	)
 	((<init> line int prec int) void
-		(Token:<init> line)
+		(this:<init> line)
 		(set this:prec prec)
 	)
 	((<init> line int prec int what String) void 'public
-		(Token:<init> line prec)
+		(this:<init> line prec)
 		(set this:what what)
 	)
 	((<init> line int toks List{Token}) void 'public
-		(Token:<init> line)
+		(this:<init> line)
 		(set this:toks toks)
 	)
 	((toksString) String
@@ -60,21 +60,21 @@
 (define-class SToken (Token) 'public
 	(val String 'public)
 	((<init> line int val String) void 'public
-		(Token:<init> line)
+		(super:<init> line)
 		(set this:val val)
 	)
 	((toString) String 'public
 		(concat "\"" (org.apache.commons.lang3.StringEscapeUtils:escapeJava this:val) "\"")
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
 (define-class NToken (Token) 'public
 	(val Number 'public)
 	((<init> line int sval String) void 'public
-		(Token:<init> line)
+		(super:<init> line)
 		(if (org.apache.commons.lang3.math.NumberUtils:isNumber sval)
 			(set this:val (org.apache.commons.lang3.math.NumberUtils:createNumber sval))
 		)
@@ -83,14 +83,14 @@
 		(this:val:toString)
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
 (define-class CToken (Token) 'public
 	(val Character 'public)
 	((<init> line int val Character) void 'public
-		(Token:<init> line)
+		(super:<init> line)
 		(set this:val val)
 	)
 	((toString) String 'public
@@ -103,7 +103,7 @@
 		(concat "#\\" c)
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
@@ -111,77 +111,90 @@
 	(val String 'public)
 	(macro int 'public 'transient)
 	((<init> line int val String macro int) void
-		(Token:<init> line)
+		(super:<init> line)
 		(set this:val val)
 		(set this:macro macro)
 	)
 	((<init> line int val String) void 'public
-		(VToken:<init> line val 0)
+		(this:<init> line val 0)
 	)
 	((toString) String 'public
 		this:val
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
 (define-class BlockToken (Token) 'public
 	(labels HashMap 'public)
 	((<init> line int toks List{Token}) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 	)
 	((toString) String 'public
 		(concat "(" (this:toksString) ")")
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
 (define-class GenericToken (Token) 'public
 	(tok Token 'public)
 	((<init> line int tok Token toks List{Token}) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 		(set this:tok tok)
 	)
 	((toString) String 'public
 		(concat this:tok "{" (this:toksString) "}")
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
 (define-class ColonToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 	)
 	((toString) String 'public
 		(concat (this:toks:get 0) ":" (this:toks:get 1))
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
-(define-class QuoteToken (Token) 'public
+(define-class SingleQuoteToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 		(set this:neverTransform true)
 	)
 	((toString) String 'public
 		(concat "'" (this:toks:get 0))
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
+	)
+)
+
+(define-class QuoteToken (Token) 'public
+	((<init> line int toks List{Token}) void 'public
+		(super:<init> line toks)
+		(set this:neverTransform true)
+	)
+	((toString) String 'public
+		(concat "`" (this:toks:get 0))
+	)
+	((<init>) void 'public
+		(super:<init>)
 	)
 )
 
 (define-class UnquoteToken (Token) 'public
 	(s bool 'public)
 	((<init> line int toks List{Token} s bool) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 		(set this:s s)
 		(set this:alwaysTransform true)
 	)
@@ -189,7 +202,7 @@
 		(concat (if this:s ",$" ",") ((this:toks:get 0):toString))
 	)
 	((<init>) void 'public
-		(Token:<init>)
+		(super:<init>)
 	)
 )
 
@@ -197,7 +210,7 @@
 	(mi MethodInfo 'public)
 	(ret Token 'public)
 	((<init> line int mi MethodInfo) void 'public
-		(Token:<init> line)
+		(super:<init> line)
 		(set this:mi mi)
 	)
 )
@@ -208,19 +221,19 @@
 	(t Type 'public)
 	(params Type[])
 	((<init> line int toks List{Token}) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 	)
 )
 
 (define-class LambdaToken (ObjectToken) 'public
 	((<init> line int toks List{Token}) void 'public
-		(ObjectToken:<init> line toks)
+		(super:<init> line toks)
 	)
 )
 
 (define-class MacroCallToken (Token) 'public
 	(ret Token 'public)
 	((<init> line int toks List{Token}) void 'public
-		(Token:<init> line toks)
+		(super:<init> line toks)
 	)
 )

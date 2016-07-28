@@ -9,7 +9,7 @@
 (import gnu.bytecode.*)
 
 (define-class Handler () 'public
-	((<init>) void (Object:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool false)
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type null)
 	((compile tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
@@ -55,11 +55,11 @@
 	((<clinit>) void 'static (set GenHandler:inst (GenHandler)))
 	(handlers List{Handler})
 	((<init> handlers List{Handler}) void
-		(Handler:<init>)
+		(super:<init>)
 		(set this:handlers handlers)
 	)
 	((<init>) void
-		(GenHandler:<init> (Arrays:asList (Object[]
+		(this:<init> (Arrays:asList (Object[]
 			SHandler:inst
 			CHandler:inst
 			NHandler:inst
@@ -83,7 +83,7 @@
 			)
 			e
 			(begin
-				(System:out:println ("Error compiling line ":concat (Integer:toString tok:line)))
+				(System:out:println (mi:ci:fs:name:concat (": Error compiling line ":concat (Integer:toString tok:line))))
 				(throw e)
 			)
 		)
@@ -93,7 +93,7 @@
 (define-class MacroCallHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set MacroCallHandler:inst (MacroCallHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok MacroCallToken)
 	)
@@ -145,9 +145,9 @@
 				(set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))))
 			)
 		)
-		(mi:scopes:add (ArrayDeque))
+		(mi:pushLevel)
 		(define out (h:compile tok:ret mi code needed))
-		(mi:scopes:remove (- (mi:scopes:size) 1))
+		(mi:popLevel)
 		out
 	)
 )
@@ -155,7 +155,7 @@
 (define-class IncludeHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set IncludeHandler:inst (IncludeHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok IncludeToken)
 	)
@@ -179,7 +179,7 @@
 (define-class SHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set SHandler:inst (SHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok SToken)
 	)
@@ -193,7 +193,7 @@
 (define-class CHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set CHandler:inst (CHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok CToken)
 	)
@@ -216,7 +216,7 @@
 (define-class NHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set NHandler:inst (NHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok NToken)
 	)
@@ -247,7 +247,7 @@
 (define-class ColonHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ColonHandler:inst (ColonHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok ColonToken)
 	)
@@ -275,7 +275,7 @@
 (define-class QuasiHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set QuasiHandler:inst (QuasiHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok QuoteToken)
 	)
@@ -440,7 +440,7 @@
 (define-class ConstsHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ConstsHandler:inst (ConstsHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(|| (tok:what:equals "true") (tok:what:equals "false") (tok:what:equals "null"))
 	)
@@ -468,12 +468,13 @@
 (define-class VHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set VHandler:inst (VHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok VToken)
 	)
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
+		;(println mi:scopes)
 		(define found (mi:getVar (as VToken tok)))
 		(found:load code)
 	)
@@ -484,7 +485,7 @@
 	(captured Map{AVar Field})
 	(n int)
 	((<init> enc AMethodInfo) void
-		(Handler:<init>)
+		(super:<init>)
 		(set this:enc enc)
 		(set this:captured (LinkedHashMap))
 	)
@@ -524,7 +525,7 @@
 (define-class BeginBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set BeginBlockHandler:inst (BeginBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -554,7 +555,7 @@
 (define-class LabelBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set LabelBlockHandler:inst (LabelBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -576,7 +577,7 @@
 (define-class GotoBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set GotoBlockHandler:inst (GotoBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -598,7 +599,7 @@
 (define-class DefineBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set DefineBlockHandler:inst (DefineBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -628,7 +629,7 @@
 (define-class TryBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set TryBlockHandler:inst (TryBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -655,7 +656,7 @@
 (define-class InstanceBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set InstanceBlockHandler:inst (InstanceBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -677,7 +678,7 @@
 (define-class SetBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set SetBlockHandler:inst (SetBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -719,7 +720,7 @@
 (define-class ASetBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ASetBlockHandler:inst (ASetBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -743,7 +744,7 @@
 (define-class AGetBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set AGetBlockHandler:inst (AGetBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -766,7 +767,7 @@
 (define-class ALenBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ALenBlockHandler:inst (ALenBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -788,7 +789,7 @@
 (define-class AsBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set AsBlockHandler:inst (AsBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -809,7 +810,7 @@
 (define-class BinOpsBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set BinOpsBlockHandler:inst (BinOpsBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -837,7 +838,7 @@
 (define-class IfBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set IfBlockHandler:inst (IfBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -857,7 +858,7 @@
 (define-class WhileBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set WhileBlockHandler:inst (WhileBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -882,7 +883,7 @@
 (define-class CompareBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set CompareBlockHandler:inst (CompareBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -902,7 +903,7 @@
 (define-class ColonBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ColonBlockHandler:inst (ColonBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? (tok:toks:get 0) ColonToken)
 	)
@@ -910,7 +911,6 @@
 		(define output (!= code null))
 		(define first (tok:toks:get 0))
 		(define name (as VToken (first:toks:get 1)):val)
-		(if (name:equals "<init>") (if output (code:emitPushThis)))
 		(define special
 			(&&
 				(instance? (first:toks:get 0) VToken)
@@ -936,7 +936,7 @@
 (define-class DefaultBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set DefaultBlockHandler:inst (DefaultBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		true
 	)
@@ -998,7 +998,7 @@
 (define-class ThrowBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ThrowBlockHandler:inst (ThrowBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -1019,7 +1019,7 @@
 (define-class ClassBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ClassBlockHandler:inst (ClassBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -1039,7 +1039,7 @@
 (define-class SynchronizedBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set SynchronizedBlockHandler:inst (SynchronizedBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -1066,7 +1066,7 @@
 (define-class TypeBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set TypeBlockHandler:inst (TypeBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -1078,6 +1078,8 @@
 	)
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
+		(if output (code:emitLoad (code:getArg 0)))
+		(if output (code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "pushLevel" 0)))
 		(if output (code:emitLoad (code:getArg 3)))
 		(h:compile (tok:toks:get 1) mi code Main:unknownType)
 		(if output (code:emitLoad (code:getArg 0)))
@@ -1086,6 +1088,8 @@
 		(if output (code:emitPushNull))
 		(if output (code:emitGetStatic ((Main:getCompilerType "Main"):getField "unknownType")))
 		(if output (code:emitInvoke ((Main:getCompilerType "handlers.Handler"):getDeclaredMethod "compile" 4)))
+		(if output (code:emitLoad (code:getArg 0)))
+		(if output (code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "popLevel" 0)))
 		(Type:getType "gnu.bytecode.Type")
 	)
 )
@@ -1093,7 +1097,7 @@
 (define-class ReturnBlockHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ReturnBlockHandler:inst (ReturnBlockHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
@@ -1116,7 +1120,7 @@
 (define-class ObjectHandler (Handler)
 	(inst Handler 'static)
 	((<clinit>) void 'static (set ObjectHandler:inst (ObjectHandler)))
-	((<init>) void (Handler:<init>))
+	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
 		(instance? tok ObjectToken)
 	)
@@ -1166,8 +1170,8 @@
 							(begin
 								(define m (ci:c:addMethod "apply" params ret Access:PUBLIC))
 								(ci:c:addInterface t)
-								(define mi (MethodInfo ci block m scope))
-								(mi:compileMethodBody h)
+								(ci:methods:add (MethodInfo ci block m scope))
+								(ci:compileMethods h)
 							)
 						)
 					)
@@ -1192,8 +1196,8 @@
 								(ci:c:addInterface t)
 								(define m (ci:c:addMethod (sam:getName) params (Main:resolveType t (sam:getReturnType)) Access:PUBLIC))
 								(define block (BlockToken tok:line (tok:toks:subList 3 (tok:toks:size))))
-								(define mi (MethodInfo ci block m scope))
-								(mi:compileMethodBody h)
+								(ci:methods:add (MethodInfo ci block m scope))
+								(ci:compileMethods h)
 							)
 						)
 					)
@@ -1216,12 +1220,7 @@
 									(ci:compileDef (tok:toks:get i))
 									(set i (+ i 1))
 								)
-								(set i 0)
-								(while (!= i (ci:methods:size))
-									(define mi (ci:methods:get i))
-									(mi:compileMethodBody h)
-									(set i (+ i 1))
-								)
+								(ci:compileMethods h)
 							)
 						)
 					)
@@ -1288,11 +1287,11 @@
 	((<clinit>) void 'static (set BlockHandler:inst (BlockHandler)))
 	(handlers List{Handler})
 	((<init> handlers List{Handler}) void
-		(Handler:<init>)
+		(super:<init>)
 		(set this:handlers handlers)
 	)
 	((<init>) void
-		(BlockHandler:<init> (Arrays:asList (Object[]
+		(this:<init> (Arrays:asList (Object[]
 			BeginBlockHandler:inst
 			LabelBlockHandler:inst
 			GotoBlockHandler:inst

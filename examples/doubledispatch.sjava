@@ -1,0 +1,48 @@
+(define-class Main () 'public
+	((main args String[]) void 'public 'static
+		(define objects (Object[] "a" "b" 1 2))
+
+		(define v1 (Visitor1))
+		(forEachI o objects i (v1:visit i o))
+
+		(println)
+
+		(define v2 (Visitor2))
+		(forEachI o objects i (v2:visit i o))
+	)
+)
+
+(define-class Visitor () 'abstract
+	((<init>) void
+		(super:<init>)
+	)
+	((visit i int s String) void 'abstract)
+	((visit i int n Integer) void 'abstract)
+	((visit i int o Object) void
+		(doubleDispatch (this:visit i _) o)
+	)
+)
+
+(define-class Visitor1 (Visitor)
+	((<init>) void
+		(super:<init>)
+	)
+	((visit i int s String) void
+		(println i " string1")
+	)
+	((visit i int n Integer) void
+		(println i " integer1")
+	)
+)
+
+(define-class Visitor2 (Visitor)
+	((<init>) void
+		(super:<init>)
+	)
+	((visit i int s String) void
+		(println i " string2")
+	)
+	((visit i int n Integer) void
+		(println i " integer2")
+	)
+)

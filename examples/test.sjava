@@ -7,14 +7,14 @@
 
 (define-class AlString (ArrayList{String})
 	((<init>) void
-		(ArrayList:<init>)
+		(super:<init>)
 	)
 )
 
 (define-class Ref{E} ()
 	(val E)
 	((<init>) void
-		(Object:<init>)
+		(super:<init>)
 	)
 	((get) E
 		this:val
@@ -109,6 +109,10 @@
 		(println (mapA x (int[] 0 1 2) (Main:toggle1 x)))
 
 		(println (mapA x (int[] 0 1 2) (Main:toggle2 x)))
+
+		(let ((x 1) (y 2))
+			(println "(" x ", " y ")")
+		)
 	)
 	((toggle1 x int) int 'static
 		(cond

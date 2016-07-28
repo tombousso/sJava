@@ -96,8 +96,8 @@
 		(Main:compare1Ops:put "==null" 199)
 		
 		(set Main:precs (String[][]
-			(String[] "(" ")" "}" "'" "," ",$" "`" "\n" "\r\n" ";")
 			(String[] ":" "{")
+			(String[] "(" ")" "}" "'" "," ",$" "`" "\n" "\r\n" ";")
 		))
 
 		(set Main:specialChars (HashMap{String Character}))
@@ -111,7 +111,7 @@
 
 		(forEachI a Main:precs i
 			(forEach b a
-				(Main:s2prec:put b i)
+				(Main:s2prec:put b (+ i 1))
 			)
 		)
 
@@ -121,7 +121,7 @@
 
 		(define res (parser:parseArgs args))
 		(define fileNames List{String} (res:getList "file"))
-		(define files (HashMap{String List{Token}}))
+		(define files (LinkedHashMap{String List{Token}}))
 
 		(forEach name fileNames
 			(define s (String (Files:readAllBytes (Paths:get name))))
@@ -138,7 +138,7 @@
 	)
 	((compile files HashMap{String ArrayList{Token}} dir String) void 'static
 		(define locals (HashMap))
-		(define fileScopes (HashMap{String FileScope}))
+		(define fileScopes (LinkedHashMap{String FileScope}))
 		(define macroNames (HashMap{String ClassInfo}))
 
 		(forEach entry (files:entrySet)
@@ -167,7 +167,7 @@
 
 		(forEach entry (fileScopes:entrySet)
 			(define fs (entry:getValue))
-			(fs:compileMethods)
+			(fs:compileMethods GenHandler:inst)
 		)
 
 		(forEach entry (fileScopes:entrySet)
@@ -259,17 +259,12 @@
 				(define out (HashMap{TypeVariable Type}))
 				(forEach tv tvs
 					(define j 0)
-					(while (!= j (alen generics))
-						(define t (Main:unresolveTv tv (aget generics j) (aget reals j)))
-						(if (!= t null)
-							(begin
-								(out:put tv t)
-								(goto break)
-							)
-						)
+					(define t Type null)
+					(while (&& (= t null) (!= j (alen generics)))
+						(set t (Main:unresolveTv tv (aget generics j) (aget reals j)))
 						(set j (+ j 1))
 					)
-					(label break)
+					(out:put tv t)
 				)
 				out
 			)
@@ -284,7 +279,7 @@
 		out
 	)
 	((compileClassMod tok Token c ClassType) bool 'static
-		(if (instance? tok QuoteToken)
+		(if (instance? tok SingleQuoteToken)
 			(begin
 				(define nmod int (Main:accessModifiers:get (as VToken (tok:toks:get 0)):val))
 				(c:addModifiers nmod)
@@ -665,10 +660,7 @@
 		)
 	)
 	((getCompilerType name String) ClassType 'static 'public
-		(set name (concat "sjava.compiler." name))
-		(as ClassType
-			(Type:getType name)
-		)
+		(ClassType:make (concat "sjava.compiler." name))
 	)
 	((toksToString tok Token line int sb StringBuffer) int 'static
 		(repeat (- tok:line line) (sb:append "\n"))
@@ -711,8 +703,12 @@
 				(sb:append ":")
 				(set line (Main:toksToString (tok:toks:get 1) line sb))
 			)
-			((instance? tok QuoteToken)
+			((instance? tok SingleQuoteToken)
 				(sb:append "'")
+				(set line (Main:toksToString (tok:toks:get 0) line sb))
+			)
+			((instance? tok QuoteToken)
+				(sb:append "`")
 				(set line (Main:toksToString (tok:toks:get 0) line sb))
 			)
 			((instance? tok UnquoteToken)
@@ -743,7 +739,7 @@
 	(s String)
 	(line int)
 	((<init> code String) void
-		(Object:<init>)
+		(super:<init>)
 		(set this:code code)
 		(set this:ml (code:length))
 		(set this:line 1)
@@ -751,9 +747,9 @@
 	((getprec) int
 		;check if code at i is a special token
 		(define ii this:i)
-		(define p -1)
+		(define p 0)
 		(define l Main:ML)
-		(while (! (|| (>= p 0) (= l 0)))
+		(while (&& (= p 0) (!= l 0))
 			(if (<= (+ ii l) this:ml)
 				(begin
 					(set this:s (this:code:substring ii (+ ii l)))
@@ -767,16 +763,16 @@
 		p
 	)
 	((nextTok) void
-		(while (! (|| (= this:i this:ml) (= (this:code:charAt this:i) #\space) (>= (this:getprec) 0)))
+		(while (! (|| (= this:i this:ml) (= (this:code:charAt this:i) #\space) (> (this:getprec) 0)))
 			(set this:i (+ this:i 1))
 		)
 	)
 	((token) Token
-		(while (! (|| (! (Character:isWhitespace (this:code:charAt this:i))) (>= (this:getprec) 0)))
+		(while (! (|| (! (Character:isWhitespace (this:code:charAt this:i))) (> (this:getprec) 0)))
 			(set this:i (+ this:i 1))
 		)
 		(define p (this:getprec))
-		(if (< p 0)
+		(if (= p 0)
 			(begin
 				(define oi this:i)
 				(define c (this:code:charAt this:i))
@@ -844,7 +840,7 @@
 	(toks ArrayList{Token})
 	(i int)
 	((<init> toks ArrayList{Token}) void
-		(Object:<init>)
+		(super:<init>)
 		(set this:toks toks)
 		(set this:i 0)
 	)
@@ -883,7 +879,10 @@
 					(define al (ArrayList (Arrays:asList (Object[] (this:parse 0)))))
 					(if (|| (w:equals ",") (w:equals ",$"))
 						(UnquoteToken t:line al (w:equals ",$"))
+					(if (w:equals "'")
+						(SingleQuoteToken t:line al)
 						(QuoteToken t:line al)
+					)
 					)
 				)
 				((&& (!= (w:length) 0) (Character:isWhitespace (w:charAt 0)))
@@ -915,15 +914,7 @@
 		left
 	)
 	((prec) int
-		(define w (this:peek 0):what)
-		(cond
-			((Main:s2prec:containsKey w)
-				(Main:s2prec:get w)
-			)
-			(true
-				0
-			)
-		)
+		(this:peek 0):prec
 	)
 	((parseAll) List{Token}
 		(define out (ArrayList{Token}))
@@ -937,14 +928,14 @@
 
 (define-class AVar () 'public
 	(type Type 'public)
-	((<init> type Type) void (Object:<init>) (set this:type type))
+	((<init> type Type) void (super:<init>) (set this:type type))
 	((load code CodeAttr) Type 'public this:type)
 	((store code CodeAttr) void 'public ())
 )
 
 (define-class Var (AVar)
 	(var Variable)
-	((<init> var Variable type Type) void (AVar:<init> type) (set this:var var))
+	((<init> var Variable type Type) void (super:<init> type) (set this:var var))
 	((load code CodeAttr) Type
 		(define output (!= code null))
 		(if output (code:emitLoad this:var))
@@ -958,7 +949,7 @@
 
 (define-class Arg (AVar) 'public
 	(n int)
-	((<init> n int type Type) void 'public (AVar:<init> type) (set this:n n))
+	((<init> n int type Type) void 'public (super:<init> type) (set this:n n))
 	((load code CodeAttr) Type
 		(define output (!= code null))
 		(if output (code:emitLoad (code:getArg this:n)))
@@ -985,7 +976,7 @@
 	(macros ArrayList{ClassInfo})
 	(macroNames HashMap{String List{ClassInfo}} 'public)
 	((<init> name String toks List{Token} locals HashMap) void
-		(Object:<init>)
+		(super:<init>)
 		(set this:name name)
 		(set this:toks toks)
 		(set this:locals locals)
@@ -1094,6 +1085,7 @@
 						(define o 4)
 						(define types (Type[] len:(+ o (- (params:toks:size) 1)) (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.Handler")))
 						(define mods (| Access:PUBLIC Access:STATIC))
+						(scope:put "mi" (Arg 0 (Main:getCompilerType "AMethodInfo")))
 						(begin
 							(define i 0)
 							(while (!= (+ o i) (alen types))
@@ -1193,10 +1185,10 @@
 		)
 		n
 	)
-	((compileMethods) void
+	((compileMethods h Handler) void 'public
 		(define i 0)
 		(while (!= i (this:newClasses:size))
-			((this:newClasses:get i):compileMethods)
+			((this:newClasses:get i):compileMethods h)
 			(set i (+ i 1))
 		)
 	)
@@ -1211,7 +1203,7 @@
 	(rc Class 'public)
 	(tvs HashMap{String TypeVariable})
 	((<init> c ClassType fs FileScope) void 'public
-		(Object:<init>)
+		(super:<init>)
 		(set this:fs fs)
 		(set this:c c)
 		(set this:toks (ArrayList{Token}))
@@ -1239,7 +1231,7 @@
 		)
 	)
 	((<init> name String fs FileScope) void 'public
-		(ClassInfo:<init> (ClassType name) fs)
+		(this:<init> (ClassType name) fs)
 	)
 	((writeFile dir String) void
 		(define pre (dir:concat (this:fs:package:replace "." "/")))
@@ -1330,7 +1322,7 @@
 						(define i 2)
 						(while (! (|| end (= i (tok:toks:size))))
 							(define mod (tok:toks:get i))
-							(if (instance? mod QuoteToken)
+							(if (instance? mod SingleQuoteToken)
 								(begin
 									(set mods (| mods (Main:accessModifiers:get (as VToken (mod:toks:get 0)):val)))
 									(set i (+ i 1))
@@ -1354,9 +1346,9 @@
 						(define mods 0)
 						(define end false)
 						(define i 2)
-						(while (! (| (= i (tok:toks:size)) end))
+						(while (! (|| (= i (tok:toks:size)) end))
 							(define mod (tok:toks:get i))
-							(if (instance? mod QuoteToken)
+							(if (instance? mod SingleQuoteToken)
 								(begin
 									(define nmod (Main:accessModifiers:get (as VToken (mod:toks:get 0)):val))
 									(set mods (| mods nmod))
@@ -1390,11 +1382,11 @@
 			(set i (+ i 1))
 		)
 	)
-	((compileMethods) void
+	((compileMethods h Handler) void 'public
 		(define i 0)
 		(while (!= i (this:methods:size))
 			(define mi (this:methods:get i))
-			(mi:compileMethodBody)
+			(mi:compileMethodBody h)
 			(set i (+ i 1))
 		)
 	)
@@ -1402,7 +1394,7 @@
 
 (define-class MacroInfo (ClassInfo) 'public
 	((<init> name String fs FileScope) void
-		(ClassInfo:<init> name fs)
+		(super:<init> name fs)
 	)
 	((getType name String) Type
 		(if (name:startsWith "sjava.compiler.")
@@ -1419,7 +1411,7 @@
 	(scopes ArrayList{ArrayDeque{HashMap}} 'public)
 	(labels ArrayDeque{HashMap})
 	((<init> ci ClassInfo block BlockToken method Method scope HashMap) void
-		(Object:<init>)
+		(super:<init>)
 		(set this:ci ci)
 		(set this:block block)
 		(set this:method method)
@@ -1448,6 +1440,12 @@
 		)
 		(this:labels:pop)
 		(if output (code:popScope))
+	)
+	((pushLevel) void 'public
+		(this:scopes:add (ArrayDeque))
+	)
+	((popLevel) void 'public
+		(this:scopes:remove (- (this:scopes:size) 1))
 	)
 	((getVar tok VToken) AVar 'public
 		(define scopes (this:scopes:get tok:macro))
@@ -1511,10 +1509,13 @@
 	((compileMethodBody) void
 		(this:compileMethodBody GenHandler:inst)
 	)
+	((toString) String 'public
+		(concat ((this:getClass):getName) ":" this:method)
+	)
 )
 
 (define-class MethodInfo (AMethodInfo) 'public
 	((<init> ci ClassInfo block BlockToken method Method scope HashMap) void 'public
-		(AMethodInfo:<init> ci block method scope)
+		(super:<init> ci block method scope)
 	)
 )

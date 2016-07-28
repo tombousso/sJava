@@ -10,7 +10,7 @@
 	(t Type 'public)
 	(tvs Map{TypeVariable Type} 'public)
 	((<init> m Method t Type tvs Map{TypeVariable Type}) void
-		(Object:<init>)
+		(super:<init>)
 		(set this:m m)
 		(set this:t t)
 		(set this:tvs tvs)
@@ -20,7 +20,7 @@
 (define-class AFilter () 'public
 	(pt Type)
 	((<init> pt Type) void
-		(Object:<init>)
+		(super:<init>)
 		(set this:pt pt)
 	)
 	((select method Method generic Type) void 'abstract)
@@ -73,7 +73,7 @@
 (define-class BridgeFilter (AFilter) 'public
 	(m Method)
 	((<init> m Method) void 'public
-		(AFilter:<init> (m:getDeclaringClass))
+		(super:<init> (m:getDeclaringClass))
 		(set this:m m)
 	)
 	((select method Method generic Type) void
@@ -116,7 +116,7 @@
 	(name String)
 	(types Type[])
 	((<init> name String types Type[] pt Type) void 'public
-		(AFilter:<init> pt)
+		(super:<init> pt)
 		(set this:methods0 (ArrayList))
 		(set this:methods1 (ArrayList))
 		(set this:varmethods (ArrayList))

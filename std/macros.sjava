@@ -1,4 +1,5 @@
 (import gnu.bytecode.*)
+(import java.util.*)
 (import %tokens%)
 
 ;(define-macro (while cond @block)
@@ -51,13 +52,30 @@
 (define-macro (println @objects)
 	`(System:out:println (concat ,objects))
 )
-(define-macro (mapAI item iterable i @block)
-	(define t ArrayType (type iterable))
-	(define o (type `(begin (define ,item ,((t:getComponentType):getName)) (define ,i int) ,block)))
+(define-macro (mapAI item collection i @block)
+	(define t (type collection))
+	(define itemT
+		(if (instance? t ArrayType)
+			((as ArrayType t):getComponentType)
+			(type
+				`(begin
+					(define collection ,collection)
+					((collection:iterator):next)
+				)
+			)
+		)
+	)
+	(define len
+		(if (instance? t ArrayType)
+			`(alen collection)
+			`(collection:size)
+		)
+	)
+	(define o (type `(begin (define ,item ,(itemT:getName)) (define ,i int) ,block)))
 	`(begin
-		(define iterable ,iterable)
-		(define out (,((o:getName):concat "[]") len:(alen iterable)))
-		(forEachI ,item iterable ,i (aset out ,i ,block))
+		(define collection ,collection)
+		(define out (,((o:getName):concat "[]") len:,len))
+		(forEachI ,item collection ,i (aset out ,i ,block))
 		out
 	)
 )
@@ -77,6 +95,17 @@
 		(define sb (StringBuilder))
 		,appends
 		(sb:toString)
+	)
+)
+(define-macro (let inits @block)
+	(define defines
+		(mapA init inits:toks
+			`(define ,init:toks)
+		)
+	)
+	`(begin
+		,defines
+		,block
 	)
 )
 (define-macro (lambdaWrap name @types)
@@ -132,4 +161,31 @@
 		)
 	)
 	out
+)
+(define-macro (doubleDispatch call arg)
+	(define j 1)
+	(define special 0)
+	(while (&& (!= j (call:toks:size)) (= special 0))
+		(define arg VToken (call:toks:get j))
+		(if (arg:val:equals "_")
+			(set special j)
+		)
+		(inc j)
+	)
+	(define conds (java.util.ArrayList{Token}))
+	(forEach omi mi:ci:methods
+		(if (&& ((omi:method:getName):equals (mi:method:getName)) (!= mi omi))
+			(begin
+				(define t (aget (omi:method:getParameterTypes) (- special 1)))
+				(define ncall `(,call:toks))
+				(ncall:toks:set special `(as ,(t:getName) ,arg))
+				(conds:add
+					`((instance? ,arg ,(t:getName))
+						,ncall
+					)
+				)
+			)
+		)
+	)
+	`(cond ,conds)
 )

@@ -1037,7 +1037,7 @@
 			(emitIf_ classes inv tok i "!=0" true false c mi code needed)
 		)
 	)
-	((emitInvoke name type ::Type classes ::Classes tok ::Token c ::ClassType mi ::MethodInfo code ::CodeAttr needed ::Type) ::Type
+	((emitInvoke name type ::Type classes ::Classes tok ::Token c ::ClassType mi ::MethodInfo code ::CodeAttr needed ::Type special ::boolean) ::Type
 		(define output (not (eq? code #!null)))
 		(define types (compile_al classes tok:ops 1 (length tok:ops) c mi #!null unknownType))
 		;(println tok:line type name types output)
@@ -1055,7 +1055,10 @@
 			(set! (params i) (resolveParam type (params i)))
 		)
 		(compile_al classes tok:ops 1 (length tok:ops) c mi code params)
-		(if output (code:emitInvoke method))
+		(if special
+			(if output (code:emitInvokeSpecial method))
+			(if output (code:emitInvoke method))
+		)
 		(define out ::Type (resolveParam type (method:getReturnType)))
 		(if (not (Type:isSame out ((method:getReturnType):getRawType)))
 			(if output (code:emitCheckcast (out:getRawType)))
@@ -1329,8 +1332,22 @@
 							(if (first:what:equals ":")
 								(begin ;method call
 									(define name (as Token (first:ops:get 1)):val)
-									(if (name:equals "<init>") (if output (code:emitPushThis)))
-									(emitInvoke name (compile_ classes (first:ops:get 0) c mi code unknownType) classes tok c mi code unknownType)
+									(define special
+										(and
+											((as Token (first:ops:get 0)):what:equals "V")
+											((as Token (first:ops:get 0)):val:equals "super")
+										)
+									)
+									(define t
+										(if special
+											(begin
+												(if output (code:emitPushThis))
+												(*:getSuperclass c)
+											)
+											(compile_ classes (first:ops:get 0) c mi code unknownType)
+										)
+									)
+									(emitInvoke name t classes tok c mi code unknownType special)
 								)
 								(begin ;constructor
 									(define type ::Type (classes:get first))
@@ -1358,7 +1375,7 @@
 											(define class ::ClassType (type:getRawType))
 											(if output (code:emitNew class))
 											(if output (code:emitDup))
-											(emitInvoke "<init>" type classes tok c mi code unknownType)
+											(emitInvoke "<init>" type classes tok c mi code unknownType #f)
 											type
 										)
 									)

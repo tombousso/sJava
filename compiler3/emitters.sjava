@@ -8,7 +8,7 @@
 
 (define-class Emitter () 'public
 	((<init>) void 'public
-		(Object:<init>)
+		(super:<init>)
 	)
 	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define types (this:emitAll h mi code needed))
@@ -30,7 +30,7 @@
 
 (define-class Goto (Emitter) 'public
 	(label Label 'public)
-	((<init> label Label) void 'public (Emitter:<init>) (set this:label label))
+	((<init> label Label) void 'public (super:<init>) (set this:label label))
 	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(if (&& output (code:reachableHere)) (code:emitGoto this:label))
@@ -39,7 +39,7 @@
 )
 
 (define-class Null (Emitter)
-	((<init>) void (Emitter:<init>))
+	((<init>) void (super:<init>))
 	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(if (!= code null) (code:emitPushNull))
 		Type:nullType
@@ -49,7 +49,7 @@
 (define-class LoadAVar (Emitter) 'public
 	(avar AVar)
 	((<init> avar AVar) void 'public
-		(Emitter:<init>)
+		(super:<init>)
 		(set this:avar avar)
 	)
 	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
@@ -59,8 +59,8 @@
 
 (define-class Emitters (Emitter) 'public
 	(emitters List{Emitter} 'public)
-	((<init> emitters Emitter[]) void 'public (Emitter:<init>) (set this:emitters (Arrays:asList emitters)))
-	((<init> emitters List{Emitter}) void 'public (Emitter:<init>) (set this:emitters emitters))
+	((<init> emitters Emitter[]) void 'public (super:<init>) (set this:emitters (Arrays:asList emitters)))
+	((<init> emitters List{Emitter}) void 'public (super:<init>) (set this:emitters emitters))
 	((emitAll h Handler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
 		(define types (Type[] len:(this:emitters:size)))
 		(define i 0)
@@ -85,7 +85,7 @@
 (define-class Add1 (Emitter)
 	(e Emitter)
 	((<init> e Emitter) void
-		(Emitter:<init>)
+		(super:<init>)
 		(set this:e e)
 	)
 	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
@@ -103,7 +103,7 @@
 		(set Nothing:inst (Nothing))
 	)
 	((<init>) void
-		(Emitter:<init>)
+		(super:<init>)
 	)
 	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		Type:voidType

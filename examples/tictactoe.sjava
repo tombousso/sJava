@@ -29,7 +29,7 @@
 	(win bool 'static)
 	(turns int 'static)
 	((<init>) void 'public
-		(Application:<init>)
+		(super:<init>)
 	)
 	((draw cx int cy int w int) void 'static
 		(App:gc:setLineWidth 10)
