@@ -113,7 +113,7 @@
 
 (define specialChars ::java.util.HashMap (java.util.HashMap))
 (specialChars:put "space" #\space)
-(specialChars:put "\\" #\\)
+(specialChars:put "singlequote" #\')
 
 (define-simple-class Lexer ()
 	(code ::String)
@@ -1060,10 +1060,10 @@
 			(if output (code:emitInvoke method))
 		)
 		(define out ::Type (resolveParam type (method:getReturnType)))
-		(if (not (Type:isSame out ((method:getReturnType):getRawType)))
+		(if (and (not (eq? out Type:voidType)) (not (eq? needed Type:voidType)))
 			(if output (code:emitCheckcast (out:getRawType)))
 		)
-		out
+		(castMaybe code out needed)
 	)
 	((compile_ classes ::Classes tok ::Token c ::ClassType mi ::MethodInfo code ::CodeAttr needed ::Type) ::Type
 		(try-catch
@@ -1347,7 +1347,7 @@
 											(compile_ classes (first:ops:get 0) c mi code unknownType)
 										)
 									)
-									(emitInvoke name t classes tok c mi code unknownType special)
+									(emitInvoke name t classes tok c mi code needed special)
 								)
 								(begin ;constructor
 									(define type ::Type (classes:get first))

@@ -60,7 +60,7 @@
 (define-class Emitters (Emitter) 'public
 	(emitters List{Emitter} 'public)
 	((<init> emitters Emitter[]) void 'public (super:<init>) (set this:emitters (Arrays:asList emitters)))
-	((<init> emitters List{Emitter}) void 'public (super:<init>) (set this:emitters emitters))
+	((<init> emitters List) void 'public (super:<init>) (set this:emitters emitters))
 	((emitAll h Handler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
 		(define types (Type[] len:(this:emitters:size)))
 		(define i 0)

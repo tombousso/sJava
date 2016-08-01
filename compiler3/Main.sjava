@@ -18,7 +18,7 @@
 	(precs String[][]  'static) ;precedence to special token array
 	(s2prec HashMap{String Integer} 'static) ;special token to precedence
 	(specialChars HashMap{String Character} 'static 'public)
-	(unboxMethods HashMap{Type Method} 'static)
+	(unboxMethods HashMap{Type Method} 'static 'public)
 	(constTypes HashMap{String Type} 'static)
 	(accessModifiers HashMap{String Short} 'static)
 	(binOps HashMap{String Integer} 'static 'public)
@@ -94,7 +94,7 @@
 		(Main:compare1Ops:put ">0" 158)
 		(Main:compare1Ops:put "!=null" 198)
 		(Main:compare1Ops:put "==null" 199)
-		
+
 		(set Main:precs (String[][]
 			(String[] ":" "{")
 			(String[] "(" ")" "}" "'" "," ",$" "`" "~" "\n" "\r\n" ";")
@@ -102,6 +102,7 @@
 
 		(set Main:specialChars (HashMap{String Character}))
 		(Main:specialChars:put "space" #\space)
+		(Main:specialChars:put "singlequote" #\singlequote)
 
 		(set Main:MP (- (alen Main:precs) 1))
 
@@ -116,15 +117,17 @@
 		)
 
 		(define parser (ArgumentParsers:newArgumentParser "sJava compiler"))
-		((parser:addArgument (String[] "-d")):setDefault "out")
+		((parser:addArgument (String[] "-d")):setDefault "")
 		((parser:addArgument (String[] "file")):nargs "*")
 
-		(define res (parser:parseArgs args))
+		(define res Namespace null)
+		(try (set res (parser:parseArgs args)) e (e:printStackTrace))
 		(define fileNames List{String} (res:getList "file"))
 		(define files (LinkedHashMap{String List{Token}}))
 
 		(forEach name fileNames
-			(define s (String (Files:readAllBytes (Paths:get name))))
+			(define s String null)
+			(try (set s (String (Files:readAllBytes (Paths:get name)))) e (e:printStackTrace))
 			(define toks ((Lexer s):lex))
 			(set toks ((Parser toks):parseAll))
 			;(define sb (StringBuffer))
@@ -168,6 +171,70 @@
 		(forEach entry (fileScopes:entrySet)
 			(define fs (entry:getValue))
 			(fs:compileMethods GenHandler:inst)
+			;(forEach ci fs:newClasses
+			;	(define h (JavaHandler))
+			;	(set h:buf (StringBuffer))
+			;	(if (! (fs:package_:equals ""))
+			;		(begin
+			;			(h:buf:append "package ")
+			;			(h:buf:append (fs:package_:substring 0 (- (fs:package_:length) 1)))
+			;			(h:buf:append ";\n")
+			;		)
+			;	)
+			;	(h:buf:append (Access:toString (ci:c:getModifiers)))
+			;	(h:buf:append #\space)
+			;	(h:buf:append "class ")
+			;	(h:buf:append (ci:c:getSimpleName))
+			;	(h:buf:append " {\n")
+			;	(define field (ci:c:getFields))
+			;	(while (!= field null)
+			;		(h:buf:append ((field:getType):getName))
+			;		(h:buf:append #\space)
+			;		(h:buf:append (field:getName))
+			;		(h:buf:append ";\n")
+			;		(set field (field:getNext))
+			;	)
+			;	(forEach mi ci:methods
+			;		(h:newMethod)
+			;		(define m mi:method)
+			;		(h:buf:append (Access:toString (m:getModifiers)))
+			;		(h:buf:append #\space)
+			;		(if ((m:getName):equals "<init>")
+			;			(begin
+			;				(h:buf:append (ci:c:getSimpleName))
+			;			)
+			;			(begin
+			;				(h:buf:append ((m:getReturnType):getName))
+			;				(h:buf:append #\space)
+			;				(h:buf:append (m:getName))
+			;			)
+			;		)
+			;		(h:buf:append "(")
+			;		(define i 0)
+			;		(define paramNames ((((mi:scopes:get 0):getFirst):keySet):toArray))
+			;		(define off (if (= (& (m:getModifiers) Access:STATIC) 0) 1 0))
+			;		(forEach param (m:getGenericParameterTypes)
+			;			(h:buf:append (param:getName))
+			;			(h:buf:append " ")
+			;			(h:buf:append (aget paramNames (+ off i)))
+			;			(inc i)
+			;			(if (!= i (alen (m:getGenericParameterTypes)))
+			;				(h:buf:append ", ")
+			;			)
+			;		)
+			;		(h:buf:append ")")
+			;		(h:buf:append " {\n")
+			;		(mi:compileMethodBody h)
+			;		(if (!= (m:getReturnType) Type:voidType)
+			;			(h:buf:append "return $0;\n")
+			;		)
+			;		(h:buf:append "}\n")
+			;	)
+			;	(h:buf:append "}")
+			;	(define javaFolder (concat (fs:name:substring 0 (fs:name:lastIndexOf "/")) "/java/"))
+			;	((File javaFolder):mkdirs)
+			;	(Files:write (Paths:get (concat javaFolder (ci:c:getSimpleName) ".java")) ((h:buf:toString):getBytes))
+			;)
 		)
 
 		(forEach entry (fileScopes:entrySet)
@@ -284,7 +351,7 @@
 			false
 		)
 	)
-	((getParams ci ClassInfo tok Token scope HashMap i int n int) Type[] 'static 'public
+	((getParams ci ClassInfo tok Token scope LinkedHashMap i int n int) Type[] 'static 'public
 		(define types (Type[] len: (/ (- (tok:toks:size) i) 2)))
 		(define j 0)
 		(while (!= j (alen types))
@@ -295,145 +362,152 @@
 		)
 		types
 	)
-	((transformBlockToks block Token mi AMethodInfo transform bool) Token 'public 'static
+	((transformBlockTok block Token mi AMethodInfo transform bool i int) void 'public 'static
+		(define tok (block:toks:get i))
+		(define ntok
+			(Main:transformBlock tok mi
+				(||
+					(&&
+						transform
+						(! block:neverTransform)
+					)
+					block:alwaysTransform
+				)
+			)
+		)
+		(if transform (set ntok:transformed true))
+		(block:toks:set i ntok)
+		(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
+			(begin
+				(define val (as VToken (tok:toks:get 0)):val)
+				(if (val:equals "label")
+					((as BlockToken block):labels:put (as VToken (tok:toks:get 1)):val (Label))
+				)
+			)
+		)
+	)
+	((transformBlockToks block Token mi AMethodInfo transform bool i int) Token 'public 'static
 		(if (&& transform (instance? block BlockToken))
 			(set (as BlockToken block):labels (HashMap))
 		)
-		(define i 0)
 		(while (!= i (block:toks:size))
-			(define tok (block:toks:get i))
-			(define ntok
-				(Main:transformBlock tok mi
-					(||
-						(&&
-							transform
-							(! block:neverTransform)
-						)
-						block:alwaysTransform
-					)
-				)
-			)
-			(if transform (set ntok:transformed true))
-			(block:toks:set i ntok)
-			(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
-				(begin
-					(define val (as VToken (tok:toks:get 0)):val)
-					(if (val:equals "label")
-						((as BlockToken block):labels:put (as VToken (tok:toks:get 1)):val (Label))
-					)
-				)
-			)
+			(Main:transformBlockTok block mi transform i)
 			(set i (+ i 1))
 		)
 		block
+	)
+	((transformBlockToks block Token mi AMethodInfo transform bool) Token 'public 'static
+		(Main:transformBlockToks block mi transform 0)
 	)
 	((transformBlockToks block Token mi AMethodInfo) Token 'public 'static
 		(Main:transformBlockToks block mi (! block:neverTransform))
 	)
 	((transformBlock block Token mi AMethodInfo transform bool) Token 'static
-		;(println block ":" transform ":" block:transformed)
 		(if (&& (!= block:toks null) (&& (! block:transformed) (! (instance? block Transformed))))
 			(begin
-				(if (&& transform (instance? block BlockToken))
-					(begin
-						(define block BlockToken block)
-						(cond
-							((= (block:toks:size) 0)
-								(return (EmptyToken block:line block:toks))
-							)
-							(true
-								(cond
-									((instance? (block:toks:get 0) VToken)
-										(define val (as VToken (block:toks:get 0)):val)
-										(cond
-											((val:equals "object")
-												(return (ObjectToken block:line block:toks))
+				(if transform
+					(cond
+						;((instance? block ColonToken)
+							;(mi:getType (block:toks:get 0))
+							;(println block)
+						;)
+						((instance? block BlockToken)
+							(cond
+								((= (block:toks:size) 0)
+									(return (EmptyToken block:line block:toks))
+								)
+								(true
+									(cond
+										((instance? (block:toks:get 0) VToken)
+											(define val (as VToken (block:toks:get 0)):val)
+											(cond
+												((val:equals "object")
+													(return (ObjectToken block:line block:toks))
+												)
+												((val:equals "lambda")
+													(return (LambdaToken block:line block:toks))
+												)
+												((mi:ci:fs:macroNames:containsKey val)
+													(return (MacroCallToken block:line block:toks))
+												)
+												((val:equals "begin")
+													(if (= (block:toks:size) 2)
+														(return (Main:transformBlock (block:toks:get 1) mi))
+														(return (Main:transformBlockToks (BeginToken block:line block:toks) mi))
+													)
+												)
+												((val:equals "label")
+													(return (LabelToken block:line block:toks))
+												)
+												((val:equals "goto")
+													(return (GotoToken block:line block:toks))
+												)
+												((val:equals "define")
+													(return (Main:transformBlockToks (DefineToken block:line block:toks) mi))
+												)
+												((val:equals "try")
+													(return (Main:transformBlockToks (TryToken block:line block:toks) mi))
+												)
+												((val:equals "instance?")
+													(return (Main:transformBlockToks (InstanceToken block:line block:toks) mi))
+												)
+												((val:equals "set")
+													(return (Main:transformBlockToks (SetToken block:line block:toks) mi))
+												)
+												((val:equals "aset")
+													(return (Main:transformBlockToks (ASetToken block:line block:toks) mi))
+												)
+												((val:equals "aget")
+													(return (Main:transformBlockToks (AGetToken block:line block:toks) mi))
+												)
+												((val:equals "alen")
+													(return (Main:transformBlockToks (ALenToken block:line block:toks) mi))
+												)
+												((val:equals "as")
+													(return (Main:transformBlockToks (AsToken block:line block:toks) mi))
+												)
+												((Main:binOps:containsKey val)
+													(return (Main:transformBlockToks (BinOpToken block:line block:toks) mi))
+												)
+												((val:equals "if")
+													(return (Main:transformBlockToks (IfToken block:line block:toks) mi))
+												)
+												((val:equals "while")
+													(return (Main:transformBlockToks (WhileToken block:line block:toks) mi))
+												)
+												((Main:isCompare val)
+													(return (Main:transformBlockToks (CompareToken block:line block:toks) mi))
+												)
+												((val:equals "throw")
+													(return (Main:transformBlockToks (ThrowToken block:line block:toks) mi))
+												)
+												((val:equals "class")
+													(return (Main:transformBlockToks (ClassToken block:line block:toks) mi))
+												)
+												((val:equals "synchronized")
+													(return (Main:transformBlockToks (SynchronizedToken block:line block:toks) mi))
+												)
+												((val:equals "type")
+													(return (Main:transformBlockToks (TypeToken block:line block:toks) mi))
+												)
+												((val:equals "return")
+													(return (Main:transformBlockToks (ReturnToken block:line block:toks) mi))
+												)
 											)
-											((val:equals "lambda")
-												(return (LambdaToken block:line block:toks))
-											)
-											((mi:ci:fs:macroNames:containsKey val)
-												(return (MacroCallToken block:line block:toks))
-											)
-											((val:equals "begin")
-												(return (Main:transformBlockToks (BeginToken block:line block:toks) mi))
-											)
-											((val:equals "label")
-												(return (LabelToken block:line block:toks))
-											)
-											((val:equals "goto")
-												(return (GotoToken block:line block:toks))
-											)
-											((val:equals "define")
-												(Main:transformBlockToks block mi)
-												(return (DefineToken block:line block:toks))
-											)
-											((val:equals "try")
-												(Main:transformBlockToks block mi)
-												(return (TryToken block:line block:toks))
-											)
-											((val:equals "instance?")
-												(Main:transformBlockToks block mi)
-												(return (InstanceToken block:line block:toks))
-											)
-											((val:equals "set")
-												(Main:transformBlockToks block mi)
-												(return (SetToken block:line block:toks))
-											)
-											((val:equals "aset")
-												(Main:transformBlockToks block mi)
-												(return (ASetToken block:line block:toks))
-											)
-											((val:equals "aget")
-												(Main:transformBlockToks block mi)
-												(return (AGetToken block:line block:toks))
-											)
-											((val:equals "alen")
-												(Main:transformBlockToks block mi)
-												(return (ALenToken block:line block:toks))
-											)
-											((val:equals "as")
-												(Main:transformBlockToks block mi)
-												(return (AsToken block:line block:toks))
-											)
-											((Main:binOps:containsKey val)
-												(Main:transformBlockToks block mi)
-												(return (BinOpToken block:line block:toks))
-											)
-											((val:equals "if")
-												(Main:transformBlockToks block mi)
-												(return (IfToken block:line block:toks))
-											)
-											((val:equals "while")
-												(return (Main:transformBlockToks (WhileToken block:line block:toks) mi))
-											)
-											((Main:isCompare val)
-												(return (Main:transformBlockToks (CompareToken block:line block:toks) mi))
-											)
-											((val:equals "throw")
-												(return (Main:transformBlockToks (ThrowToken block:line block:toks) mi))
-											)
-											((val:equals "class")
-												(return (Main:transformBlockToks (ClassToken block:line block:toks) mi))
-											)
-											((val:equals "synchronized")
-												(return (Main:transformBlockToks (SynchronizedToken block:line block:toks) mi))
-											)
-											((val:equals "type")
-												(return (Main:transformBlockToks (TypeToken block:line block:toks) mi))
-											)
-											((val:equals "return")
-												(return (Main:transformBlockToks (ReturnToken block:line block:toks) mi))
+										)
+										((instance? (block:toks:get 0) ColonToken)
+											(begin
+												(define out (CallToken block:line block:toks))
+												(Main:transformBlockTok (out:toks:get 0) mi true 0)
+												(Main:transformBlockToks out mi true 1)
+												(return out)
 											)
 										)
 									)
-									((instance? (block:toks:get 0) ColonToken)
-										(return (Main:transformBlockToks (CallToken block:line block:toks) mi))
-									)
 								)
 							)
+							(return (Main:transformBlockToks (DefaultToken block:line block:toks) mi))
 						)
-						(return (Main:transformBlockToks (DefaultToken block:line block:toks) mi))
 					)
 				)
 				(Main:transformBlockToks block mi transform)
@@ -543,10 +617,10 @@
 			(if output (code:emitInvoke method))
 		)
 		(define out (Main:resolveType mc:tvs mc:t (method:getReturnType)))
-		(if (!= out Type:voidType)
+		(if (&& (!= out Type:voidType) (!= needed Type:voidType))
 			(if output (code:emitCheckcast (out:getRawType)))
 		)
-		out
+		(h:castMaybe code out needed)
 	)
 	((emitInvoke h Handler name String type Type emitter Emitters mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
 		(Main:emitInvoke h name type emitter mi code needed false)
@@ -677,63 +751,13 @@
 				(code:emitPushThis)
 				(while (!= i (alen rparams))
 					(code:emitLoad (code:getArg (+ i 1)))
-					(Main:castMaybe code (aget rparams i) (aget (target:getGenericParameterTypes) i))
+					(GenHandler:inst:castMaybe code (aget rparams i) (aget (target:getGenericParameterTypes) i))
 					(set i (+ i 1))
 				)
 				(code:emitInvoke target)
-				(Main:castMaybe code (target:getReturnType) (ret:getRawType))
+				(GenHandler:inst:castMaybe code (target:getReturnType) (ret:getRawType))
 				(code:emitReturn)
 			)
-		)
-	)
-	((castMaybe code CodeAttr result Type needed Type) Type 'static 'public
-		(define output (!= code null))
-		(if (|| (= needed Main:unknownType) (= result Main:returnType) (= result Main:throwType))
-			result
-		(begin
-			(if (= needed Type:voidType)
-				(if (!= result Type:voidType)
-					(if output (code:emitPop 1))
-				)
-			(if (! (Type:isSame needed result))
-				(if (instance? result PrimType)
-					(begin
-						(if (instance? needed ClassType)
-							(if (= result Type:voidType)
-								(if output (code:emitPushNull))
-								(begin
-									(define prim (PrimType:unboxedType needed))
-									(define box
-										(if (= prim null)
-											(begin
-												(set prim result)
-												((as PrimType result):boxedType)
-											)
-											(begin
-												(if output (code:emitConvert (as PrimType result) prim))
-												(as ClassType needed)
-											)
-										)
-									)
-									(if output (code:emitInvoke (box:getMethod "valueOf" (Type[] prim))))
-								)
-							)
-							(if output (code:emitConvert (as PrimType result) (as PrimType needed)))
-						)
-					)
-				(if (instance? needed PrimType)
-					(begin
-						(define unbox (Main:unboxMethods:get result))
-						(if output (code:emitInvoke unbox))
-						(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
-					)
-					(if output (code:emitCheckcast (needed:getRawType)))
-				)
-				)
-			)
-			)
-			needed
-		)
 		)
 	)
 	((getCompilerType name String) ClassType 'static 'public
@@ -840,12 +864,12 @@
 		p
 	)
 	((nextTok) void
-		(while (! (|| (= this:i this:ml) (= (this:code:charAt this:i) #\space) (> (this:getprec) 0)))
+		(while (! (|| (= this:i this:ml) (Character:isWhitespace (this:code:charAt this:i)) (> (this:getprec) 0)))
 			(set this:i (+ this:i 1))
 		)
 	)
 	((token) Token
-		(while (! (|| (! (Character:isWhitespace (this:code:charAt this:i))) (> (this:getprec) 0)))
+		(while (&& (Character:isWhitespace (this:code:charAt this:i)) (= (this:getprec) 0))
 			(set this:i (+ this:i 1))
 		)
 		(define p (this:getprec))
@@ -898,7 +922,6 @@
 				(if (this:s:contains "\n")
 					(set this:line (+ this:line 1))
 				)
-				(if (this:s:equals "true") (throw (Exception)))
 				(Token this:line p this:s)
 			)
 		)
@@ -1014,12 +1037,12 @@
 (define-class Var (AVar)
 	(var Variable)
 	((<init> var Variable type Type) void (super:<init> type) (set this:var var))
-	((load code CodeAttr) Type
+	((load code CodeAttr) Type 'public
 		(define output (!= code null))
 		(if output (code:emitLoad this:var))
 		this:type
 	)
-	((store code CodeAttr) void
+	((store code CodeAttr) void 'public
 		(define output (!= code null))
 		(if output (code:emitStore this:var))
 	)
@@ -1028,13 +1051,13 @@
 (define-class Arg (AVar) 'public
 	(n int)
 	((<init> n int type Type) void 'public (super:<init> type) (set this:n n))
-	((load code CodeAttr) Type
+	((load code CodeAttr) Type 'public
 		(define output (!= code null))
 		(if output (code:emitLoad (code:getArg this:n)))
 		(if output (code:emitCheckcast (this:type:getRawType)))
 		this:type
 	)
-	((store code CodeAttr) void
+	((store code CodeAttr) void 'public
 		(define output (!= code null))
 		(if output (code:emitStore (code:getArg this:n)))
 	)
@@ -1050,7 +1073,7 @@
 	(includes ClassInfo 'public)
 	(newClasses List{ClassInfo})
 	(anonClasses List{ClassInfo} 'public)
-	(package String)
+	(package_ String)
 	(macros ArrayList{ClassInfo})
 	(macroNames HashMap{String List{ClassInfo}} 'public)
 	((<init> name String toks List{Token} locals HashMap) void
@@ -1066,7 +1089,7 @@
 		(set this:newClasses (ArrayList{ClassInfo}))
 		(set this:anonClasses (ArrayList{ClassInfo}))
 		(set this:macros (ArrayList))
-		(set this:package
+		(set this:package_
 			(if (&&
 					(> (toks:size) 0)
 					(instance? (toks:get 0) BlockToken)
@@ -1101,7 +1124,7 @@
 		(if (instance? tok GenericToken)
 			(begin
 				(define tok GenericToken tok)
-				(define c (ClassType (this:package:concat (as VToken tok:tok):val)))
+				(define c (ClassType (this:package_:concat (as VToken tok:tok):val)))
 				(define params tok:toks)
 				(define tparams (Type[] len:(params:size)))
 				(define i 0)
@@ -1115,7 +1138,7 @@
 				c
 			)
 		(if (instance? tok VToken)
-			(ClassType (this:package:concat (as VToken tok):val))
+			(ClassType (this:package_:concat (as VToken tok):val))
 			null
 		)
 		)
@@ -1157,7 +1180,7 @@
 						)
 					)
 					((first:val:equals "define-macro")
-						(define scope (HashMap))
+						(define scope (LinkedHashMap))
 						(define params (tok:toks:get 1))
 						(define name (as VToken (params:toks:get 0)):val)
 						(define o 4)
@@ -1216,7 +1239,7 @@
 			(define ba (macros:c:writeToArray))
 			;(Files:write (Paths:get (("macros/":concat cname):concat ".class") (String[])) ba (OpenOption[]))
 			(cl:addClass cname ba)
-			(set macros:rc (cl:loadClass cname true))
+			(try (set macros:rc (cl:loadClass cname true)) e (e:printStackTrace))
 			(set i (+ i 1))
 		)
 	)
@@ -1240,7 +1263,7 @@
 		)
 		(define cl (ArrayClassLoader))
 		(cl:addClass "Includes" (includes:c:writeToArray))
-		(set this:includes:rc (cl:loadClass "Includes" true))
+		(try (set this:includes:rc (cl:loadClass "Includes" true))  e (e:printStackTrace))
 	)
 	((compileIncludes toks List{Token} n int) int
 		(define i 0)
@@ -1250,7 +1273,7 @@
 				(if (&& (instance? (tok:toks:get 0) VToken) ((as VToken (tok:toks:get 0)):val:equals "include"))
 					(begin
 						(define name ("$":concat (Integer:toString n)))
-						(define mi (MethodInfo this:includes (tok:toks:subList 1 (tok:toks:size)) (this:includes:c:addMethod name (Type[] (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.Handler")) (Main:getCompilerType "tokens.Token") (| Access:PUBLIC Access:STATIC)) (HashMap)))
+						(define mi (MethodInfo this:includes (tok:toks:subList 1 (tok:toks:size)) (this:includes:c:addMethod name (Type[] (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.Handler")) (Main:getCompilerType "tokens.Token") (| Access:PUBLIC Access:STATIC)) (LinkedHashMap)))
 						(toks:set i (IncludeToken tok:line mi))
 						(this:includes:methods:add mi)
 						(mi:compileMethodBody)
@@ -1312,9 +1335,9 @@
 		(this:<init> (ClassType name) fs)
 	)
 	((writeFile dir String) void
-		(define pre (dir:concat (this:fs:package:replace "." "/")))
+		(define pre (dir:concat (this:fs:package_:replace "." "/")))
 		((File pre):mkdirs)
-		(this:c:writeToFile ((pre:concat (this:c:getSimpleName)):concat ".class"))
+		(try (this:c:writeToFile ((pre:concat (this:c:getSimpleName)):concat ".class")) e (e:printStackTrace))
 	)
 	((getType name String) Type
 		(define i 0)
@@ -1326,15 +1349,15 @@
 		(set name (name:replace "[" ""))
 		(set name (name:replace "]" ""))
 		(define rel (name:contains "."))
-		(define type Type
+		(define out Type
 			(if (&& (!= this:tvs null) (this:tvs:containsKey name))
 				(this:tvs:get name)
 			(if (Main:constTypes:containsKey name)
 				(Main:constTypes:get name)
 			(if (this:fs:locals:containsKey name)
 				(this:fs:locals:get name)
-			(if (&& (! rel) (this:fs:locals:containsKey (this:fs:package:concat name)))
-				(this:fs:locals:get (this:fs:package:concat name))
+			(if (&& (! rel) (this:fs:locals:containsKey (this:fs:package_:concat name)))
+				(this:fs:locals:get (this:fs:package_:concat name))
 			(if (this:fs:imports:containsKey name)
 				(this:fs:imports:get name)
 				(begin
@@ -1363,10 +1386,10 @@
 		)
 		(set i 0)
 		(while (!= i dims)
-			(set type (ArrayType type))
+			(set out (ArrayType out))
 			(set i (+ i 1))
 		)
-		type
+		out
 	)
 	((getType tok Token) Type
 		(if (instance? tok GenericToken)
@@ -1394,7 +1417,7 @@
 				(define first (tok:toks:get 0))
 				(if (instance? first BlockToken) ;method definition
 					(begin
-						(define scope (HashMap))
+						(define scope (LinkedHashMap))
 						(define mods 0)
 						(define end false)
 						(define i 2)
@@ -1485,9 +1508,9 @@
 	(ci ClassInfo 'public)
 	(block BlockToken 'public)
 	(method Method 'public)
-	(scopes ArrayList{ArrayDeque{HashMap}} 'public)
+	(scopes ArrayList{ArrayDeque{HashMap{String AVar}}} 'public)
 	(labels ArrayDeque{HashMap})
-	((<init> ci ClassInfo toks List{Token} method Method scope HashMap) void
+	((<init> ci ClassInfo toks List{Token} method Method scope LinkedHashMap) void
 		(super:<init>)
 		(set this:ci ci)
 		(if (!= (toks:size) 0)
@@ -1573,7 +1596,12 @@
 				(filter:searchAll)
 
 				(define code (this:method:startCode))
+				(define paramNames (((this:scopes:get 0):getFirst):keySet))
+				(forEachI paramName paramNames i
+					((code:getArg i):setName paramName)
+				)
 				(define ret (h:compile this:block this code (this:method:getReturnType)))
+				(code:popScope)
 
 				(if (&& (!= ret Main:returnType) (code:reachableHere))
 					(code:emitReturn)
@@ -1590,7 +1618,7 @@
 )
 
 (define-class MethodInfo (AMethodInfo) 'public
-	((<init> ci ClassInfo toks List{Token} method Method scope HashMap) void 'public
+	((<init> ci ClassInfo toks List{Token} method Method scope LinkedHashMap) void 'public
 		(super:<init> ci toks method scope)
 	)
 )

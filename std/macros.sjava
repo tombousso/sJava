@@ -195,7 +195,7 @@
 	(define out
 		`(cond
 			,conds
-			(true (throw (Exception "Double dispatch")))
+			(true (println "Double dispatch error with " ,arg))
 		)
 	)
 	out

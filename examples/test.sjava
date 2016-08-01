@@ -115,6 +115,10 @@
 		)
 
 		(println (instance? "a" Object))
+
+		(println (synchronized "a"
+			3
+		))
 	)
 	((toggle1 x int) int 'static
 		(cond

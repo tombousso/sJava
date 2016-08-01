@@ -97,6 +97,7 @@
 
 		(set Main:specialChars (HashMap{String Character}))
 		(Main:specialChars:put "space" #\space)
+		(Main:specialChars:put "singlequote" #\singlequote)
 
 		(set Main:MP (- (alen Main:precs) 1))
 
@@ -507,10 +508,10 @@
 			(if output (code:emitInvoke method))
 		)
 		(define out (Main:resolveType mc:tvs mc:t (method:getReturnType)))
-		(if (!= out Type:voidType)
+		(if (&& (!= out Type:voidType) (!= needed Type:voidType))
 			(if output (code:emitCheckcast (out:getRawType)))
 		)
-		out
+		(Main:castMaybe code out needed)
 	)
 	((emitInvoke h Handler name String type Type emitter Emitters mi AMethodInfo code CodeAttr needed Type) Type 'static
 		(Main:emitInvoke h name type emitter mi code needed false)
@@ -2948,7 +2949,7 @@
 		(if (= t null)
 			(set t (h:compile (first:toks:get 0) mi code Main:unknownType))
 		)
-		(Main:emitInvoke h name t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code Main:unknownType special)
+		(Main:emitInvoke h name t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi code needed special)
 	)
 )
 

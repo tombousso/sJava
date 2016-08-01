@@ -24,8 +24,8 @@
 		(set this:transformed false)
 	)
 	((<init> line int) void
-		(set this:line line)
 		(this:<init>)
+		(set this:line line)
 	)
 	((<init> line int prec int) void
 		(this:<init> line)
@@ -57,7 +57,9 @@
 	)
 )
 
-(define-class ConstToken (Token) 'public
+(define-class Transformed () 'interface 'abstract 'public)
+
+(define-class ConstToken (Token Transformed) 'public
 	((<init> line int what String) void 'public
 		(super:<init> line 0 what)
 	)
@@ -66,7 +68,7 @@
 	)
 )
 
-(define-class SToken (Token) 'public
+(define-class SToken (Token Transformed) 'public
 	(val String 'public)
 	((<init> line int val String) void 'public
 		(super:<init> line)
@@ -80,7 +82,7 @@
 	)
 )
 
-(define-class NToken (Token) 'public
+(define-class NToken (Token Transformed) 'public
 	(val Number 'public)
 	((<init> line int sval String) void 'public
 		(super:<init> line)
@@ -96,7 +98,7 @@
 	)
 )
 
-(define-class CToken (Token) 'public
+(define-class CToken (Token Transformed) 'public
 	(val Character 'public)
 	((<init> line int val Character) void 'public
 		(super:<init> line)
@@ -116,7 +118,7 @@
 	)
 )
 
-(define-class VToken (Token) 'public
+(define-class VToken (Token Transformed) 'public
 	(val String 'public)
 	(macro int 'public 'transient)
 	((<init> line int val String macro int) void
@@ -126,6 +128,12 @@
 	)
 	((<init> line int val String) void 'public
 		(this:<init> line val 0)
+	)
+	((javaName) String 'public
+		(if (= this:macro 0)
+			(concat this:val)
+			(concat this:val "$" this:macro)
+		)
 	)
 	((toString) String 'public
 		this:val
@@ -216,8 +224,6 @@
 		(super:<init>)
 	)
 )
-
-(define-class Transformed () 'interface 'abstract 'public)
 
 (define-class IncludeToken (Token Transformed) 'public
 	(mi MethodInfo 'public)
