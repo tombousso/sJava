@@ -1,0 +1,16 @@
+(define-class Main () 'public
+	((main args String[]) void 'public 'static
+		(define x 3)
+		((lambda ()
+			(define y 3)
+			(begin
+				(print x)
+				(print x)
+			)
+			((lambda ()
+				(print x)
+				(print x)
+			))
+		))
+	)
+)

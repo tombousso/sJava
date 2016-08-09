@@ -59,27 +59,24 @@ class Lexer {
             if(c == 34) {
                 ++this.i;
 
-                for(boolean s = false; s || this.code.charAt(this.i) != 34; ++this.i) {
-                    s = !s && this.code.charAt(this.i) == 92;
+                for(boolean esc = false; esc || this.code.charAt(this.i) != 34; ++this.i) {
+                    esc = !esc && this.code.charAt(this.i) == 92;
                 }
 
                 ++this.i;
                 var10000 = new SToken(this.line, StringEscapeUtils.unescapeJava(this.code.substring(oi + 1, this.i - 1)));
+            } else if(c == 35) {
+                this.i += 2;
+                this.nextTok();
+                String schar = this.code.substring(oi + 2, this.i);
+                var10000 = new CToken(this.line, schar.length() == 1?Character.valueOf(schar.charAt(0)):(Character)Main.specialChars.get(schar));
+            } else if(Character.isDigit(c) || c == 45 && Character.isDigit(this.code.charAt(this.i + 1))) {
+                this.nextTok();
+                var10000 = new NToken(this.line, this.code.substring(oi, this.i));
             } else {
-                String var5;
-                if(c == 35) {
-                    this.i += 2;
-                    this.nextTok();
-                    var5 = this.code.substring(oi + 2, this.i);
-                    var10000 = new CToken(this.line, var5.length() == 1?Character.valueOf(var5.charAt(0)):(Character)Main.specialChars.get(var5));
-                } else if(Character.isDigit(c) || c == 45 && Character.isDigit(this.code.charAt(this.i + 1))) {
-                    this.nextTok();
-                    var10000 = new NToken(this.line, this.code.substring(oi, this.i));
-                } else {
-                    this.nextTok();
-                    var5 = this.code.substring(oi, this.i);
-                    var10000 = var5.equals("null") || var5.equals("true") || var5.equals("false")?new ConstToken(this.line, var5):new VToken(this.line, var5);
-                }
+                this.nextTok();
+                String s = this.code.substring(oi, this.i);
+                var10000 = s.equals("null") || s.equals("true") || s.equals("false")?new ConstToken(this.line, s):new VToken(this.line, s);
             }
         } else {
             this.i += this.s.length();

@@ -19,17 +19,16 @@ public class VToken extends Token implements Transformed {
 
     public String javaName() {
         String var10000;
-        StringBuilder sb;
         if(this.macro == 0) {
-            sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
             sb.append(this.val);
             var10000 = sb.toString();
         } else {
-            sb = new StringBuilder();
-            sb.append(this.val);
-            sb.append("$");
-            sb.append(this.macro);
-            var10000 = sb.toString();
+            StringBuilder sb1 = new StringBuilder();
+            sb1.append(this.val);
+            sb1.append("$");
+            sb1.append(this.macro);
+            var10000 = sb1.toString();
         }
 
         return var10000;

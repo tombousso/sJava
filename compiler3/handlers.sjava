@@ -252,7 +252,7 @@
 												(try (if (= (field:getType) Type:intType)
 													(this:compileQuasi ((field:getReflectField):getInt tok) mi code (field:getType))
 													(this:compileQuasi ((field:getReflectField):get tok) mi code (field:getType))
-												) e (e:printStackTrace))
+												) (e Throwable (throw (RuntimeException e))))
 												(if output (code:emitPutField field))
 											)
 										)
@@ -323,8 +323,7 @@
 					)
 					al
 				)
-				null
-				;(throw (Exception))
+				(throw (RuntimeException))
 			)
 			)
 			)
@@ -378,7 +377,7 @@
 					Integer:TYPE
 					(class Handler)
 				)):invoke null (Object[] mi needed 0 this))
-			) e (e:printStackTrace))
+			) (e Throwable (throw (RuntimeException e))))
 		)
 		(this:compile tok:ret mi code needed)
 	)
@@ -576,7 +575,10 @@
 						(tok:toks:subList 1 (tok:toks:size))
 					)
 				)
-				(try (set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray)))) e (e:printStackTrace))
+				(try
+					(set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))))
+					(e Throwable (throw (RuntimeException e)))
+				)
 			)
 		)
 		(mi:pushLevel)
@@ -620,12 +622,28 @@
 	)
 	((compile tok TryToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(if output (code:emitTryStart false null))
-		(define type (this:compile (tok:toks:get 1) mi code needed))
-		(define var (mi:newVar code (as VToken (tok:toks:get 2)) Type:javalangThrowableType))
-		(if output (code:emitCatchStart var))
-		(this:compile (tok:toks:get 3) mi code Main:unknownType)
-		(if output (code:emitCatchEnd))
+		(define type (this:compile (tok:toks:get 1) mi null needed))
+		(define last (tok:toks:get (- (tok:toks:size) 1)))
+		(define hasFinally ((as VToken (last:toks:get 0)):val:equals "finally"))
+		(if output (code:emitTryStart hasFinally type))
+		(this:compile (tok:toks:get 1) mi code needed)
+		(define e (- (tok:toks:size) (if hasFinally 1 0)))
+		(for (define i 2) (!= i e) (inc i)
+			(define catch (tok:toks:get i))
+			(mi:pushScope code (as BlockToken catch):labels)
+			(define var (mi:newVar code (as VToken (catch:toks:get 0)) (mi:getType (catch:toks:get 1))))
+			(if output (code:emitCatchStart var))
+			(this:compileAll catch:toks 2 (catch:toks:size) mi code type)
+			(if output (code:emitCatchEnd))
+			(mi:popScope code)
+		)
+		(if hasFinally
+			(begin
+				(if output (code:emitFinallyStart))
+				(this:compileAll last:toks 1 (last:toks:size) mi code type)
+				(if output (code:emitFinallyEnd))
+			)
+		)
 		(if output (code:emitTryCatchEnd))
 		type
 	)
@@ -822,7 +840,7 @@
 					(if (&& (! ((method:getName):equals "<init>")) (= 0 (& Access:SYNTHETIC (method:getModifiers))))
 						(if (= tocall null)
 							(set tocall method)
-							;(throw (Exception))
+							(throw (RuntimeException))
 						)
 					)
 					(set method (method:getNext))
@@ -868,8 +886,7 @@
 				(define type (super:compile tok mi code needed))
 				(this:castMaybe code type needed)
 			)
-			e
-			(begin
+			(e Throwable
 				(System:out:println (mi:ci:fs:name:concat (": Error compiling line ":concat (Integer:toString tok:line))))
 				(throw e)
 			)
@@ -886,30 +903,31 @@
 		(set this:enc enc)
 		(set this:captured (LinkedHashMap))
 	)
+	((assignField vcaptured VCaptured mi AMethodInfo code CodeAttr) void
+		(define output (!= code null))
+		(if (&& output (= vcaptured:field null))
+			(begin
+				(define new (mi:ci:c:addField ("captured$":concat (Integer:toString this:n)) vcaptured:type Access:SYNTHETIC))
+				(inc this:n)
+				(set vcaptured:field new)
+				(this:captured:put vcaptured:avar new)
+			)
+		)
+	)
 	((compile tok VToken mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define found (mi:getVar (as VToken tok)))
+		(if (instance? found VCaptured)
+			(this:assignField (as VCaptured found) mi code)
+		)
 		(if (= found null)
 			(begin
-				(define outer (this:enc:getVar (as VToken tok)))
-				;(if (= outer null) (throw (Exception)))
-				(define field
-					(if output
-						(if (this:captured:containsKey outer)
-							(this:captured:get outer)
-							(begin
-								(define new (mi:ci:c:addField ("captured$":concat (Integer:toString this:n)) outer:type Access:SYNTHETIC))
-								(set this:n (+ this:n 1))
-								(this:captured:put outer new)
-								new
-							)
-						)
-						null
-					)
-				)
-				(if output (code:emitPushThis))
-				(if output (code:emitGetField field))
-				outer:type
+				(define outer (this:enc:getVar tok))
+				(if (= outer null) (throw (RuntimeException)))
+				(define vcaptured (VCaptured outer null))
+				(this:assignField vcaptured mi code)
+				(((mi:scopes:get tok:macro):getLast):put tok:val vcaptured)
+				(vcaptured:load code)
 			)
 			(found:load code)
 		)
@@ -1131,7 +1149,6 @@
 			)
 		(if (= (tok:toks:size) 4)
 			(set n 3)
-			;(throw (Exception "default value"))
 			;(if output (code:emitPushDefaultValue needed))
 		)
 		)

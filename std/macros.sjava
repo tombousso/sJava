@@ -195,7 +195,7 @@
 	(define out
 		`(cond
 			,conds
-			(true (println "Double dispatch error with " ,arg))
+			(true (throw (RuntimeException (concat "Double dispatch with " ,arg))))
 		)
 	)
 	out

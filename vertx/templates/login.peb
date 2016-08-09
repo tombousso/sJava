@@ -1,0 +1,16 @@
+{% extends "base.peb" %}
+
+{% block body %}
+	{% if context.get("invalid") %}
+		<div><p class="error">Invalid username or password.</p></div>
+	{% endif %}
+	Login:<br>
+	<form action="login" method="post">
+		<input name="name" type="text" required placeholder="Name"><br>
+		<input name="pass" type="text" required placeholder="Password"><br>
+		{% if context.get("recaptcha") %}
+			<div class="g-recaptcha" data-sitekey="6Lek5yYTAAAAAAgYB34twlRzBIt1iYK4cWQsLcEJ"></div>
+		{% endif %}
+		<input type="submit" value="Submit"><br>
+	</form>
+{% endblock %}

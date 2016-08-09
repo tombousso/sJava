@@ -168,25 +168,25 @@ public class Main {
             String[] array1 = a;
 
             for(int notused = 0; notused != array1.length; ++notused) {
-                String iterable = array1[notused];
-                s2prec.put(iterable, Integer.valueOf(i + 1));
+                String b = array1[notused];
+                s2prec.put(b, Integer.valueOf(i + 1));
             }
         }
 
-        ArgumentParser var15 = ArgumentParsers.newArgumentParser("sJava compiler");
-        var15.addArgument(new String[]{"-d"}).setDefault("");
-        var15.addArgument(new String[]{"file"}).nargs("*");
-        Namespace var16 = (Namespace)null;
+        ArgumentParser parser = ArgumentParsers.newArgumentParser("sJava compiler");
+        parser.addArgument(new String[]{"-d"}).setDefault("");
+        parser.addArgument(new String[]{"file"}).nargs("*");
+        Namespace res = (Namespace)null;
 
         try {
-            var16 = var15.parseArgs(args);
-        } catch (Throwable var14) {
-            var14.printStackTrace();
+            res = parser.parseArgs(args);
+        } catch (Throwable var20) {
+            var20.printStackTrace();
         }
 
-        List var17 = var16.getList("file");
-        LinkedHashMap var18 = new LinkedHashMap();
-        Iterator it = var17.iterator();
+        List fileNames = res.getList("file");
+        LinkedHashMap files = new LinkedHashMap();
+        Iterator it = fileNames.iterator();
 
         for(int notused1 = 0; it.hasNext(); ++notused1) {
             String name = (String)it.next();
@@ -194,16 +194,16 @@ public class Main {
 
             try {
                 s = new String(Files.readAllBytes(Paths.get(name, new String[0])));
-            } catch (Throwable var13) {
-                var13.printStackTrace();
+            } catch (Throwable var19) {
+                var19.printStackTrace();
             }
 
             ArrayList toks = (new Lexer(s)).lex();
             toks = (ArrayList)(new Parser(toks)).parseAll();
-            var18.put(name, toks);
+            files.put(name, toks);
         }
 
-        compile(var18, var16.getString("d"));
+        compile(files, res.getString("d"));
     }
 
     static void compile(HashMap<String, ArrayList<Token>> files, String dir) {
@@ -211,98 +211,90 @@ public class Main {
         LinkedHashMap fileScopes = new LinkedHashMap();
         HashMap macroNames = new HashMap();
         Set iterable = files.entrySet();
-        Iterator iterable1 = iterable.iterator();
+        Iterator it = iterable.iterator();
 
-        int it;
-        Entry notused;
-        FileScope fs;
-        for(it = 0; iterable1.hasNext(); ++it) {
-            notused = (Entry)iterable1.next();
-            ArrayList entry = (ArrayList)notused.getValue();
-            fs = new FileScope((String)notused.getKey(), entry, locals);
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Entry entry = (Entry)it.next();
+            ArrayList toks = (ArrayList)entry.getValue();
+            FileScope fs = new FileScope((String)entry.getKey(), toks, locals);
             fs.macroNames = macroNames;
-            fileScopes.put((String)notused.getKey(), fs);
+            fileScopes.put((String)entry.getKey(), fs);
             fs.compileRoot();
         }
 
-        iterable = fileScopes.entrySet();
-        iterable1 = iterable.iterator();
+        Set iterable1 = fileScopes.entrySet();
+        Iterator it1 = iterable1.iterator();
 
-        for(it = 0; iterable1.hasNext(); ++it) {
-            notused = (Entry)iterable1.next();
-            FileScope var19 = (FileScope)notused.getValue();
-            var19.compileDefs();
+        for(int notused1 = 0; it1.hasNext(); ++notused1) {
+            Entry entry1 = (Entry)it1.next();
+            FileScope fs1 = (FileScope)entry1.getValue();
+            fs1.compileDefs();
         }
 
-        ArrayClassLoader var15 = new ArrayClassLoader();
-        Set var16 = fileScopes.entrySet();
-        Iterator var17 = var16.iterator();
+        ArrayClassLoader cl = new ArrayClassLoader();
+        Set iterable2 = fileScopes.entrySet();
+        Iterator it2 = iterable2.iterator();
 
-        int var18;
-        Entry var20;
-        for(var18 = 0; var17.hasNext(); ++var18) {
-            var20 = (Entry)var17.next();
-            fs = (FileScope)var20.getValue();
-            fs.compileMacros(var15);
+        for(int notused2 = 0; it2.hasNext(); ++notused2) {
+            Entry entry2 = (Entry)it2.next();
+            FileScope fs2 = (FileScope)entry2.getValue();
+            fs2.compileMacros(cl);
         }
 
-        var16 = fileScopes.entrySet();
-        var17 = var16.iterator();
+        Set iterable3 = fileScopes.entrySet();
+        Iterator it3 = iterable3.iterator();
 
-        for(var18 = 0; var17.hasNext(); ++var18) {
-            var20 = (Entry)var17.next();
-            fs = (FileScope)var20.getValue();
-            fs.compileIncludes();
+        for(int notused3 = 0; it3.hasNext(); ++notused3) {
+            Entry entry3 = (Entry)it3.next();
+            FileScope fs3 = (FileScope)entry3.getValue();
+            fs3.compileIncludes();
         }
 
-        var16 = fileScopes.entrySet();
-        var17 = var16.iterator();
+        Set iterable4 = fileScopes.entrySet();
+        Iterator it4 = iterable4.iterator();
 
-        for(var18 = 0; var17.hasNext(); ++var18) {
-            var20 = (Entry)var17.next();
-            fs = (FileScope)var20.getValue();
-            fs.compileMethods(GenHandler.inst);
+        for(int notused4 = 0; it4.hasNext(); ++notused4) {
+            Entry entry4 = (Entry)it4.next();
+            FileScope fs4 = (FileScope)entry4.getValue();
+            fs4.compileMethods(GenHandler.inst);
         }
 
-        var16 = fileScopes.entrySet();
-        var17 = var16.iterator();
+        Set iterable5 = fileScopes.entrySet();
+        Iterator it5 = iterable5.iterator();
 
-        for(var18 = 0; var17.hasNext(); ++var18) {
-            var20 = (Entry)var17.next();
-            fs = (FileScope)var20.getValue();
-            List iterable2 = fs.newClasses;
-            Iterator it1 = iterable2.iterator();
+        for(int notused5 = 0; it5.hasNext(); ++notused5) {
+            Entry entry5 = (Entry)it5.next();
+            FileScope fs5 = (FileScope)entry5.getValue();
+            List iterable6 = fs5.newClasses;
+            Iterator it6 = iterable6.iterator();
 
-            int notused1;
-            ClassInfo var14;
-            for(notused1 = 0; it1.hasNext(); ++notused1) {
-                var14 = (ClassInfo)it1.next();
-                var14.writeFile(dir);
+            for(int notused6 = 0; it6.hasNext(); ++notused6) {
+                ClassInfo var40 = (ClassInfo)it6.next();
+                var40.writeFile(dir);
             }
 
-            iterable2 = fs.anonClasses;
-            it1 = iterable2.iterator();
+            List iterable7 = fs5.anonClasses;
+            Iterator it7 = iterable7.iterator();
 
-            for(notused1 = 0; it1.hasNext(); ++notused1) {
-                var14 = (ClassInfo)it1.next();
-                var14.writeFile(dir);
+            for(int notused7 = 0; it7.hasNext(); ++notused7) {
+                ClassInfo var44 = (ClassInfo)it7.next();
+                var44.writeFile(dir);
             }
         }
 
     }
 
     public static Type resolveType(Map<TypeVariable, Type> map, Type pt, Type t) {
-        int i;
         Object var10000;
         if(t instanceof TypeVariable) {
             if(pt instanceof ParameterizedType) {
-                TypeVariable[] types = ((ParameterizedType)pt).getRawType().getTypeParameters();
-                String parameterized = ((TypeVariable)t).getName();
-                TypeVariable[] array = types;
+                TypeVariable[] tvs = ((ParameterizedType)pt).getRawType().getTypeParameters();
+                String s = ((TypeVariable)t).getName();
+                TypeVariable[] array = tvs;
 
-                for(i = 0; i != array.length; ++i) {
-                    TypeVariable type = array[i];
-                    if(type.getName().equals(parameterized)) {
+                for(int i = 0; i != array.length; ++i) {
+                    TypeVariable tv = array[i];
+                    if(tv.getName().equals(s)) {
                         return ((ParameterizedType)pt).getTypeArgumentType(i);
                     }
                 }
@@ -314,16 +306,16 @@ public class Main {
         } else if(t instanceof ArrayType) {
             var10000 = new ArrayType(resolveType(map, pt, ((ArrayType)t).elements));
         } else if(t instanceof ParameterizedType) {
-            Type[] var8 = ((ParameterizedType)t).getTypeArgumentTypes();
-            Type[] var9 = new Type[var8.length];
-            Type[] var10 = var8;
+            Type[] types = ((ParameterizedType)t).getTypeArgumentTypes();
+            Type[] parameterized = new Type[types.length];
+            Type[] array1 = types;
 
-            for(i = 0; i != var10.length; ++i) {
-                Type var11 = var10[i];
-                var9[i] = resolveType(map, pt, var11);
+            for(int i1 = 0; i1 != array1.length; ++i1) {
+                Type type = array1[i1];
+                parameterized[i1] = resolveType(map, pt, type);
             }
 
-            var10000 = new ParameterizedType((ClassType)t.getRawType(), var9);
+            var10000 = new ParameterizedType((ClassType)t.getRawType(), parameterized);
         } else {
             var10000 = t;
         }
@@ -464,20 +456,20 @@ public class Main {
                 }
 
                 if((Token)block.toks.get(0) instanceof VToken) {
-                    String out = ((VToken)((Token)block.toks.get(0))).val;
-                    if(out.equals("object")) {
+                    String val = ((VToken)((Token)block.toks.get(0))).val;
+                    if(val.equals("object")) {
                         return new ObjectToken(block.line, block.toks);
                     }
 
-                    if(out.equals("lambda")) {
+                    if(val.equals("lambda")) {
                         return new LambdaToken(block.line, block.toks);
                     }
 
-                    if(mi.ci.fs.macroNames.containsKey(out)) {
+                    if(mi.ci.fs.macroNames.containsKey(val)) {
                         return new MacroCallToken(block.line, block.toks);
                     }
 
-                    if(out.equals("begin")) {
+                    if(val.equals("begin")) {
                         if(block.toks.size() == 2) {
                             return transformBlock((Token)block.toks.get(1), mi);
                         }
@@ -485,86 +477,86 @@ public class Main {
                         return transformBlockToks(new BeginToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("label")) {
+                    if(val.equals("label")) {
                         return new LabelToken(block.line, block.toks);
                     }
 
-                    if(out.equals("goto")) {
+                    if(val.equals("goto")) {
                         return new GotoToken(block.line, block.toks);
                     }
 
-                    if(out.equals("define")) {
+                    if(val.equals("define")) {
                         return transformBlockToks(new DefineToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("try")) {
+                    if(val.equals("try")) {
                         return transformBlockToks(new TryToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("instance?")) {
+                    if(val.equals("instance?")) {
                         return transformBlockToks(new InstanceToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("set")) {
+                    if(val.equals("set")) {
                         return transformBlockToks(new SetToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("aset")) {
+                    if(val.equals("aset")) {
                         return transformBlockToks(new ASetToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("aget")) {
+                    if(val.equals("aget")) {
                         return transformBlockToks(new AGetToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("alen")) {
+                    if(val.equals("alen")) {
                         return transformBlockToks(new ALenToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("as")) {
+                    if(val.equals("as")) {
                         return transformBlockToks(new AsToken(block.line, block.toks), mi);
                     }
 
-                    if(binOps.containsKey(out)) {
+                    if(binOps.containsKey(val)) {
                         return transformBlockToks(new BinOpToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("if")) {
+                    if(val.equals("if")) {
                         return transformBlockToks(new IfToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("while")) {
+                    if(val.equals("while")) {
                         return transformBlockToks(new WhileToken(block.line, block.toks), mi);
                     }
 
-                    if(isCompare(out)) {
+                    if(isCompare(val)) {
                         return transformBlockToks(new CompareToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("throw")) {
+                    if(val.equals("throw")) {
                         return transformBlockToks(new ThrowToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("class")) {
+                    if(val.equals("class")) {
                         return transformBlockToks(new ClassToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("synchronized")) {
+                    if(val.equals("synchronized")) {
                         return transformBlockToks(new SynchronizedToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("type")) {
+                    if(val.equals("type")) {
                         return transformBlockToks(new TypeToken(block.line, block.toks), mi);
                     }
 
-                    if(out.equals("return")) {
+                    if(val.equals("return")) {
                         return transformBlockToks(new ReturnToken(block.line, block.toks), mi);
                     }
                 } else if((Token)block.toks.get(0) instanceof ColonToken) {
-                    CallToken out1 = new CallToken(block.line, block.toks);
-                    transformBlockTok((Token)out1.toks.get(0), mi, true, 0);
-                    transformBlockToks(out1, mi, true, 1);
-                    return out1;
+                    CallToken out = new CallToken(block.line, block.toks);
+                    transformBlockTok((Token)out.toks.get(0), mi, true, 0);
+                    transformBlockToks(out, mi, true, 1);
+                    return out;
                 }
 
                 return transformBlockToks(new DefaultToken(block.line, block.toks), mi);
@@ -672,12 +664,12 @@ public class Main {
             code.emitInvoke(method);
         }
 
-        Type var21 = resolveType(mc.tvs, mc.t, method.getReturnType());
-        if(var21 != Type.voidType && needed != Type.voidType && output) {
-            code.emitCheckcast(var21.getRawType());
+        Type out = resolveType(mc.tvs, mc.t, method.getReturnType());
+        if(out != Type.voidType && needed != Type.voidType && output) {
+            code.emitCheckcast(out.getRawType());
         }
 
-        return h.castMaybe(code, var21, needed);
+        return h.castMaybe(code, out, needed);
     }
 
     public static Type emitInvoke(Handler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed) {
@@ -693,101 +685,93 @@ public class Main {
         Type var10000;
         if(compare.equals("!")) {
             var10000 = emitIf(h, !inv, tok, i, trueE, falseE, mi, code, needed);
-        } else {
-            Label falseLabel;
-            Label skip;
-            Goto label;
-            int j;
-            if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
-                falseLabel = new Label();
-                skip = new Label();
-                label = new Goto(skip);
+        } else if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
+            Label skipL = new Label();
+            Label falseL = new Label();
+            Goto falseG = new Goto(falseL);
 
-                for(j = 1; j != e - 1; ++j) {
-                    emitIf(h, inv, tok, j, Nothing.inst, label, mi, code, needed);
+            for(int i1 = 1; i1 != e - 1; ++i1) {
+                emitIf(h, inv, tok, i1, Nothing.inst, falseG, mi, code, needed);
+            }
+
+            emitIf(h, inv, tok, e - 1, new Emitters(new Emitter[]{trueE, new Goto(skipL)}), (Emitter)null, mi, code, needed);
+            if(output) {
+                falseL.define(code);
+            }
+
+            if(falseE != null) {
+                falseE.emit(h, mi, code, needed);
+            }
+
+            if(output) {
+                skipL.define(code);
+            }
+
+            var10000 = trueE.emit(h, mi, (CodeAttr)null, needed);
+        } else if(!inv && compare.equals("||") || inv && compare.equals("&&")) {
+            Label skipL1 = new Label();
+            Label trueL = new Label();
+            Goto trueG = new Goto(trueL);
+
+            for(int i2 = 1; i2 != e - 1; ++i2) {
+                emitIf(h, !inv, tok, i2, Nothing.inst, trueG, mi, code, needed);
+            }
+
+            emitIf(h, !inv, tok, e - 1, new Emitters(new Emitter[]{falseE, new Goto(skipL1)}), (Emitter)null, mi, code, needed);
+            if(output) {
+                trueL.define(code);
+            }
+
+            Type type = trueE.emit(h, mi, code, needed);
+            if(output) {
+                skipL1.define(code);
+            }
+
+            var10000 = type;
+        } else {
+            boolean falseLabel = falseE instanceof Goto;
+            Label skip = new Label();
+            Label label = falseLabel?((Goto)falseE).label:skip;
+            if(compare1Ops.containsKey(compare)) {
+                for(int j = i; j != e; ++j) {
+                    Type[] types = h.compileAll(tok.toks, j, j + 1, mi, (CodeAttr)null, unknownType);
+                    Type otype = compareType(types);
+                    h.compileAll(tok.toks, j, j + 1, mi, code, otype);
+                    if(output) {
+                        code.emitGotoIfCompare1(label, invertComp(inv, ((Integer)compare1Ops.get(compare)).intValue()));
+                    }
+                }
+            } else {
+                for(int j1 = i; j1 + 1 != e; ++j1) {
+                    Type[] types1 = h.compileAll(tok.toks, j1, j1 + 2, mi, (CodeAttr)null, unknownType);
+                    Type otype1 = compareType(types1);
+                    h.compileAll(tok.toks, j1, j1 + 2, mi, code, otype1);
+                    if(output) {
+                        code.emitGotoIfCompare2(label, invertComp(inv, ((Integer)compare2Ops.get(compare)).intValue()));
+                    }
+                }
+            }
+
+            Type type1 = trueE.emit(h, mi, code, needed);
+            if(!falseLabel) {
+                Label end = new Label();
+                if(!(trueE instanceof Nothing) && falseE != null && output && code.reachableHere()) {
+                    code.emitGoto(end);
                 }
 
-                emitIf(h, inv, tok, e - 1, new Emitters(new Emitter[]{trueE, new Goto(falseLabel)}), (Emitter)null, mi, code, needed);
                 if(output) {
                     skip.define(code);
                 }
 
                 if(falseE != null) {
                     falseE.emit(h, mi, code, needed);
-                }
-
-                if(output) {
-                    falseLabel.define(code);
-                }
-
-                var10000 = trueE.emit(h, mi, (CodeAttr)null, needed);
-            } else if(!inv && compare.equals("||") || inv && compare.equals("&&")) {
-                falseLabel = new Label();
-                skip = new Label();
-                label = new Goto(skip);
-
-                for(j = 1; j != e - 1; ++j) {
-                    emitIf(h, !inv, tok, j, Nothing.inst, label, mi, code, needed);
-                }
-
-                emitIf(h, !inv, tok, e - 1, new Emitters(new Emitter[]{falseE, new Goto(falseLabel)}), (Emitter)null, mi, code, needed);
-                if(output) {
-                    skip.define(code);
-                }
-
-                Type end = trueE.emit(h, mi, code, needed);
-                if(output) {
-                    falseLabel.define(code);
-                }
-
-                var10000 = end;
-            } else {
-                boolean var18 = falseE instanceof Goto;
-                skip = new Label();
-                Label var19 = var18?((Goto)falseE).label:skip;
-                Type otype;
-                Type[] var20;
-                if(compare1Ops.containsKey(compare)) {
-                    for(j = i; j != e; ++j) {
-                        var20 = h.compileAll(tok.toks, j, j + 1, mi, (CodeAttr)null, unknownType);
-                        otype = compareType(var20);
-                        h.compileAll(tok.toks, j, j + 1, mi, code, otype);
-                        if(output) {
-                            code.emitGotoIfCompare1(var19, invertComp(inv, ((Integer)compare1Ops.get(compare)).intValue()));
-                        }
-                    }
-                } else {
-                    for(j = i; j + 1 != e; ++j) {
-                        var20 = h.compileAll(tok.toks, j, j + 2, mi, (CodeAttr)null, unknownType);
-                        otype = compareType(var20);
-                        h.compileAll(tok.toks, j, j + 2, mi, code, otype);
-                        if(output) {
-                            code.emitGotoIfCompare2(var19, invertComp(inv, ((Integer)compare2Ops.get(compare)).intValue()));
-                        }
-                    }
-                }
-
-                Type var22 = trueE.emit(h, mi, code, needed);
-                if(!var18) {
-                    Label var21 = new Label();
-                    if(!(trueE instanceof Nothing) && falseE != null && output && code.reachableHere()) {
-                        code.emitGoto(var21);
-                    }
-
                     if(output) {
-                        skip.define(code);
-                    }
-
-                    if(falseE != null) {
-                        falseE.emit(h, mi, code, needed);
-                        if(output) {
-                            var21.define(code);
-                        }
+                        end.define(code);
                     }
                 }
-
-                var10000 = var22;
             }
+
+            var10000 = type1;
         }
 
         return var10000;
@@ -834,7 +818,7 @@ public class Main {
     }
 
     static int toksToString(Token tok, int line, StringBuffer sb) {
-        for(int c = tok.line - line; c > 0; --c) {
+        for(int i = tok.line - line; i > 0; --i) {
             sb.append("\n");
         }
 
@@ -846,19 +830,19 @@ public class Main {
         } else if(tok instanceof NToken) {
             sb.append(((NToken)tok).val.toString());
         } else if(tok instanceof CToken) {
-            String var8 = ((CToken)tok).val.toString();
+            String c = ((CToken)tok).val.toString();
             Set iterable = specialChars.entrySet();
             Iterator it = iterable.iterator();
 
             for(int notused = 0; it.hasNext(); ++notused) {
                 Entry entry = (Entry)it.next();
                 if(((CToken)tok).val.equals((Character)entry.getValue())) {
-                    var8 = (String)entry.getKey();
+                    c = (String)entry.getKey();
                 }
             }
 
             sb.append("#\\");
-            sb.append(var8);
+            sb.append(c);
         } else if(tok instanceof VToken) {
             sb.append(((VToken)tok).val);
         } else if(tok instanceof BlockToken) {

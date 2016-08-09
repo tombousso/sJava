@@ -110,13 +110,13 @@ public class ClassInfo {
             var10000 = type == null && this.fs.classExists(name)?Type.getType(name):type;
         }
 
-        Object var8 = var10000;
+        Object out = var10000;
 
         for(i = 0; i != dims; ++i) {
-            var8 = new ArrayType((Type)var8);
+            out = new ArrayType((Type)out);
         }
 
-        return (Type)var8;
+        return (Type)out;
     }
 
     Type getType(Token tok) {
@@ -143,46 +143,46 @@ public class ClassInfo {
         if(tok instanceof BlockToken) {
             Token first = (Token)tok.toks.get(0);
             if(first instanceof BlockToken) {
-                LinkedHashMap mods = new LinkedHashMap();
-                int end = 0;
-                boolean i = false;
-                int mod = 2;
+                LinkedHashMap scope = new LinkedHashMap();
+                int mods = 0;
+                boolean end = false;
+                int i = 2;
 
-                while(!i && mod != tok.toks.size()) {
-                    Token nmod = (Token)tok.toks.get(mod);
-                    if(nmod instanceof SingleQuoteToken) {
-                        end |= ((Short)Main.accessModifiers.get(((VToken)((Token)nmod.toks.get(0))).val)).shortValue();
-                        ++mod;
+                while(!end && i != tok.toks.size()) {
+                    Token mod = (Token)tok.toks.get(i);
+                    if(mod instanceof SingleQuoteToken) {
+                        mods |= ((Short)Main.accessModifiers.get(((VToken)((Token)mod.toks.get(0))).val)).shortValue();
+                        ++i;
                     } else {
-                        i = true;
+                        end = true;
                     }
                 }
 
-                byte var15 = 0;
-                if((end & Access.STATIC) == 0) {
-                    mods.put("this", new Arg(0, this.c));
-                    var15 = 1;
+                byte n = 0;
+                if((mods & Access.STATIC) == 0) {
+                    scope.put("this", new Arg(0, this.c));
+                    n = 1;
                 }
 
-                Type[] types = Main.getParams(this, first, mods, 1, var15);
-                Method m = this.c.addMethod(((VToken)((Token)first.toks.get(0))).val, types, this.getType((Token)tok.toks.get(1)), end);
-                this.methods.add(new MethodInfo(this, tok.toks.subList(mod, tok.toks.size()), m, mods));
+                Type[] types = Main.getParams(this, first, scope, 1, n);
+                Method m = this.c.addMethod(((VToken)((Token)first.toks.get(0))).val, types, this.getType((Token)tok.toks.get(1)), mods);
+                this.methods.add(new MethodInfo(this, tok.toks.subList(i, tok.toks.size()), m, scope));
             } else {
-                int var10 = 0;
-                boolean var11 = false;
+                int mods1 = 0;
+                boolean end1 = false;
 
-                for(int var12 = 2; var12 != tok.toks.size() && !var11; ++var12) {
-                    Token var13 = (Token)tok.toks.get(var12);
-                    if(var13 instanceof SingleQuoteToken) {
-                        Short var16 = (Short)Main.accessModifiers.get(((VToken)((Token)var13.toks.get(0))).val);
-                        var10 |= var16.shortValue();
+                for(int i1 = 2; i1 != tok.toks.size() && !end1; ++i1) {
+                    Token mod1 = (Token)tok.toks.get(i1);
+                    if(mod1 instanceof SingleQuoteToken) {
+                        Short nmod = (Short)Main.accessModifiers.get(((VToken)((Token)mod1.toks.get(0))).val);
+                        mods1 |= nmod.shortValue();
                     } else {
-                        var11 = true;
+                        end1 = true;
                     }
                 }
 
-                Type var14 = this.getType((Token)tok.toks.get(1));
-                this.c.addField(((VToken)first).val, var14, var10);
+                Type t = this.getType((Token)tok.toks.get(1));
+                this.c.addField(((VToken)first).val, t, mods1);
             }
         }
 

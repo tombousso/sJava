@@ -57,14 +57,14 @@ public class FileScope {
         if(this.found.containsKey(name)) {
             var10000 = ((Boolean)this.found.get(name)).booleanValue();
         } else {
+            boolean b;
             try {
                 Class.forName(name);
-                var10000 = true;
+                b = true;
             } catch (Throwable var4) {
-                var10000 = false;
+                b = false;
             }
 
-            boolean b = var10000;
             this.found.put(name, Boolean.valueOf(b));
             var10000 = b;
         }
@@ -106,71 +106,71 @@ public class FileScope {
         if((Token)tok.toks.get(0) instanceof VToken) {
             VToken first = (VToken)((Token)tok.toks.get(0));
             if(first.val.equals("define-class")) {
-                ClassType scope = this.getNewType((Token)tok.toks.get(1));
-                String params = scope.getName();
-                ClassInfo name = new ClassInfo(scope, this);
-                name.toks = tok.toks;
-                this.newClasses.add(name);
-                this.locals.put(params, name.c);
-                boolean o = true;
-                int types = 3;
+                ClassType c = this.getNewType((Token)tok.toks.get(1));
+                String name = c.getName();
+                ClassInfo ci = new ClassInfo(c, this);
+                ci.toks = tok.toks;
+                this.newClasses.add(ci);
+                this.locals.put(name, ci.c);
+                boolean run = true;
+                int i = 3;
 
-                while(o && types != name.toks.size()) {
-                    o = Main.compileClassMod((Token)name.toks.get(types), name.c);
-                    if(o) {
-                        ++types;
+                while(run && i != ci.toks.size()) {
+                    run = Main.compileClassMod((Token)ci.toks.get(i), ci.c);
+                    if(run) {
+                        ++i;
                     }
                 }
             } else if(first.val.equals("import")) {
-                String var13 = ((VToken)((Token)tok.toks.get(1))).val;
-                if(var13.equals("%tokens%")) {
+                String var8 = ((VToken)((Token)tok.toks.get(1))).val;
+                if(var8.equals("%tokens%")) {
                     this.starImports.add("sjava.compiler.tokens.");
-                } else if(var13.contains("*")) {
-                    this.starImports.add(var13.replace("*", ""));
+                } else if(var8.contains("*")) {
+                    this.starImports.add(var8.replace("*", ""));
                 } else {
-                    this.imports.put(var13.substring(var13.lastIndexOf(".") + 1), Type.getType(var13));
+                    this.imports.put(var8.substring(var8.lastIndexOf(".") + 1), Type.getType(var8));
                 }
             } else if(first.val.equals("define-macro")) {
-                LinkedHashMap var14 = new LinkedHashMap();
-                Token var15 = (Token)tok.toks.get(1);
-                String var16 = ((VToken)((Token)var15.toks.get(0))).val;
-                byte var17 = 4;
-                Type[] var10000 = new Type[var17 + (var15.toks.size() - 1)];
+                LinkedHashMap scope = new LinkedHashMap();
+                Token params = (Token)tok.toks.get(1);
+                String name1 = ((VToken)((Token)params.toks.get(0))).val;
+                byte o = 4;
+                Type[] var10000 = new Type[o + (params.toks.size() - 1)];
                 var10000[0] = Main.getCompilerType("AMethodInfo");
                 var10000[1] = Type.getType("gnu.bytecode.Type");
                 var10000[2] = Type.intType;
                 var10000[3] = Main.getCompilerType("handlers.Handler");
-                Type[] var18 = var10000;
+                Type[] types = var10000;
                 int mods = Access.PUBLIC | Access.STATIC;
-                var14.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
+                scope.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
 
-                for(int i = 0; var17 + i != var18.length; ++i) {
+                for(int i1 = 0; o + i1 != types.length; ++i1) {
                     Object t = Main.getCompilerType("tokens.Token");
-                    String name1 = ((VToken)((Token)var15.toks.get(i + 1))).val;
-                    if(name1.contains("@")) {
-                        name1 = name1.replace("@", "");
+                    String name2 = ((VToken)((Token)params.toks.get(i1 + 1))).val;
+                    if(name2.contains("@")) {
+                        name2 = name2.replace("@", "");
                         mods |= Access.TRANSIENT;
                         t = new ArrayType((Type)t);
                     }
 
-                    var18[var17 + i] = (Type)t;
-                    var14.put(name1, new Arg(var17 + i, (Type)t));
+                    types[o + i1] = (Type)t;
+                    scope.put(name2, new Arg(o + i1, (Type)t));
                 }
 
-                String var19 = "Macros$".concat(this.name.replace("/", "-")).concat("$").concat(Integer.toString(this.macros.size()));
-                MacroInfo var20 = new MacroInfo(var19, this);
-                var20.c.setModifiers(Access.PUBLIC);
-                MethodInfo var21 = new MethodInfo(var20, tok.toks.subList(2, tok.toks.size()), var20.c.addMethod(var16, var18, Main.getCompilerType("tokens.Token"), mods), var14);
-                if(this.macroNames.containsKey(var16)) {
-                    ((List)this.macroNames.get(var16)).add(var20);
+                String cname = "Macros$".concat(this.name.replace("/", "-")).concat("$").concat(Integer.toString(this.macros.size()));
+                MacroInfo macros = new MacroInfo(cname, this);
+                macros.c.setModifiers(Access.PUBLIC);
+                MethodInfo macro = new MethodInfo(macros, tok.toks.subList(2, tok.toks.size()), macros.c.addMethod(name1, types, Main.getCompilerType("tokens.Token"), mods), scope);
+                if(this.macroNames.containsKey(name1)) {
+                    ((List)this.macroNames.get(name1)).add(macros);
                 } else {
                     ArrayList al = new ArrayList();
-                    al.add(var20);
-                    this.macroNames.put(var16, al);
+                    al.add(macros);
+                    this.macroNames.put(name1, al);
                 }
 
-                this.macros.add(var20);
-                var20.methods.add(var21);
+                this.macros.add(macros);
+                macros.methods.add(macro);
             }
         }
 
@@ -217,13 +217,13 @@ public class FileScope {
             }
         }
 
-        ArrayClassLoader var8 = new ArrayClassLoader();
-        var8.addClass("Includes", includes.c.writeToArray());
+        ArrayClassLoader cl = new ArrayClassLoader();
+        cl.addClass("Includes", includes.c.writeToArray());
 
         try {
-            this.includes.rc = var8.loadClass("Includes", true);
-        } catch (Throwable var7) {
-            var7.printStackTrace();
+            this.includes.rc = cl.loadClass("Includes", true);
+        } catch (Throwable var9) {
+            var9.printStackTrace();
         }
 
     }

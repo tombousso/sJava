@@ -66,7 +66,7 @@ class Parser {
             }
         }
 
-        Object al1 = var10000;
+        Object left = var10000;
         boolean cont = true;
 
         while(cont && this.i != this.toks.size() && this.prec() > prec) {
@@ -74,16 +74,16 @@ class Parser {
             if(w1.equals(":")) {
                 this.next();
                 Token right = this.parse(1);
-                al1 = new ColonToken(t.line, new ArrayList(Arrays.asList(new Object[]{al1, right})));
+                left = new ColonToken(t.line, new ArrayList(Arrays.asList(new Object[]{left, right})));
             } else if(w1.equals("{")) {
                 this.next();
-                al1 = new GenericToken(t.line, (Token)al1, this.subToks("}"));
+                left = new GenericToken(t.line, (Token)left, this.subToks("}"));
             } else {
                 cont = false;
             }
         }
 
-        return (Token)al1;
+        return (Token)left;
     }
 
     int prec() {

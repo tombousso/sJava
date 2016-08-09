@@ -120,27 +120,26 @@ public class JavaHandler extends GenHandler {
         boolean emit = this.emit;
         int num = this.varNum;
 
-        Token arg;
         for(int i = 1; i != tok.toks.size(); ++i) {
-            arg = (Token)tok.toks.get(i);
+            Token arg = (Token)tok.toks.get(i);
             if(arg instanceof BlockToken) {
                 this.compile((Token)tok.toks.get(i), mi, (CodeAttr)null, Main.unknownType);
             }
         }
 
-        ColonToken var12 = (ColonToken)((Token)tok.toks.get(0));
-        arg = (Token)var12.toks.get(0);
-        if(arg instanceof VToken && ((VToken)arg).val.equals("super")) {
+        ColonToken method = (ColonToken)((Token)tok.toks.get(0));
+        Token obj = (Token)method.toks.get(0);
+        if(obj instanceof VToken && ((VToken)obj).val.equals("super")) {
             if(emit) {
                 this.buf.append("super");
             }
-        } else if(mi.getType(arg) == null) {
-            this.compile((Token)var12.toks.get(0), mi, (CodeAttr)null, Main.unknownType);
+        } else if(mi.getType(obj) == null) {
+            this.compile((Token)method.toks.get(0), mi, (CodeAttr)null, Main.unknownType);
         } else if(emit) {
-            this.buf.append(((VToken)arg).javaName());
+            this.buf.append(((VToken)obj).javaName());
         }
 
-        String mname = ((VToken)((Token)var12.toks.get(1))).val;
+        String mname = ((VToken)((Token)method.toks.get(1))).val;
         if(!mname.equals("<init>")) {
             if(emit) {
                 this.buf.append('.');
@@ -181,9 +180,9 @@ public class JavaHandler extends GenHandler {
         }
 
         this.emit = false;
-        Type var13 = super.compile(tok, mi, code, needed);
+        Type out = super.compile(tok, mi, code, needed);
         this.emit = emit;
-        return var13;
+        return out;
     }
 
     public Type compile(BinOpToken tok, AMethodInfo mi, CodeAttr code, Type needed) {
@@ -204,9 +203,9 @@ public class JavaHandler extends GenHandler {
         }
 
         this.emit = false;
-        Type var7 = super.compile(tok, mi, code, needed);
+        Type out = super.compile(tok, mi, code, needed);
         this.emit = emit;
-        return var7;
+        return out;
     }
 
     public Type compile(CompareToken tok, AMethodInfo mi, CodeAttr code, Type needed) {
@@ -227,9 +226,9 @@ public class JavaHandler extends GenHandler {
         }
 
         this.emit = false;
-        Type var7 = super.compile(tok, mi, code, needed);
+        Type out = super.compile(tok, mi, code, needed);
         this.emit = emit;
-        return var7;
+        return out;
     }
 
     public Type compile(BeginToken tok, AMethodInfo mi, CodeAttr code, Type needed) {
@@ -272,9 +271,9 @@ public class JavaHandler extends GenHandler {
             }
         }
 
-        Token var9 = (Token)tok.toks.get(tok.toks.size() - 1);
-        if(var9 instanceof BlockToken) {
-            this.compile(var9, mi, code, needed);
+        Token last = (Token)tok.toks.get(tok.toks.size() - 1);
+        if(last instanceof BlockToken) {
+            this.compile(last, mi, code, needed);
         }
 
         if(type != Type.voidType) {
@@ -291,7 +290,7 @@ public class JavaHandler extends GenHandler {
             }
         }
 
-        if(var9 instanceof BlockToken) {
+        if(last instanceof BlockToken) {
             if(emit) {
                 this.buf.append("$");
             }
@@ -300,7 +299,7 @@ public class JavaHandler extends GenHandler {
                 this.buf.append(this.varNum - 1);
             }
         } else {
-            this.compile(var9, mi, code, needed);
+            this.compile(last, mi, code, needed);
         }
 
         if(emit) {
@@ -322,10 +321,9 @@ public class JavaHandler extends GenHandler {
     public Type compile(SetToken tok, AMethodInfo mi, CodeAttr code, Type needed) {
         boolean emit = this.emit;
         Token out = (Token)tok.toks.get(1);
-        Type t;
         if(out instanceof ColonToken) {
             Token first = (Token)out.toks.get(0);
-            t = mi.getType(first);
+            Type t = mi.getType(first);
             if(t == null) {
                 this.compile(first, mi, (CodeAttr)null, Main.unknownType);
             } else if(emit) {
@@ -349,9 +347,9 @@ public class JavaHandler extends GenHandler {
 
         this.compile((Token)tok.toks.get(2), mi, (CodeAttr)null, needed);
         this.emit = false;
-        t = super.compile(tok, mi, code, needed);
+        Type type = super.compile(tok, mi, code, needed);
         this.emit = emit;
-        return t;
+        return type;
     }
 
     public Type compile(DefineToken tok, AMethodInfo mi, CodeAttr code, Type needed) {

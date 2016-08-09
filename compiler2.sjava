@@ -1168,8 +1168,7 @@
 							(Class:forName name)
 							true
 						)
-						e
-						false
+						(e Throwable false)
 					)
 				)
 				(this:found:put name b)
@@ -2057,8 +2056,7 @@
 				(define type (Handler:tryHandlers this Type:voidType this:handlers tok mi code needed))
 				(Main:castMaybe code type needed)
 			)
-			e
-			(begin
+			(e Throwable
 				(System:out:println (mi:ci:fs:name:concat (": Error compiling line ":concat (Integer:toString tok:line))))
 				(throw e)
 			)
@@ -2608,13 +2606,15 @@
 	)
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(define first (tok:toks:get 0))
 		(if output (code:emitTryStart false null))
 		(define type (h:compile (tok:toks:get 1) mi code needed))
-		(define var (mi:newVar code (as VToken (tok:toks:get 2)) Type:javalangThrowableType))
+		(define catch (tok:toks:get 2))
+		(mi:pushScope code (as BlockToken catch):labels)
+		(define var (mi:newVar code (as VToken (catch:toks:get 0)) Type:javalangThrowableType))
 		(if output (code:emitCatchStart var))
-		(h:compile (tok:toks:get 3) mi code Main:unknownType)
+		(h:compileAll catch:toks 2 (catch:toks:size) mi code Main:unknownType)
 		(if output (code:emitCatchEnd))
+		(mi:popScope code)
 		(if output (code:emitTryCatchEnd))
 		type
 	)

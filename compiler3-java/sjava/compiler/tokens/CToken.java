@@ -17,8 +17,8 @@ public class CToken extends Token implements Transformed {
 
     public String toString() {
         String c = this.val.toString();
-        Set sb = Main.specialChars.entrySet();
-        Iterator it = sb.iterator();
+        Set iterable = Main.specialChars.entrySet();
+        Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
@@ -27,10 +27,10 @@ public class CToken extends Token implements Transformed {
             }
         }
 
-        StringBuilder var6 = new StringBuilder();
-        var6.append("#\\");
-        var6.append(c);
-        return var6.toString();
+        StringBuilder sb = new StringBuilder();
+        sb.append("#\\");
+        sb.append(c);
+        return sb.toString();
     }
 
     public CToken() {

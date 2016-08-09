@@ -33,10 +33,9 @@ public class MFilter extends AFilter {
             int np = params.length;
             if(na == np || varargs && na >= np - 1) {
                 boolean arrayNeeded = varargs && (na == np - 1 || Main.arrayDim(params[np - 1]) != Main.arrayDim(this.types[np - 1]));
-                Type[] types;
                 Type[] var10000;
                 if(arrayNeeded) {
-                    types = new Type[np];
+                    Type[] types = new Type[np];
                     boolean var10 = na == np - 1;
                     System.arraycopy(this.types, 0, types, 0, np - 1);
                     types[np - 1] = (Type)(var10?params[np - 1]:new ArrayType(this.types[np - 1]));
@@ -45,13 +44,13 @@ public class MFilter extends AFilter {
                     var10000 = this.types;
                 }
 
-                types = var10000;
-                Map var16 = Main.unresolveTvs(method.getTypeParameters(), params, types);
+                Type[] reals = var10000;
+                Map tvs = Main.unresolveTvs(method.getTypeParameters(), params, reals);
                 boolean stop = false;
                 int maxLevel = 0;
 
                 for(int i = 0; !stop && i != this.types.length; ++i) {
-                    Type at = Main.resolveType(var16, generic, arrayNeeded && i >= np - 1?((ArrayType)params[np - 1]).elements:params[i]);
+                    Type at = Main.resolveType(tvs, generic, arrayNeeded && i >= np - 1?((ArrayType)params[np - 1]).elements:params[i]);
                     int level = at.compare(this.types[i]);
                     if(level > maxLevel) {
                         maxLevel = level;
@@ -62,14 +61,14 @@ public class MFilter extends AFilter {
                     }
                 }
 
-                MethodCall var17 = new MethodCall(method, generic, var16);
+                MethodCall mc = new MethodCall(method, generic, tvs);
                 if(!stop) {
                     if(varargs) {
-                        this.varmethods.add(var17);
+                        this.varmethods.add(mc);
                     } else if(maxLevel == 0) {
-                        this.methods0.add(var17);
+                        this.methods0.add(mc);
                     } else {
-                        this.methods1.add(var17);
+                        this.methods1.add(mc);
                     }
                 }
             }

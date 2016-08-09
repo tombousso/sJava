@@ -1,0 +1,16 @@
+<html>
+	<head>
+		<script src="https://www.google.com/recaptcha/api.js"></script>
+		<style>
+			p {
+				display: inline;
+			}
+			.error {
+				background-color:#ff4d4d;
+			}
+		</style>
+	</head>
+	<body>
+		{% block body %}{% endblock %}
+	</body>
+</html>

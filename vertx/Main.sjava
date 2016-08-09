@@ -1,0 +1,213 @@
+(import java.util.*)
+
+(import io.vertx.core.*)
+(import io.vertx.core.buffer.Buffer)
+(import io.vertx.core.http.*)
+(import io.vertx.ext.web.*)
+(import io.vertx.ext.web.handler.*)
+(import io.vertx.ext.asyncsql.MySQLClient)
+(import io.vertx.ext.sql.*)
+(import io.vertx.core.json.*)
+(import io.netty.handler.codec.http.QueryStringEncoder)
+(import org.mindrot.jbcrypt.BCrypt)
+(import io.vertx.ext.web.templ.PebbleTemplateEngine)
+
+(define-class Main (AbstractVerticle) 'public
+	(vertx Vertx 'static)
+	((main args String[]) void 'public 'static
+		(set Main:vertx (Vertx:vertx))
+		(Main:vertx:deployVerticle "Main" ((DeploymentOptions):setInstances 5))
+		((System:console):readLine)
+		(Main:vertx:close)
+	)
+
+	(httpClient HttpClient)
+	(conn SQLConnection)
+	(engine PebbleTemplateEngine)
+	((<init>) void 'public
+		(super:<init>)
+	)
+	((start fut Future{Void}) void 'public
+		(define onTableCreate
+			(lambda Handler{AsyncResult{Void}} (ar)
+				(if (ar:succeeded)
+					(this:setupRoutes fut)
+					(fut:fail (ar:cause))
+				)
+			)
+		)
+		(define onConnect
+			(lambda Handler{AsyncResult{SQLConnection}} (ar)
+				(if (ar:succeeded)
+					(begin
+						(set this:conn (ar:result))
+						(this:conn:execute
+							"CREATE TABLE IF NOT EXISTS accounts (id int NOT NULL AUTO_INCREMENT, PRIMARY KEY (id), name varchar(100), pass varchar(100))"
+							onTableCreate
+						)
+					)
+					(fut:fail (ar:cause))
+				)
+			)
+		)
+		(define conf (JsonObject))
+		(conf:put "host" "localhost")
+		(conf:put "database" "app")
+		(conf:put "port" 3306)
+		(conf:put "username" "root")
+		(conf:put "password" "pass")
+		(define client (MySQLClient:createShared this:vertx conf))
+		(client:getConnection onConnect)
+	)
+	((stop fut Future{Void}) void 'public
+		(this:conn:close (fut:completer))
+	)
+	((render path String rc RoutingContext) void
+		(this:engine:render rc path
+			(lambda Handler{AsyncResult{Buffer}} (ar)
+				(if (ar:succeeded)
+					((rc:response):end (ar:result))
+					(rc:fail (ar:cause))
+				)
+			)
+		)
+	)
+	((setupRoutes fut Future{Void}) void
+		(define options (HttpClientOptions))
+		(options:setSsl true)
+		(set this:httpClient (this:vertx:createHttpClient options))
+
+		(set this:engine (PebbleTemplateEngine:create this:vertx))
+
+		(define router (Router:router this:vertx))
+
+		((router:route):handler (BodyHandler:create))
+
+		((router:route "/login"):handler
+			(lambda Handler{RoutingContext} (rc)
+				(define req (rc:request))
+				(define name (req:getParam "name"))
+				(define pass (req:getParam "pass"))
+				(if (&& (= (req:method) HttpMethod:POST) (!= name null) (!= pass null))
+					(this:conn:queryWithParams
+						"SELECT (pass) FROM accounts WHERE name=? LIMIT 1"
+						((JsonArray):add name)
+						(lambda Handler{AsyncResult{ResultSet}} (ar)
+							(define rs (ar:result))
+							(define valid
+								(&&
+									(!= (rs:getNumRows) 0)
+									(BCrypt:checkpw pass (((rs:getResults):get 0):getString 0))
+								)
+							)
+							(if valid
+								((rc:response):end "Success")
+								(begin
+									(rc:put "invalid" true)
+									(this:render "templates/login" rc)
+								)
+							)
+						)
+					)
+					(this:render "templates/login" rc)
+				)
+			)
+		)
+
+		((router:route "/register"):handler
+			(lambda Handler{RoutingContext} (rc)
+				(define req (rc:request))
+				(define name (req:getParam "name"))
+				(rc:put "name" name)
+				(define pass (req:getParam "pass"))
+				(define g-recaptcha (req:getParam "g-recaptcha-response"))
+				(if (||
+						(!= (req:method) HttpMethod:POST) (= name null) (= pass null) (= g-recaptcha null)
+						(begin
+							(define invalidName (! (name:matches "[a-zA-Z0-9]{1,100}")))
+							(rc:put "invalidName" invalidName)
+							invalidName
+						)
+						(begin
+							(define invalidPass (! (pass:matches "[a-zA-Z0-9]{5,100}")))
+							(rc:put "invalidPass" invalidPass)
+							invalidPass
+						)
+					)
+					(this:render "templates/register" rc)
+					(begin
+						(define userRes (rc:response))
+						(define onUpdated
+							(lambda Handler{AsyncResult{UpdateResult}} (ar)
+								(if (ar:succeeded)
+									(userRes:end "Success")
+									(rc:fail (ar:cause))
+								)
+							)
+						)
+						this
+						(define onSearched
+							(lambda Handler{AsyncResult{ResultSet}} (ar)
+								(define rs (ar:result))
+								(if (= (rs:getNumRows) 0)
+									(this:conn:updateWithParams
+										"INSERT INTO accounts (name, pass) VALUES (?, ?)"
+										(((JsonArray):add
+											name):add
+											(BCrypt:hashpw pass (BCrypt:gensalt 12))
+										)
+										onUpdated
+									)
+									(begin
+										(rc:put "taken" true)
+										(this:render "templates/register" rc)
+									)
+								)
+							)
+						)
+						(define onBody
+							(lambda Handler{Buffer} (buf)
+								(try
+									(if ((JsonObject (buf:toString)):getBoolean "success")
+										(this:conn:queryWithParams
+											"SELECT 1 FROM accounts WHERE name=? LIMIT 1"
+											((JsonArray):add name)
+											onSearched
+										)
+										(begin
+											(rc:put "recaptcha error" true)
+											(this:render "templates/register" rc)
+										)
+									)
+									(e Throwable
+										(rc:fail e)
+									)
+								)
+							)
+						)
+						(define gPost
+							(this:httpClient:postAbs "https://www.google.com/recaptcha/api/siteverify"
+								(lambda Handler{HttpClientResponse} (gRes)
+									(gRes:bodyHandler onBody)
+								)
+							)
+						)
+						(define enc (QueryStringEncoder ""))
+						(enc:addParam "secret" "6Lek5yYTAAAAAJeKD2b6vmU6Zu7XztzvlN3d7yq3")
+						(enc:addParam "response" g-recaptcha)
+						(gPost:putHeader "content-type" "application/x-www-form-urlencoded")
+						(gPost:end ((enc:toString):substring 1))
+					)
+				)
+			)
+		)
+
+		(((this:vertx:createHttpServer):requestHandler
+			(lambda Handler{HttpServerRequest} (req)
+				(router:accept req)
+			)
+		):listen 8080)
+
+		(fut:complete)
+	)
+)

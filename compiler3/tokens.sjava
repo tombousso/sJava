@@ -383,7 +383,7 @@
 	)
 )
 
-(define-class DefaultToken (Token Transformed) 'public
+(define-class DefaultToken (BlockToken Transformed) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)

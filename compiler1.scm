@@ -1212,10 +1212,13 @@
 						(begin
 							(if output (code:emitTryStart #f #!null))
 							(define type ::Type (compile_ classes (tok:ops:get 1) c mi code needed))
-							(define var (mi:newVar code (as Token (tok:ops:get 2)):val Type:javalangThrowableType))
+							(define catch ::Token (tok:ops:get 2))
+							(mi:pushScope code catch:val)
+							(define var (mi:newVar code (as Token (catch:ops:get 0)):val Type:javalangThrowableType))
 							(if output (code:emitCatchStart var))
-							(compile_ classes (tok:ops:get 3) c mi code unknownType)
+							(compile_al classes catch:ops 2 (catch:ops:size) c mi code unknownType)
 							(if output (code:emitCatchEnd))
+							(mi:popScope code)
 							(if output (code:emitTryCatchEnd))
 							type
 						)

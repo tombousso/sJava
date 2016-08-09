@@ -5,7 +5,6 @@ import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Method;
 import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
-import java.io.PrintStream;
 import java.util.List;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Main;
@@ -192,15 +191,15 @@ public abstract class Handler {
             var10000 = this.compile((ReturnToken)tok, mi, code, needed);
         } else if(tok instanceof CallToken) {
             var10000 = this.compile((CallToken)tok, mi, code, needed);
-        } else if(tok instanceof DefaultToken) {
-            var10000 = this.compile((DefaultToken)tok, mi, code, needed);
         } else {
-            PrintStream var6 = System.out;
-            StringBuilder sb = new StringBuilder();
-            sb.append("Double dispatch error with ");
-            sb.append(tok);
-            var6.println(sb.toString());
-            var10000 = null;
+            if(!(tok instanceof DefaultToken)) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("Double dispatch with ");
+                sb.append(tok);
+                throw new RuntimeException(sb.toString());
+            }
+
+            var10000 = this.compile((DefaultToken)tok, mi, code, needed);
         }
 
         return var10000;
@@ -224,14 +223,14 @@ public abstract class Handler {
                                 code.emitPushNull();
                             }
                         } else {
-                            PrimType unbox = PrimType.unboxedType(needed);
+                            PrimType prim = PrimType.unboxedType(needed);
                             ClassType var8;
-                            if(unbox == null) {
-                                unbox = (PrimType)result;
+                            if(prim == null) {
+                                prim = (PrimType)result;
                                 var8 = ((PrimType)result).boxedType();
                             } else {
                                 if(output) {
-                                    code.emitConvert((PrimType)result, unbox);
+                                    code.emitConvert((PrimType)result, prim);
                                 }
 
                                 var8 = (ClassType)needed;
@@ -239,20 +238,20 @@ public abstract class Handler {
 
                             ClassType box = var8;
                             if(output) {
-                                code.emitInvoke(box.getMethod("valueOf", new Type[]{unbox}));
+                                code.emitInvoke(box.getMethod("valueOf", new Type[]{prim}));
                             }
                         }
                     } else if(output) {
                         code.emitConvert((PrimType)result, (PrimType)needed);
                     }
                 } else if(needed instanceof PrimType) {
-                    Method unbox1 = (Method)Main.unboxMethods.get(result);
+                    Method unbox = (Method)Main.unboxMethods.get(result);
                     if(output) {
-                        code.emitInvoke(unbox1);
+                        code.emitInvoke(unbox);
                     }
 
                     if(output) {
-                        code.emitConvert((PrimType)unbox1.getReturnType(), (PrimType)needed);
+                        code.emitConvert((PrimType)unbox.getReturnType(), (PrimType)needed);
                     }
                 } else if(output) {
                     code.emitCheckcast(needed.getRawType());

@@ -9,8 +9,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import sjava.compiler.AVar;
 import sjava.compiler.ClassInfo;
@@ -28,10 +28,11 @@ public class AMethodInfo {
     public ClassInfo ci;
     public BlockToken block;
     public Method method;
-    public ArrayList<ArrayDeque<HashMap<String, AVar>>> scopes;
+    public ArrayList<ArrayDeque<Map<String, AVar>>> scopes;
+    Map<String, AVar> firstScope;
     ArrayDeque<HashMap> labels;
 
-    AMethodInfo(ClassInfo ci, List<Token> toks, Method method, LinkedHashMap scope) {
+    AMethodInfo(ClassInfo ci, List<Token> toks, Method method, Map<String, AVar> firstScope) {
         this.ci = ci;
         if(toks.size() != 0) {
             ArrayList btoks = new ArrayList();
@@ -42,9 +43,9 @@ public class AMethodInfo {
 
         this.method = method;
         this.scopes = new ArrayList();
-        ArrayDeque btoks1 = new ArrayDeque();
-        this.scopes.add(btoks1);
-        btoks1.push(scope);
+        ArrayDeque h = new ArrayDeque();
+        this.scopes.add(h);
+        this.firstScope = firstScope;
         this.labels = new ArrayDeque();
     }
 
@@ -56,10 +57,6 @@ public class AMethodInfo {
         }
 
         this.labels.push(label);
-        if(output) {
-            code.pushScope();
-        }
-
     }
 
     public void popScope(CodeAttr code) {
@@ -70,10 +67,6 @@ public class AMethodInfo {
         }
 
         this.labels.pop();
-        if(output) {
-            code.popScope();
-        }
-
     }
 
     public void pushLevel() {
@@ -90,13 +83,13 @@ public class AMethodInfo {
         Iterator it = scopes.iterator();
 
         while(it.hasNext() && found == null) {
-            HashMap vars = (HashMap)it.next();
+            Map vars = (Map)it.next();
             if(vars.containsKey(tok.val)) {
                 found = (AVar)vars.get(tok.val);
             }
         }
 
-        return found;
+        return found == null?(AVar)this.firstScope.get(tok.val):found;
     }
 
     public Label getLabel(String name) {
@@ -117,7 +110,7 @@ public class AMethodInfo {
         boolean output = code != null;
         String name = tok.val;
         Variable var = output?code.addLocal(type.getRawType(), name):(Variable)null;
-        ((HashMap)((ArrayDeque)this.scopes.get(tok.macro)).getFirst()).put(name, new Var(var, type));
+        ((HashMap)((Map)((ArrayDeque)this.scopes.get(tok.macro)).getFirst())).put(name, new Var(var, type));
         return var;
     }
 
@@ -131,17 +124,19 @@ public class AMethodInfo {
             BridgeFilter filter = new BridgeFilter(this.method);
             filter.searchAll();
             CodeAttr code = this.method.startCode();
-            Set paramNames = ((HashMap)((ArrayDeque)this.scopes.get(0)).getFirst()).keySet();
+            Set paramNames = this.firstScope.keySet();
             Iterator it = paramNames.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {
                 String paramName = (String)it.next();
-                code.getArg(i).setName(paramName);
+                if(!paramName.equals("this")) {
+                    code.getArg(i).setName(paramName);
+                }
             }
 
-            Type iterable = h.compile((Token)this.block, this, code, this.method.getReturnType());
+            Type ret = h.compile((Token)this.block, this, code, this.method.getReturnType());
             code.popScope();
-            if(iterable != Main.returnType && code.reachableHere()) {
+            if(ret != Main.returnType && code.reachableHere()) {
                 code.emitReturn();
             }
         }
@@ -154,7 +149,7 @@ public class AMethodInfo {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(this.getClass().getName());
+        sb.append(super.toString());
         sb.append(":");
         sb.append(this.method);
         return sb.toString();

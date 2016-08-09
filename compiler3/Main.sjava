@@ -121,13 +121,13 @@
 		((parser:addArgument (String[] "file")):nargs "*")
 
 		(define res Namespace null)
-		(try (set res (parser:parseArgs args)) e (e:printStackTrace))
+		(try (set res (parser:parseArgs args)) (e Throwable (e:printStackTrace)))
 		(define fileNames List{String} (res:getList "file"))
 		(define files (LinkedHashMap{String List{Token}}))
 
 		(forEach name fileNames
 			(define s String null)
-			(try (set s (String (Files:readAllBytes (Paths:get name)))) e (e:printStackTrace))
+			(try (set s (String (Files:readAllBytes (Paths:get name)))) (e Throwable (e:printStackTrace)))
 			(define toks ((Lexer s):lex))
 			(set toks ((Parser toks):parseAll))
 			;(define sb (StringBuffer))
@@ -1063,6 +1063,25 @@
 	)
 )
 
+(define-class VCaptured (AVar) 'public
+	(field Field 'public)
+	(avar AVar 'public)
+	((<init> avar AVar field Field) void 'public
+		(super:<init> avar:type)
+		(set this:avar avar)
+		(set this:field field)
+	)
+	((load code CodeAttr) Type 'public
+		(define output (!= code null))
+		(if output (code:emitPushThis))
+		(if output (code:emitGetField this:field))
+		this:type
+	)
+	((store code CodeAttr) void 'public
+		(throw (RuntimeException))
+	)
+)
+
 (define-class FileScope () 'public
 	(name String 'public)
 	(toks List{Token})
@@ -1111,8 +1130,7 @@
 							(Class:forName name)
 							true
 						)
-						e
-						false
+						(e Throwable false)
 					)
 				)
 				(this:found:put name b)
@@ -1239,7 +1257,7 @@
 			(define ba (macros:c:writeToArray))
 			;(Files:write (Paths:get (("macros/":concat cname):concat ".class") (String[])) ba (OpenOption[]))
 			(cl:addClass cname ba)
-			(try (set macros:rc (cl:loadClass cname true)) e (e:printStackTrace))
+			(try (set macros:rc (cl:loadClass cname true)) (e Throwable (e:printStackTrace)))
 			(set i (+ i 1))
 		)
 	)
@@ -1263,7 +1281,7 @@
 		)
 		(define cl (ArrayClassLoader))
 		(cl:addClass "Includes" (includes:c:writeToArray))
-		(try (set this:includes:rc (cl:loadClass "Includes" true))  e (e:printStackTrace))
+		(try (set this:includes:rc (cl:loadClass "Includes" true)) (e Throwable (e:printStackTrace)))
 	)
 	((compileIncludes toks List{Token} n int) int
 		(define i 0)
@@ -1337,7 +1355,7 @@
 	((writeFile dir String) void
 		(define pre (dir:concat (this:fs:package_:replace "." "/")))
 		((File pre):mkdirs)
-		(try (this:c:writeToFile ((pre:concat (this:c:getSimpleName)):concat ".class")) e (e:printStackTrace))
+		(try (this:c:writeToFile ((pre:concat (this:c:getSimpleName)):concat ".class")) (e Throwable (e:printStackTrace)))
 	)
 	((getType name String) Type
 		(define i 0)
@@ -1508,9 +1526,10 @@
 	(ci ClassInfo 'public)
 	(block BlockToken 'public)
 	(method Method 'public)
-	(scopes ArrayList{ArrayDeque{HashMap{String AVar}}} 'public)
+	(scopes ArrayList{ArrayDeque{Map{String AVar}}} 'public)
+	(firstScope Map{String AVar})
 	(labels ArrayDeque{HashMap})
-	((<init> ci ClassInfo toks List{Token} method Method scope LinkedHashMap) void
+	((<init> ci ClassInfo toks List{Token} method Method firstScope Map{String AVar}) void
 		(super:<init>)
 		(set this:ci ci)
 		(if (!= (toks:size) 0)
@@ -1525,7 +1544,7 @@
 		(set this:scopes (ArrayList))
 		(define h (ArrayDeque))
 		(this:scopes:add h)
-		(h:push scope)
+		(set this:firstScope firstScope)
 		(set this:labels (ArrayDeque))
 	)
 	((pushScope code CodeAttr label HashMap) void 'public
@@ -1536,7 +1555,7 @@
 			(set i (+ i 1))
 		)
 		(this:labels:push label)
-		(if output (code:pushScope))
+		;(if output (code:pushScope))
 	)
 	((popScope code CodeAttr) void 'public
 		(define output (!= code null))
@@ -1546,7 +1565,7 @@
 			(set i (+ i 1))
 		)
 		(this:labels:pop)
-		(if output (code:popScope))
+		;(if output (code:popScope))
 	)
 	((pushLevel) void 'public
 		(this:scopes:add (ArrayDeque))
@@ -1564,7 +1583,7 @@
 				(set found (vars:get tok:val))
 			)
 		)
-		found
+		(if (= found null) (this:firstScope:get tok:val) found)
 	)
 	((getLabel name String) Label 'public
 		(define found Label null)
@@ -1596,9 +1615,11 @@
 				(filter:searchAll)
 
 				(define code (this:method:startCode))
-				(define paramNames (((this:scopes:get 0):getFirst):keySet))
+				(define paramNames (this:firstScope:keySet))
 				(forEachI paramName paramNames i
-					((code:getArg i):setName paramName)
+					(if (! (paramName:equals "this"))
+						((code:getArg i):setName paramName)
+					)
 				)
 				(define ret (h:compile this:block this code (this:method:getReturnType)))
 				(code:popScope)
@@ -1613,7 +1634,7 @@
 		(this:compileMethodBody GenHandler:inst)
 	)
 	((toString) String 'public
-		(concat ((this:getClass):getName) ":" this:method)
+		(concat (super:toString) ":" this:method)
 	)
 )
 
