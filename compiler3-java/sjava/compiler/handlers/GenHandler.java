@@ -405,7 +405,7 @@ public class GenHandler extends Handler {
         ClassInfo ci = tok.ci;
         Token superT = (Token)tok.toks.get(1);
         boolean FunctionN = lambda && superT instanceof BlockToken;
-        Emitters emitters = new Emitters((List)(lambda || !(superT instanceof BlockToken)?new ArrayList():superT.toks.subList(1, superT.toks.size())));
+        Emitters emitters = new Emitters((List)(!lambda && superT instanceof BlockToken?superT.toks.subList(1, superT.toks.size()):new ArrayList()));
         if(ci == null) {
             CaptureVHandler captureH = new CaptureVHandler(mi);
             if(output) {
@@ -440,23 +440,19 @@ public class GenHandler extends Handler {
                     LinkedHashMap scope1 = new LinkedHashMap();
                     Token args = (Token)tok.toks.get(2);
                     int i = 0;
-                    Type[] params1 = new Type[args.toks.size()];
 
-                    while(true) {
-                        if(i == args.toks.size()) {
-                            ci.c.addInterface(t1);
-                            Method m1 = ci.c.addMethod(sam.getName(), params1, Main.resolveType(t1, sam.getReturnType()), Access.PUBLIC);
-                            ci.methods.add(new MethodInfo(ci, tok.toks.subList(3, tok.toks.size()), m1, scope1));
-                            ci.compileMethods(captureH);
-                            break;
-                        }
-
+                    Type[] params1;
+                    for(params1 = new Type[args.toks.size()]; i != args.toks.size(); ++i) {
                         VToken arg = (VToken)((Token)args.toks.get(i));
                         Type param = Main.resolveType(t1, sam.getGenericParameterTypes()[i]);
                         scope1.put(arg.val, new Arg(i + 1, param));
                         params1[i] = param;
-                        ++i;
                     }
+
+                    ci.c.addInterface(t1);
+                    Method m1 = ci.c.addMethod(sam.getName(), params1, Main.resolveType(t1, sam.getReturnType()), Access.PUBLIC);
+                    ci.methods.add(new MethodInfo(ci, tok.toks.subList(3, tok.toks.size()), m1, scope1));
+                    ci.compileMethods(captureH);
                 }
             } else {
                 Type t2 = superT instanceof BlockToken?mi.getType((Token)superT.toks.get(0)):mi.getType(superT);
@@ -468,17 +464,11 @@ public class GenHandler extends Handler {
                         ci.c.setSuper(t2);
                     }
 
-                    int i1 = 2;
-
-                    while(true) {
-                        if(i1 == tok.toks.size()) {
-                            ci.compileMethods(captureH);
-                            break;
-                        }
-
+                    for(int i1 = 2; i1 != tok.toks.size(); ++i1) {
                         ci.compileDef((Token)tok.toks.get(i1));
-                        ++i1;
                     }
+
+                    ci.compileMethods(captureH);
                 }
             }
 

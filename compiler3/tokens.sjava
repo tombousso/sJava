@@ -17,7 +17,7 @@
 	(transformed bool 'public 'transient)
 	((<init>) void 'public
 		(super:<init>)
-		(set this:prec 0)
+		(set this:prec -1)
 		(set this:what "")
 		(set this:alwaysTransform false)
 		(set this:neverTransform false)
@@ -86,9 +86,7 @@
 	(val Number 'public)
 	((<init> line int sval String) void 'public
 		(super:<init> line)
-		(if (org.apache.commons.lang3.math.NumberUtils:isNumber sval)
-			(set this:val (org.apache.commons.lang3.math.NumberUtils:createNumber sval))
-		)
+		(set this:val (org.apache.commons.lang3.math.NumberUtils:createNumber sval))
 	)
 	((toString) String 'public
 		(this:val:toString)

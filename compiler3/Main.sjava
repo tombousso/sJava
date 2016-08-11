@@ -96,23 +96,27 @@
 		(Main:compare1Ops:put "==null" 199)
 
 		(set Main:precs (String[][]
+			(String[] "\"\"\"" "\"" ")" "}" ";" "\n")
 			(String[] ":" "{")
-			(String[] "(" ")" "}" "'" "," ",$" "`" "~" "\n" "\r\n" ";")
+			(String[] "(" "'" "," ",$" "`" "~")
 		))
 
 		(set Main:specialChars (HashMap{String Character}))
 		(Main:specialChars:put "space" #\space)
 		(Main:specialChars:put "singlequote" #\singlequote)
+		(Main:specialChars:put "newline" #\newline)
+		(Main:specialChars:put "lparen" #\lparen)
+		(Main:specialChars:put "rparen" #\rparen)
 
 		(set Main:MP (- (alen Main:precs) 1))
 
-		(set Main:ML 2)
+		(set Main:ML 3)
 
 		(set Main:s2prec (HashMap{String Integer}))
 
 		(forEachI a Main:precs i
 			(forEach b a
-				(Main:s2prec:put b (+ i 1))
+				(Main:s2prec:put b i)
 			)
 		)
 
@@ -729,7 +733,7 @@
 	)
 	((emitIf h Handler inv bool tok Token i int trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
 		(define cond (tok:toks:get i))
-		(if (&& (instance? cond BlockToken) (instance? (cond:toks:get 0) VToken) (Main:isCompare (as VToken (cond:toks:get 0)):val))
+		(if (instance? cond CompareToken)
 			(Main:emitIf_ h inv cond 1 (cond:toks:size) (as VToken (cond:toks:get 0)):val trueE falseE mi code needed)
 			(Main:emitIf_ h inv tok i (+ i 1) "!=0" trueE falseE mi code needed)
 		)
@@ -847,13 +851,12 @@
 	)
 	((getprec) int
 		;check if code at i is a special token
-		(define ii this:i)
-		(define p 0)
+		(define p -1)
 		(define l Main:ML)
-		(while (&& (= p 0) (!= l 0))
-			(if (<= (+ ii l) this:ml)
+		(while (&& (= p -1) (!= l 0))
+			(if (<= (+ this:i l) this:ml)
 				(begin
-					(set this:s (this:code:substring ii (+ ii l)))
+					(set this:s (this:peek 0 l))
 					(if (Main:s2prec:containsKey this:s)
 						(set p (Main:s2prec:get this:s))
 					)
@@ -863,35 +866,34 @@
 		)
 		p
 	)
+	((peek n int l int) String
+		(this:code:substring (+ this:i n) (+ this:i n l))
+	)
+	((peek n int) char
+		(this:code:charAt (+ this:i n))
+	)
+	((peek) char
+		(this:peek 0)
+	)
 	((nextTok) void
-		(while (! (|| (= this:i this:ml) (Character:isWhitespace (this:code:charAt this:i)) (> (this:getprec) 0)))
+		(while (&& (!= this:i this:ml) (= (this:getprec) -1) (! (Character:isWhitespace (this:peek))))
 			(set this:i (+ this:i 1))
 		)
 	)
 	((token) Token
-		(while (&& (Character:isWhitespace (this:code:charAt this:i)) (= (this:getprec) 0))
+		(while (&& (!= this:i this:ml) (= (this:getprec) -1) (Character:isWhitespace (this:peek)))
 			(set this:i (+ this:i 1))
 		)
 		(define p (this:getprec))
-		(if (= p 0)
+		(define c (this:peek))
+		(if (= p -1)
 			(begin
 				(define oi this:i)
-				(define c (this:code:charAt this:i))
-				(if (= c #\")
-					(begin
-						(set this:i (+ this:i 1))
-						(define esc false)
-						(while (! (&& (! esc) (= (this:code:charAt this:i) #\")))
-							(set esc (&& (! esc) (= (this:code:charAt this:i) #\\)))
-							(set this:i (+ this:i 1))
-						)
-						(set this:i (+ this:i 1))
-						(SToken this:line (org.apache.commons.lang3.StringEscapeUtils:unescapeJava (this:code:substring (+ oi 1) (- this:i 1))))
-					)
 				(if (= c #\#)
 					(begin
-						(set this:i (+ this:i 2))
-						(this:nextTok)
+						(while (&& (!= (this:peek) #\space) (!= (this:peek) #\rparen))
+							(inc this:i)
+						)
 						(define schar (this:code:substring (+ oi 2) this:i))
 						(CToken this:line
 							(if (= (schar:length) 1)
@@ -900,7 +902,7 @@
 							)
 						)
 					)
-				(if (|| (Character:isDigit c) (&& (= c #\-) (Character:isDigit (this:code:charAt (+ this:i 1)))))
+				(if (|| (Character:isDigit c) (&& (= c #\-) (Character:isDigit (this:peek 1))))
 					(begin
 						(this:nextTok)
 						(NToken this:line (this:code:substring oi this:i))
@@ -915,14 +917,61 @@
 					)
 				)
 				)
-				)
 			)
 			(begin
 				(set this:i (+ this:i (this:s:length)))
+				(define oi this:i)
+				(if (this:s:equals "\"\"\"")
+					(begin
+						(while (! ((this:peek 0 3):equals "\"\"\""))
+							(if (= (this:peek) #\newline) (inc this:line))
+							(if (|| ((this:peek 0 5):equals "\\\\\"\"\"") ((this:peek 0 5):equals "\\\"\"\"\""))
+								(inc this:i 2)
+							(if ((this:peek 0 4):equals "\\\"\"\"")
+								(inc this:i 4)
+								(inc this:i)
+							)
+							)
+						)
+						(define str ((this:code:substring oi this:i):replace "\\\"\"\"" "\"\"\""))
+						(if (str:endsWith "\\\\")
+							(set str (concat (str:substring 0 (- (str:length) 2)) "\\"))
+						)
+						(if (str:endsWith "\\\"")
+							(set str (concat (str:substring 0 (- (str:length) 2)) "\""))
+						)
+						(inc this:i 3)
+						(SToken this:line str)
+					)
+				(if (this:s:equals "\"")
+					(begin
+						(while (!= (this:peek) #\")
+							(if (= (this:peek) #\newline) (inc this:line))
+							(if (= (this:peek) #\\)
+								(inc this:i 2)
+								(inc this:i)
+							)
+						)
+						(inc this:i)
+						(SToken this:line (org.apache.commons.lang3.StringEscapeUtils:unescapeJava (this:code:substring oi (- this:i 1))))
+					)
+				(if (this:s:equals ";")
+					(begin
+						(while (&& (!= this:i this:ml) (!= (this:peek) #\newline))
+							(inc this:i)
+						)
+						null
+					)
 				(if (this:s:contains "\n")
-					(set this:line (+ this:line 1))
+					(begin
+						(set this:line (+ this:line 1))
+						null
+					)
+					(Token this:line p this:s)
 				)
-				(Token this:line p this:s)
+				)
+				)
+				)
 			)
 		)
 	)
@@ -931,7 +980,8 @@
 		(define out (ArrayList{Token}))
 		(while
 			(!= this:i this:ml)
-			(out:add (this:token))
+			(define tok (this:token))
+			(if (!= tok null) (out:add tok))
 		)
 		out
 	)
@@ -970,12 +1020,6 @@
 				((w:equals "(")
 					(BlockToken t:line (this:subToks ")"))
 				)
-				((w:equals ";")
-					(while (&& (!= this:i (this:toks:size)) (! ((this:next):what:contains "\n")))
-						()
-					)
-					null
-				)
 				((|| (w:equals "'") (w:equals "`") (w:equals "~") (w:equals ",$") (w:equals ","))
 					(define al (ArrayList (Arrays:asList (Object[] (this:parse 0)))))
 					(if (|| (w:equals ",") (w:equals ",$"))
@@ -985,9 +1029,6 @@
 						(QuoteToken t:line al (w:equals "`"))
 					)
 					)
-				)
-				((&& (!= (w:length) 0) (Character:isWhitespace (w:charAt 0)))
-					null
 				)
 				(true
 					t

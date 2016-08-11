@@ -18,7 +18,7 @@ public class Token extends Emitter {
     public transient boolean transformed;
 
     public Token() {
-        this.prec = 0;
+        this.prec = -1;
         this.what = "";
         this.alwaysTransform = false;
         this.neverTransform = false;

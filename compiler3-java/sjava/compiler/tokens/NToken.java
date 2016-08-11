@@ -9,10 +9,7 @@ public class NToken extends Token implements Transformed {
 
     public NToken(int line, String sval) {
         super(line);
-        if(NumberUtils.isNumber(sval)) {
-            this.val = NumberUtils.createNumber(sval);
-        }
-
+        this.val = NumberUtils.createNumber(sval);
     }
 
     public String toString() {

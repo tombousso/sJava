@@ -208,9 +208,7 @@ public abstract class Handler {
     public Type castMaybe(CodeAttr code, Type result, Type needed) {
         boolean output = code != null;
         Type var10000;
-        if(needed == Main.unknownType || result == Main.returnType || result == Main.throwType) {
-            var10000 = result;
-        } else {
+        if(needed != Main.unknownType && result != Main.returnType && result != Main.throwType) {
             if(needed == Type.voidType) {
                 if(result != Type.voidType && output) {
                     code.emitPop(1);
@@ -259,6 +257,8 @@ public abstract class Handler {
             }
 
             var10000 = needed;
+        } else {
+            var10000 = result;
         }
 
         return var10000;

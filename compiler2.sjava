@@ -98,6 +98,9 @@
 		(set Main:specialChars (HashMap{String Character}))
 		(Main:specialChars:put "space" #\space)
 		(Main:specialChars:put "singlequote" #\singlequote)
+		(Main:specialChars:put "newline" #\newline)
+		(Main:specialChars:put "lparen" #\lparen)
+		(Main:specialChars:put "rparen" #\rparen)
 
 		(set Main:MP (- (alen Main:precs) 1))
 
@@ -1583,7 +1586,7 @@
 			(set i (+ i 1))
 		)
 		(this:labels:push label)
-		(if output (code:pushScope))
+		;(if output (code:pushScope))
 	)
 	((popScope code CodeAttr) void
 		(define output (!= code null))
@@ -1593,7 +1596,7 @@
 			(set i (+ i 1))
 		)
 		(this:labels:pop)
-		(if output (code:popScope))
+		;(if output (code:popScope))
 	)
 	((pushLevel) void 'public
 		(this:scopes:add (ArrayDeque))
@@ -1653,6 +1656,7 @@
 				(h:compileAll tok:toks 0 (- (tok:toks:size) 1) this code Type:voidType)
 				(define ret (h:compile (tok:toks:get (- (tok:toks:size) 1)) this code (this:method:getReturnType)))
 				(this:popScope code)
+				(code:popScope)
 
 				(if (&& (!= ret Main:returnType) (code:reachableHere))
 					(code:emitReturn)

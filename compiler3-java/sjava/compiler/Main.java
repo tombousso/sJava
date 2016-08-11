@@ -154,12 +154,15 @@ public class Main {
         compare1Ops.put(">0", Integer.valueOf(158));
         compare1Ops.put("!=null", Integer.valueOf(198));
         compare1Ops.put("==null", Integer.valueOf(199));
-        precs = new String[][]{{":", "{"}, {"(", ")", "}", "\'", ",", ",$", "`", "~", "\n", "\r\n", ";"}};
+        precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";", "\n"}, {":", "{"}, {"(", "\'", ",", ",$", "`", "~"}};
         specialChars = new HashMap();
         specialChars.put("space", Character.valueOf(' '));
         specialChars.put("singlequote", Character.valueOf('\''));
+        specialChars.put("newline", Character.valueOf('\n'));
+        specialChars.put("lparen", Character.valueOf('('));
+        specialChars.put("rparen", Character.valueOf(')'));
         MP = precs.length - 1;
-        ML = 2;
+        ML = 3;
         s2prec = new HashMap();
         String[][] array = precs;
 
@@ -169,7 +172,7 @@ public class Main {
 
             for(int notused = 0; notused != array1.length; ++notused) {
                 String b = array1[notused];
-                s2prec.put(b, Integer.valueOf(i + 1));
+                s2prec.put(b, Integer.valueOf(i));
             }
         }
 
@@ -352,9 +355,7 @@ public class Main {
 
     public static Map<TypeVariable, Type> unresolveTvs(TypeVariable[] tvs, Type[] generics, Type[] reals) {
         Object var10000;
-        if(tvs == null || generics.length != reals.length) {
-            var10000 = (Map)null;
-        } else {
+        if(tvs != null && generics.length == reals.length) {
             HashMap out = new HashMap();
             TypeVariable[] array = tvs;
 
@@ -371,6 +372,8 @@ public class Main {
             }
 
             var10000 = out;
+        } else {
+            var10000 = (Map)null;
         }
 
         return (Map)var10000;
@@ -575,10 +578,12 @@ public class Main {
     public static Type numericOpType(Type[] types) {
         List l = Arrays.asList(types);
         PrimType otype = Type.intType;
-        if(l.contains(Type.doubleType) || l.contains(ClassType.make("java.lang.Double"))) {
+        if(!l.contains(Type.doubleType) && !l.contains(ClassType.make("java.lang.Double"))) {
+            if(l.contains(Type.longType) || l.contains(ClassType.make("java.lang.Long"))) {
+                otype = Type.longType;
+            }
+        } else {
             otype = Type.doubleType;
-        } else if(l.contains(Type.longType) || l.contains(ClassType.make("java.lang.Long"))) {
-            otype = Type.longType;
         }
 
         return otype;
@@ -625,7 +630,7 @@ public class Main {
         int j = 0;
 
         int n;
-        for(n = varargs && (types.length < params.length || arrayDim(params[params.length - 1]) != arrayDim(types[params.length - 1]))?1:0; j != params.length - n; ++j) {
+        for(n = !varargs || types.length >= params.length && arrayDim(params[params.length - 1]) == arrayDim(types[params.length - 1])?0:1; j != params.length - n; ++j) {
             ((Emitter)emitter.emitters.get(j)).emit(h, mi, code, resolveType(mc.tvs, mc.t, params[j]));
         }
 
@@ -686,15 +691,15 @@ public class Main {
         if(compare.equals("!")) {
             var10000 = emitIf(h, !inv, tok, i, trueE, falseE, mi, code, needed);
         } else if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
-            Label skipL = new Label();
+            Label skipL1 = new Label();
             Label falseL = new Label();
             Goto falseG = new Goto(falseL);
 
-            for(int i1 = 1; i1 != e - 1; ++i1) {
-                emitIf(h, inv, tok, i1, Nothing.inst, falseG, mi, code, needed);
+            for(int i2 = 1; i2 != e - 1; ++i2) {
+                emitIf(h, inv, tok, i2, Nothing.inst, falseG, mi, code, needed);
             }
 
-            emitIf(h, inv, tok, e - 1, new Emitters(new Emitter[]{trueE, new Goto(skipL)}), (Emitter)null, mi, code, needed);
+            emitIf(h, inv, tok, e - 1, new Emitters(new Emitter[]{trueE, new Goto(skipL1)}), (Emitter)null, mi, code, needed);
             if(output) {
                 falseL.define(code);
             }
@@ -704,30 +709,30 @@ public class Main {
             }
 
             if(output) {
-                skipL.define(code);
+                skipL1.define(code);
             }
 
             var10000 = trueE.emit(h, mi, (CodeAttr)null, needed);
         } else if(!inv && compare.equals("||") || inv && compare.equals("&&")) {
-            Label skipL1 = new Label();
+            Label skipL = new Label();
             Label trueL = new Label();
             Goto trueG = new Goto(trueL);
 
-            for(int i2 = 1; i2 != e - 1; ++i2) {
-                emitIf(h, !inv, tok, i2, Nothing.inst, trueG, mi, code, needed);
+            for(int i1 = 1; i1 != e - 1; ++i1) {
+                emitIf(h, !inv, tok, i1, Nothing.inst, trueG, mi, code, needed);
             }
 
-            emitIf(h, !inv, tok, e - 1, new Emitters(new Emitter[]{falseE, new Goto(skipL1)}), (Emitter)null, mi, code, needed);
+            emitIf(h, !inv, tok, e - 1, new Emitters(new Emitter[]{falseE, new Goto(skipL)}), (Emitter)null, mi, code, needed);
             if(output) {
                 trueL.define(code);
             }
 
-            Type type = trueE.emit(h, mi, code, needed);
+            Type type1 = trueE.emit(h, mi, code, needed);
             if(output) {
-                skipL1.define(code);
+                skipL.define(code);
             }
 
-            var10000 = type;
+            var10000 = type1;
         } else {
             boolean falseLabel = falseE instanceof Goto;
             Label skip = new Label();
@@ -752,7 +757,7 @@ public class Main {
                 }
             }
 
-            Type type1 = trueE.emit(h, mi, code, needed);
+            Type type = trueE.emit(h, mi, code, needed);
             if(!falseLabel) {
                 Label end = new Label();
                 if(!(trueE instanceof Nothing) && falseE != null && output && code.reachableHere()) {
@@ -771,7 +776,7 @@ public class Main {
                 }
             }
 
-            var10000 = type1;
+            var10000 = type;
         }
 
         return var10000;
@@ -779,7 +784,7 @@ public class Main {
 
     public static Type emitIf(Handler h, boolean inv, Token tok, int i, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
         Token cond = (Token)tok.toks.get(i);
-        return cond instanceof BlockToken && (Token)cond.toks.get(0) instanceof VToken && isCompare(((VToken)((Token)cond.toks.get(0))).val)?emitIf_(h, inv, cond, 1, cond.toks.size(), ((VToken)((Token)cond.toks.get(0))).val, trueE, falseE, mi, code, needed):emitIf_(h, inv, tok, i, i + 1, "!=0", trueE, falseE, mi, code, needed);
+        return cond instanceof CompareToken?emitIf_(h, inv, cond, 1, cond.toks.size(), ((VToken)((Token)cond.toks.get(0))).val, trueE, falseE, mi, code, needed):emitIf_(h, inv, tok, i, i + 1, "!=0", trueE, falseE, mi, code, needed);
     }
 
     public static void generateBridgeMethod(Method target, Type[] params, Type ret) {

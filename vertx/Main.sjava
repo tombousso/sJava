@@ -42,7 +42,7 @@
 					(begin
 						(set this:conn (ar:result))
 						(this:conn:execute
-							"CREATE TABLE IF NOT EXISTS accounts (id int NOT NULL AUTO_INCREMENT, PRIMARY KEY (id), name varchar(100), pass varchar(100))"
+							"CREATE TABLE IF NOT EXISTS accounts (id int NOT NULL AUTO_INCREMENT PRIMARY KEY, name varchar(100) UNIQUE, pass varchar(100))"
 							onTableCreate
 						)
 					)
@@ -88,6 +88,7 @@
 				(define req (rc:request))
 				(define name (req:getParam "name"))
 				(define pass (req:getParam "pass"))
+				(define page (Login))
 				(if (&& (= (req:method) HttpMethod:POST) (!= name null) (!= pass null))
 					(this:conn:queryWithParams
 						"SELECT (pass) FROM accounts WHERE name=? LIMIT 1"
@@ -103,13 +104,13 @@
 							(if valid
 								((rc:response):end "Success")
 								(begin
-									(rc:put "invalid" true)
-									(this:render "templates/login" rc)
+									(set page:invalid true)
+									(page:render rc)
 								)
 							)
 						)
 					)
-					(this:render "templates/login" rc)
+					(page:render rc)
 				)
 			)
 		)
@@ -118,65 +119,52 @@
 			(lambda Handler{RoutingContext} (rc)
 				(define req (rc:request))
 				(define name (req:getParam "name"))
-				(rc:put "name" name)
+				(define page (Register))
+				(set page:name name)
 				(define pass (req:getParam "pass"))
 				(define g-recaptcha (req:getParam "g-recaptcha-response"))
 				(if (||
 						(!= (req:method) HttpMethod:POST) (= name null) (= pass null) (= g-recaptcha null)
 						(begin
-							(define invalidName (! (name:matches "[a-zA-Z0-9]{1,100}")))
-							(rc:put "invalidName" invalidName)
-							invalidName
+							(set page:invalidName (! (name:matches "[a-zA-Z0-9]{1,100}")))
+							page:invalidName
 						)
 						(begin
-							(define invalidPass (! (pass:matches "[a-zA-Z0-9]{5,100}")))
-							(rc:put "invalidPass" invalidPass)
-							invalidPass
+							(set page:invalidPass (! (pass:matches "[a-zA-Z0-9]{5,100}")))
+							page:invalidPass
 						)
 					)
-					(this:render "templates/register" rc)
+					(page:render rc)
 					(begin
 						(define userRes (rc:response))
+						this
 						(define onUpdated
 							(lambda Handler{AsyncResult{UpdateResult}} (ar)
 								(if (ar:succeeded)
 									(userRes:end "Success")
-									(rc:fail (ar:cause))
-								)
-							)
-						)
-						this
-						(define onSearched
-							(lambda Handler{AsyncResult{ResultSet}} (ar)
-								(define rs (ar:result))
-								(if (= (rs:getNumRows) 0)
-									(this:conn:updateWithParams
-										"INSERT INTO accounts (name, pass) VALUES (?, ?)"
-										(((JsonArray):add
-											name):add
-											(BCrypt:hashpw pass (BCrypt:gensalt 12))
-										)
-										onUpdated
-									)
 									(begin
-										(rc:put "taken" true)
-										(this:render "templates/register" rc)
+										(set page:taken true)
+										(page:render rc)
 									)
 								)
 							)
 						)
+
 						(define onBody
 							(lambda Handler{Buffer} (buf)
 								(try
 									(if ((JsonObject (buf:toString)):getBoolean "success")
-										(this:conn:queryWithParams
-											"SELECT 1 FROM accounts WHERE name=? LIMIT 1"
-											((JsonArray):add name)
-											onSearched
+										(this:conn:updateWithParams
+											"INSERT INTO accounts (name, pass) VALUES (?, ?)"
+											(((JsonArray):add
+												name):add
+												(BCrypt:hashpw pass (BCrypt:gensalt 12))
+											)
+											onUpdated
 										)
 										(begin
-											(rc:put "recaptcha error" true)
-											(this:render "templates/register" rc)
+											(set page:recaptchaError true)
+											(page:render rc)
 										)
 									)
 									(e Throwable
@@ -209,5 +197,95 @@
 		):listen 8080)
 
 		(fut:complete)
+	)
+)
+
+(define-class Base () 'abstract
+	((<init>) void
+		(super:<init>)
+	)
+	((page) StringBuffer 'abstract)
+	((render rc RoutingContext) void
+		((rc:response):putHeader "content-type" "text/html")
+		((rc:response):end ((this:page):toString))
+	)
+	((page body StringBuffer) StringBuffer
+		(xml
+"""<html>
+	<head>
+		<script src="https://www.google.com/recaptcha/api.js"></script>
+		<style>
+			p {
+				display: inline;
+			}
+			.error {
+				background-color:#ff4d4d;
+			}
+		</style>
+	</head>
+	<body>
+		""" body """
+	</body>
+</html>"""
+		)
+	)
+)
+
+(define-class Login (Base)
+	(invalid bool)
+	((<init>) void
+		(super:<init>)
+	)
+	((page) StringBuffer
+		(super:page
+			(xml
+				(xif this:invalid
+					(@"div" (@"p" %("class" "error") "Invalid username or password."))
+				)
+"""Login:<br>
+<form action="login" method="post">
+	<input name="name" type="text" required placeholder="Name"><br>
+	<input name="pass" type="text" required placeholder="Password"><br>
+	<input type="submit" value="Submit"><br>
+</form>"""
+			)
+		)
+	)
+)
+
+(define-class Register (Base)
+	(taken bool)
+	(recaptchaError bool)
+	(invalidName bool)
+	(invalidPass bool)
+	(name String)
+	((<init>) void
+		(super:<init>)
+	)
+	((page) StringBuffer
+		(super:page
+			(xml
+				(xif this:taken
+					(@"div" (@"p" %("class" "error") "Username is already taken."))
+				)
+				(xif this:recaptchaError
+					(@"div" (@"p" %("class" "error") "reCAPTCHA error."))
+				)
+				(xif this:invalidName
+					(@"div" (@"p" %("class" "error") "Invalid username."))
+				)
+				(xif this:invalidPass
+					(@"div" (@"p" %("class" "error") "Invalid password."))
+				)
+				"Register:<br>"
+				(@"form" %("action" "register") %("method" "post")
+					(@"input" %("name" "name") %("type" "text") %("required") %("placeholder" "Username") %("maxlength" "100") %("value" this:name) %("pattern" "[a-zA-Z0-9]+") %("oninvalid" "this.setCustomValidity('Minimum 1 character required, alphanumeric')") %("oninput" "setCustomValidity('')"))
+					(@"br")
+					"""<input name="pass" type="text" required placeholder="Password" maxlength="100" pattern="[a-zA-Z0-9]{5,}" oninvalid="this.setCustomValidity('Minimum 5 characters required, alphanumeric')" oninput="setCustomValidity('')">
+					<div class="g-recaptcha" data-sitekey="6Lek5yYTAAAAAAgYB34twlRzBIt1iYK4cWQsLcEJ"></div>
+					<input type="submit" value="Submit">"""
+				)
+			)
+		)
 	)
 )
