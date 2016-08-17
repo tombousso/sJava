@@ -13,7 +13,7 @@
 	((valid tok Token mi AMethodInfo needed Type) bool false)
 	((compileAll toks List{Token} i int e int mi AMethodInfo code CodeAttr needed Object) Type[] 'public
 		(define l (toks:size))
-		(define types (Type[] len: (- e i)))
+		(define types (Type[] len:(- e i)))
 		(define j i)
 		(while (! (>= j e))
 			(aset types (- j i)
@@ -68,50 +68,50 @@
 		(define output (!= code null))
 		(if (|| (= needed Main:unknownType) (= result Main:returnType) (= result Main:throwType))
 			result
-		(begin
-			(if (= needed Type:voidType)
-				(if (!= result Type:voidType)
-					(if output (code:emitPop 1))
-				)
-			(if (! (Type:isSame needed result))
-				(if (instance? result PrimType)
-					(begin
-						(if (instance? needed ClassType)
-							(if (= result Type:voidType)
-								(if output (code:emitPushNull))
-								(begin
-									(define prim (PrimType:unboxedType needed))
-									(define box
-										(if (= prim null)
-											(begin
-												(set prim result)
-												((as PrimType result):boxedType)
+			(begin
+				(if (= needed Type:voidType)
+					(if (!= result Type:voidType)
+						(if output (code:emitPop 1))
+					)
+					(if (! (Type:isSame needed result))
+						(if (instance? result PrimType)
+							(begin
+								(if (instance? needed ClassType)
+									(if (= result Type:voidType)
+										(if output (code:emitPushNull))
+										(begin
+											(define prim (PrimType:unboxedType needed))
+											(define box
+												(if (= prim null)
+													(begin
+														(set prim result)
+														((as PrimType result):boxedType)
+													)
+													(begin
+														(if output (code:emitConvert (as PrimType result) prim))
+														(as ClassType needed)
+													)
+												)
 											)
-											(begin
-												(if output (code:emitConvert (as PrimType result) prim))
-												(as ClassType needed)
-											)
+											(if output (code:emitInvoke (box:getMethod "valueOf" (Type[] prim))))
 										)
 									)
-									(if output (code:emitInvoke (box:getMethod "valueOf" (Type[] prim))))
+									(if output (code:emitConvert (as PrimType result) (as PrimType needed)))
 								)
 							)
-							(if output (code:emitConvert (as PrimType result) (as PrimType needed)))
+							(if (instance? needed PrimType)
+								(begin
+									(define unbox (Main:unboxMethods:get result))
+									(if output (code:emitInvoke unbox))
+									(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
+								)
+								(if output (code:emitCheckcast (needed:getRawType)))
+							)
 						)
 					)
-				(if (instance? needed PrimType)
-					(begin
-						(define unbox (Main:unboxMethods:get result))
-						(if output (code:emitInvoke unbox))
-						(if output (code:emitConvert (as PrimType (unbox:getReturnType)) (as PrimType needed)))
-					)
-					(if output (code:emitCheckcast (needed:getRawType)))
 				)
-				)
+				needed
 			)
-			)
-			needed
-		)
 		)
 	)
 )
@@ -187,16 +187,16 @@
 	((compileQuasi o Object mi AMethodInfo code CodeAttr needed Type) Type
 		(define output (!= code null))
 		(define result
-			(if (= o null)
-				(begin
+			(cond
+				((= o null)
 					(if output (code:emitPushNull))
 					Type:nullType
 				)
-			(if (instance? o Token)
-				(begin
+				((instance? o Token)
 					(define tok Token o)
 					(define t (if (instance? tok UnquoteToken) (this:compile (tok:toks:get 0) mi null Main:unknownType) null))
-					(if (&&
+					(if
+						(&&
 							(instance? tok UnquoteToken)
 							(||
 								(= t (Main:getCompilerType "tokens.Token"))
@@ -216,13 +216,13 @@
 									(Main:getCompilerType
 										(if (as UnquoteToken tok):s
 											"tokens.SToken"
-										(if (= t Type:charType)
-											"tokens.CToken"
-										(if (instance? t PrimType)
-											"tokens.NToken"
-											"tokens.VToken"
-										)
-										)
+											(if (= t Type:charType)
+												"tokens.CToken"
+												(if (instance? t PrimType)
+													"tokens.NToken"
+													"tokens.VToken"
+												)
+											)
 										)
 									)
 								)
@@ -233,7 +233,7 @@
 								(this:compile const mi code Type:objectType)
 								(if output (code:emitPutField (type:getField "val")))
 								(Main:getCompilerType "tokens.Token")
-							)	
+							)
 							(begin
 								(define type ClassType (Type:getType ((o:getClass):getName)))
 								(if output (code:emitNew type))
@@ -243,7 +243,8 @@
 								(while (!= superC null)
 									(define field (superC:getFields))
 									(while (!= field null)
-										(if (&&
+										(if
+											(&&
 												(!= (& (field:getModifiers) Access:PUBLIC) 0)
 												(= (& (field:getModifiers) Access:TRANSIENT) 0)
 											)
@@ -272,23 +273,19 @@
 						)
 					)
 				)
-			(if (instance? o String)
-				(begin
+				((instance? o String)
 					(if output (code:emitPushString (as String o)))
 					Type:javalangStringType
 				)
-			(if (instance? o Integer)
-				(begin
+				((instance? o Integer)
 					(if output (code:emitPushInt (as Integer o)))
 					Type:intType
 				)
-			(if (instance? o Boolean)
-				(begin
+				((instance? o Boolean)
 					(if output (code:emitPushInt (if (as Boolean o) 1 0)))
 					Type:booleanType
 				)
-			(if (instance? o List)
-				(begin
+				((instance? o List)
 					(define o List o)
 					(define al ClassType (Type:getType "java.util.ArrayList"))
 					(if output (code:emitNew al))
@@ -304,31 +301,28 @@
 								(if output (code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
 								(if output (code:emitPop 1))
 							)
-						(if (instance? t ArrayType)
-							(begin
-								(if output (code:emitDup))
-								(this:compileQuasi (o:get i) mi code Main:unknownType)
-								(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
-								(if output (code:emitPop 1))
+							(if (instance? t ArrayType)
+								(begin
+									(if output (code:emitDup))
+									(this:compileQuasi (o:get i) mi code Main:unknownType)
+									(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
+									(if output (code:emitPop 1))
+								)
+								(begin
+									(if output (code:emitDup))
+									(this:compileQuasi (o:get i) mi code Main:unknownType)
+									(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.List")):getDeclaredMethod "addAll" 1)))
+									(if output (code:emitPop 1))
+								)
 							)
-							(begin
-								(if output (code:emitDup))
-								(this:compileQuasi (o:get i) mi code Main:unknownType)
-								(if output (code:emitInvoke ((as ClassType (Type:getType "java.util.List")):getDeclaredMethod "addAll" 1)))
-								(if output (code:emitPop 1))
-							)
-						)
 						)
 						(set i (+ i 1))
 					)
 					al
 				)
-				(throw (RuntimeException))
-			)
-			)
-			)
-			)
-			)
+				(true
+					(throw (RuntimeException))
+				)
 			)
 		)
 		(this:castMaybe code result needed)
@@ -351,16 +345,16 @@
 				(if output (code:emitPushInt 1))
 				Type:booleanType
 			)
-		(if (tok:what:equals "false")
-			(begin
-				(if output (code:emitPushInt 0))
-				Type:booleanType
+			(if (tok:what:equals "false")
+				(begin
+					(if output (code:emitPushInt 0))
+					Type:booleanType
+				)
+				(begin
+					(if output (code:emitPushNull))
+					Type:nullType
+				)
 			)
-			(begin
-				(if output (code:emitPushNull))
-				Type:nullType
-			)
-		)
 		)
 	)
 	((compile tok VToken mi AMethodInfo code CodeAttr needed Type) Type 'public
@@ -388,8 +382,8 @@
 		(define superT (tok:toks:get 1))
 		(define FunctionN (&& lambda (instance? superT BlockToken)))
 		(define emitters
-			(Emitters (if
-				(|| lambda (! (instance? superT BlockToken)))
+			(Emitters
+				(if (|| lambda (! (instance? superT BlockToken)))
 					(ArrayList)
 					(superT:toks:subList 1 (superT:toks:size))
 				)
@@ -427,55 +421,55 @@
 							)
 						)
 					)
-				(if lambda
-					(begin
-						(define t (mi:getType superT))
-						(set tok:t t)
-						(if output
-							(begin
-								(define sam ((as ClassType (t:getRawType)):checkSingleAbstractMethod))
-								(define scope (LinkedHashMap))
-								(define args (tok:toks:get 2))
-								(define i 0)
-								(define params (Type[] len:(args:toks:size)))
-								(while (!= i (args:toks:size))
-									(define arg VToken (args:toks:get i))
-									(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
-									(scope:put arg:val (Arg (+ i 1) param))
-									(aset params i param)
-									(set i (+ i 1))
-								)
-								(ci:c:addInterface t)
-								(define m (ci:c:addMethod (sam:getName) params (Main:resolveType t (sam:getReturnType)) Access:PUBLIC))
-								(ci:methods:add (MethodInfo ci (tok:toks:subList 3 (tok:toks:size)) m scope))
-								(ci:compileMethods captureH)
-							)
-						)
-					)
-					(begin
-						(define t
-							(if (instance? superT BlockToken)
-								(mi:getType (superT:toks:get 0))
-								(mi:getType superT)
-							)
-						)
-						(set tok:t t)
-						(if output
-							(begin
-								(if ((as ClassType (t:getRawType)):isInterface)
+					(if lambda
+						(begin
+							(define t (mi:getType superT))
+							(set tok:t t)
+							(if output
+								(begin
+									(define sam ((as ClassType (t:getRawType)):checkSingleAbstractMethod))
+									(define scope (LinkedHashMap))
+									(define args (tok:toks:get 2))
+									(define i 0)
+									(define params (Type[] len:(args:toks:size)))
+									(while (!= i (args:toks:size))
+										(define arg VToken (args:toks:get i))
+										(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
+										(scope:put arg:val (Arg (+ i 1) param))
+										(aset params i param)
+										(set i (+ i 1))
+									)
 									(ci:c:addInterface t)
-									(ci:c:setSuper t)
+									(define m (ci:c:addMethod (sam:getName) params (Main:resolveType t (sam:getReturnType)) Access:PUBLIC))
+									(ci:methods:add (MethodInfo ci (tok:toks:subList 3 (tok:toks:size)) m scope))
+									(ci:compileMethods captureH)
 								)
-								(define i 2)
-								(while (!= i (tok:toks:size))
-									(ci:compileDef (tok:toks:get i))
-									(set i (+ i 1))
+							)
+						)
+						(begin
+							(define t
+								(if (instance? superT BlockToken)
+									(mi:getType (superT:toks:get 0))
+									(mi:getType superT)
 								)
-								(ci:compileMethods captureH)
+							)
+							(set tok:t t)
+							(if output
+								(begin
+									(if ((as ClassType (t:getRawType)):isInterface)
+										(ci:c:addInterface t)
+										(ci:c:setSuper t)
+									)
+									(define i 2)
+									(while (!= i (tok:toks:size))
+										(ci:compileDef (tok:toks:get i))
+										(set i (+ i 1))
+									)
+									(ci:compileMethods captureH)
+								)
 							)
 						)
 					)
-				)
 				)
 				(if output
 					(begin
@@ -611,10 +605,10 @@
 		(define type (mi:getType (tok:toks:get 2)))
 		(if (= type null)
 			(set type (this:compile (tok:toks:get 2) mi code Main:unknownType))
-		(if (= (tok:toks:size) 4)
-			(this:compile (tok:toks:get 3) mi code type)
-			(if output (code:emitPushDefaultValue needed))
-		)
+			(if (= (tok:toks:size) 4)
+				(this:compile (tok:toks:get 3) mi code type)
+				(if output (code:emitPushDefaultValue needed))
+			)
 		)
 		(define var (mi:newVar code (as VToken (tok:toks:get 1)) type))
 		(if output (code:emitStore var))

@@ -119,6 +119,8 @@
 		(println (synchronized "a"
 			3
 		))
+
+		;(System:out:println null)
 	)
 	((toggle1 x int) int 'static
 		(cond

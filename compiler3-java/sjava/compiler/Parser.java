@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.ColonToken;
+import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.SingleQuoteToken;
@@ -14,10 +15,16 @@ import sjava.compiler.tokens.UnquoteToken;
 class Parser {
     ArrayList<Token> toks;
     int i;
+    boolean ignoreComments;
+
+    Parser(ArrayList<Token> toks, boolean ignoreComments) {
+        this.toks = toks;
+        this.ignoreComments = ignoreComments;
+        this.i = 0;
+    }
 
     Parser(ArrayList<Token> toks) {
-        this.toks = toks;
-        this.i = 0;
+        this(toks, true);
     }
 
     Token next() {
@@ -51,6 +58,10 @@ class Parser {
         if(w.equals("(")) {
             var10000 = new BlockToken(t.line, this.subToks(")"));
         } else if(!w.equals("\'") && !w.equals("`") && !w.equals("~") && !w.equals(",$") && !w.equals(",")) {
+            if(this.ignoreComments && t instanceof CommentToken) {
+                return null;
+            }
+
             var10000 = t;
         } else {
             ArrayList al = new ArrayList(Arrays.asList(new Object[]{this.parse(0)}));
@@ -58,6 +69,10 @@ class Parser {
         }
 
         Object left = var10000;
+        if(((Token)left).endLine == 0) {
+            ((Token)left).endLine = this.peek(-1).line;
+        }
+
         boolean cont = true;
 
         while(cont && this.i != this.toks.size() && this.prec() > prec) {
@@ -71,6 +86,10 @@ class Parser {
                 left = new GenericToken(t.line, (Token)left, this.subToks("}"));
             } else {
                 cont = false;
+            }
+
+            if(cont) {
+                ((Token)left).endLine = this.peek(-1).line;
             }
         }
 

@@ -24,13 +24,13 @@
 				`,$(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
 			)
 		)))
-		(System:out:println ("Runtime random number up to 1000: ": concat (rand 1000)))
+		(System:out:println ("Runtime random number up to 1000: ":concat (rand 1000)))
 		(include `(System:out:println "abc"))
 
 		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
 		(System:out:format "%d:%s\n" 5 "wow")
 		(System:out:format "5:wow\n")
-	
+
 		(System:out:println "A") (System:out:println "B") (System:out:println "C")
 
 		(define x 3)

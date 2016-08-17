@@ -149,7 +149,7 @@
 				(set out `())
 				1
 			)
-		)	
+		)
 	)
 	(for (define i (- (alen cases) n)) (>= i 0) (dec i)
 		(define case (aget cases i))
@@ -178,7 +178,8 @@
 	(define mname (as VToken ((call:toks:get 0):toks:get 1)):val)
 	(define nargs (alen (mi:method:getParameterTypes)))
 	(forEach omi mi:ci:methods
-		(if (&&
+		(if
+			(&&
 				((omi:method:getName):equals mname) (!= mi omi)
 				(= nargs (alen (omi:method:getParameterTypes)))
 			)
@@ -205,7 +206,8 @@
 (define-macro (xml @tags)
 	(define appends
 		(mapA tag tags
-			(if (&&
+			(if
+				(&&
 					(instance? tag BlockToken)
 					(instance? (tag:toks:get 0) VToken)
 					((as VToken (tag:toks:get 0)):val:equals "@")

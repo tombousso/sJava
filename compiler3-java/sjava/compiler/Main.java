@@ -11,6 +11,7 @@ import gnu.bytecode.ParameterizedType;
 import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -25,7 +26,6 @@ import java.util.Map.Entry;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.apache.commons.lang3.StringEscapeUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
@@ -47,10 +47,10 @@ import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
 import sjava.compiler.tokens.BinOpToken;
 import sjava.compiler.tokens.BlockToken;
-import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
 import sjava.compiler.tokens.ColonToken;
+import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.CompareToken;
 import sjava.compiler.tokens.DefaultToken;
 import sjava.compiler.tokens.DefineToken;
@@ -62,11 +62,9 @@ import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
 import sjava.compiler.tokens.LambdaToken;
 import sjava.compiler.tokens.MacroCallToken;
-import sjava.compiler.tokens.NToken;
 import sjava.compiler.tokens.ObjectToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.ReturnToken;
-import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.SetToken;
 import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.SynchronizedToken;
@@ -154,7 +152,7 @@ public class Main {
         compare1Ops.put(">0", Integer.valueOf(158));
         compare1Ops.put("!=null", Integer.valueOf(198));
         compare1Ops.put("==null", Integer.valueOf(199));
-        precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";", "\n"}, {":", "{"}, {"(", "\'", ",", ",$", "`", "~"}};
+        precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";"}, {":", "{"}, {"(", "\'", ",", ",$", "`", "~"}};
         specialChars = new HashMap();
         specialChars.put("space", Character.valueOf(' '));
         specialChars.put("singlequote", Character.valueOf('\''));
@@ -183,8 +181,8 @@ public class Main {
 
         try {
             res = parser.parseArgs(args);
-        } catch (Throwable var20) {
-            var20.printStackTrace();
+        } catch (Throwable var23) {
+            var23.printStackTrace();
         }
 
         List fileNames = res.getList("file");
@@ -197,11 +195,21 @@ public class Main {
 
             try {
                 s = new String(Files.readAllBytes(Paths.get(name, new String[0])));
-            } catch (Throwable var19) {
-                var19.printStackTrace();
+            } catch (Throwable var22) {
+                var22.printStackTrace();
             }
 
             ArrayList toks = (new Lexer(s)).lex();
+            List toks1 = (new Parser(toks, false)).parseAll();
+            StringBuffer sb = new StringBuffer();
+            toksToString(toks1, 1, 0, sb);
+            sb.append('\n');
+            PrintStream var10000 = System.out;
+            StringBuilder sb1 = new StringBuilder();
+            sb1.append(name);
+            sb1.append(" FORMAT:");
+            sb1.append(s.equals(sb.toString()));
+            var10000.println(sb1.toString());
             toks = (ArrayList)(new Parser(toks)).parseAll();
             files.put(name, toks);
         }
@@ -413,14 +421,13 @@ public class Main {
         return types;
     }
 
-    public static void transformBlockTok(Token block, AMethodInfo mi, boolean transform, int i) {
+    public static Token transformBlockTok(Token block, AMethodInfo mi, boolean transform, int i) {
         Token tok = (Token)block.toks.get(i);
         Token ntok = transformBlock(tok, mi, transform && !block.neverTransform || block.alwaysTransform);
         if(transform) {
             ntok.transformed = true;
         }
 
-        block.toks.set(i, ntok);
         if(transform && tok instanceof BlockToken && tok.toks.size() > 0 && (Token)tok.toks.get(0) instanceof VToken) {
             String val = ((VToken)((Token)tok.toks.get(0))).val;
             if(val.equals("label")) {
@@ -428,6 +435,11 @@ public class Main {
             }
         }
 
+        return ntok;
+    }
+
+    public static Token transformBlockTokReplace(Token block, AMethodInfo mi, boolean transform, int i) {
+        return (Token)block.toks.set(i, transformBlockTok(block, mi, transform, i));
     }
 
     public static Token transformBlockToks(Token block, AMethodInfo mi, boolean transform, int i) {
@@ -435,11 +447,12 @@ public class Main {
             ((BlockToken)block).labels = new HashMap();
         }
 
-        while(i != block.toks.size()) {
-            transformBlockTok(block, mi, transform, i);
-            ++i;
+        ArrayList ntoks;
+        for(ntoks = new ArrayList(block.toks.subList(0, i)); i != block.toks.size(); ++i) {
+            ntoks.add(transformBlockTok(block, mi, transform, i));
         }
 
+        block.toks = ntoks;
         return block;
     }
 
@@ -557,7 +570,7 @@ public class Main {
                     }
                 } else if((Token)block.toks.get(0) instanceof ColonToken) {
                     CallToken out = new CallToken(block.line, block.toks);
-                    transformBlockTok((Token)out.toks.get(0), mi, true, 0);
+                    transformBlockTokReplace((Token)out.toks.get(0), mi, true, 0);
                     transformBlockToks(out, mi, true, 1);
                     return out;
                 }
@@ -822,74 +835,91 @@ public class Main {
         return ClassType.make(sb.toString());
     }
 
-    static int toksToString(Token tok, int line, StringBuffer sb) {
+    static int tokToString(Token tok, int line, int tabs, StringBuffer sb) {
         for(int i = tok.line - line; i > 0; --i) {
             sb.append("\n");
         }
 
-        line = tok.line;
-        if(tok instanceof SToken) {
-            sb.append('\"');
-            sb.append(StringEscapeUtils.escapeJava(((SToken)tok).val));
-            sb.append('\"');
-        } else if(tok instanceof NToken) {
-            sb.append(((NToken)tok).val.toString());
-        } else if(tok instanceof CToken) {
-            String c = ((CToken)tok).val.toString();
-            Set iterable = specialChars.entrySet();
-            Iterator it = iterable.iterator();
-
-            for(int notused = 0; it.hasNext(); ++notused) {
-                Entry entry = (Entry)it.next();
-                if(((CToken)tok).val.equals((Character)entry.getValue())) {
-                    c = (String)entry.getKey();
-                }
+        if(tok.line != line) {
+            for(int i1 = tabs; i1 > 0; --i1) {
+                sb.append("\t");
             }
-
-            sb.append("#\\");
-            sb.append(c);
-        } else if(tok instanceof VToken) {
-            sb.append(((VToken)tok).val);
-        } else if(tok instanceof BlockToken) {
-            sb.append("(");
-            line = toksToString(tok.toks, line, sb);
-            sb.append(")");
-        } else if(tok instanceof GenericToken) {
-            line = toksToString(((GenericToken)tok).tok, line, sb);
-            sb.append("{");
-            line = toksToString(tok.toks, line, sb);
-            sb.append("}");
-        } else if(tok instanceof ColonToken) {
-            line = toksToString((Token)tok.toks.get(0), line, sb);
-            sb.append(":");
-            line = toksToString((Token)tok.toks.get(1), line, sb);
-        } else if(tok instanceof SingleQuoteToken) {
-            sb.append("\'");
-            line = toksToString((Token)tok.toks.get(0), line, sb);
-        } else if(tok instanceof QuoteToken) {
-            sb.append("`");
-            line = toksToString((Token)tok.toks.get(0), line, sb);
-        } else if(tok instanceof UnquoteToken) {
-            sb.append(((UnquoteToken)tok).s?",$":",");
-            line = toksToString((Token)tok.toks.get(0), line, sb);
-        } else {
-            sb.append(tok.what);
         }
 
+        line = tok.line;
+        if(tok instanceof BlockToken) {
+            blockTokToString(tok, line, tabs, sb);
+        } else if(tok instanceof GenericToken) {
+            line = tokToString(((GenericToken)tok).tok, line, tabs, sb);
+            sb.append("{");
+            toksToString(tok.toks, line, tabs, sb);
+            sb.append("}");
+        } else if(tok instanceof ColonToken) {
+            line = tokToString((Token)tok.toks.get(0), line, tabs, sb);
+            sb.append(":");
+            tokToString((Token)tok.toks.get(1), line, tabs, sb);
+        } else if(tok instanceof SingleQuoteToken) {
+            sb.append("\'");
+            tokToString((Token)tok.toks.get(0), line, tabs, sb);
+        } else if(tok instanceof QuoteToken) {
+            sb.append(((QuoteToken)tok).transform?"`":"~");
+            tokToString((Token)tok.toks.get(0), line, tabs, sb);
+        } else if(tok instanceof UnquoteToken) {
+            sb.append(((UnquoteToken)tok).s?",$":",");
+            tokToString((Token)tok.toks.get(0), line, tabs, sb);
+        } else if(tok instanceof CommentToken) {
+            sb.append(";");
+            sb.append(((CommentToken)tok).val);
+        } else {
+            sb.append(tok.toString());
+        }
+
+        return tok.endLine;
+    }
+
+    static int blockTokToString(Token block, int line, int tabs, StringBuffer sb) {
+        sb.append("(");
+        int i = 0;
+        List iterable = block.toks;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Token tok = (Token)it.next();
+            if(i != 0 && tok.line == line) {
+                sb.append(" ");
+            }
+
+            line = tokToString(tok, line, tabs + (tok.line == block.line?0:1), sb);
+            ++i;
+        }
+
+        for(int i1 = block.endLine - line; i1 > 0; --i1) {
+            sb.append("\n");
+        }
+
+        if(line != block.endLine) {
+            for(int i2 = tabs; i2 > 0; --i2) {
+                sb.append("\t");
+            }
+        }
+
+        sb.append(")");
+        line = block.endLine;
         return line;
     }
 
-    static int toksToString(List<Token> toks, int line, StringBuffer sb) {
+    static int toksToString(List<Token> toks, int line, int tabs, StringBuffer sb) {
         int i = 0;
         Iterator it = toks.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Token tok = (Token)it.next();
-            line = toksToString(tok, line, sb);
-            ++i;
-            if(i != toks.size()) {
+            if(i != 0 && tok.line == line) {
                 sb.append(" ");
             }
+
+            line = tokToString(tok, line, tabs, sb);
+            ++i;
         }
 
         return line;

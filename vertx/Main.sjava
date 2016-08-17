@@ -123,7 +123,8 @@
 				(set page:name name)
 				(define pass (req:getParam "pass"))
 				(define g-recaptcha (req:getParam "g-recaptcha-response"))
-				(if (||
+				(if
+					(||
 						(!= (req:method) HttpMethod:POST) (= name null) (= pass null) (= g-recaptcha null)
 						(begin
 							(set page:invalidName (! (name:matches "[a-zA-Z0-9]{1,100}")))
@@ -211,22 +212,22 @@
 	)
 	((page body StringBuffer) StringBuffer
 		(xml
-"""<html>
-	<head>
-		<script src="https://www.google.com/recaptcha/api.js"></script>
-		<style>
-			p {
-				display: inline;
-			}
-			.error {
-				background-color:#ff4d4d;
-			}
-		</style>
-	</head>
-	<body>
-		""" body """
-	</body>
-</html>"""
+			"""<html>
+				<head>
+					<script src="https://www.google.com/recaptcha/api.js"></script>
+					<style>
+						p {
+							display: inline;
+						}
+						.error {
+							background-color:#ff4d4d;
+						}
+					</style>
+				</head>
+				<body>
+					""" body """
+				</body>
+			</html>"""
 		)
 	)
 )
@@ -240,14 +241,14 @@
 		(super:page
 			(xml
 				(xif this:invalid
-					(@"div" (@"p" %("class" "error") "Invalid username or password."))
+					(@ "div" (@ "p" % ("class" "error") "Invalid username or password."))
 				)
-"""Login:<br>
-<form action="login" method="post">
-	<input name="name" type="text" required placeholder="Name"><br>
-	<input name="pass" type="text" required placeholder="Password"><br>
-	<input type="submit" value="Submit"><br>
-</form>"""
+				"""Login:<br>
+				<form action="login" method="post">
+					<input name="name" type="text" required placeholder="Name"><br>
+					<input name="pass" type="text" required placeholder="Password"><br>
+					<input type="submit" value="Submit"><br>
+				</form>"""
 			)
 		)
 	)
@@ -266,21 +267,21 @@
 		(super:page
 			(xml
 				(xif this:taken
-					(@"div" (@"p" %("class" "error") "Username is already taken."))
+					(@ "div" (@ "p" % ("class" "error") "Username is already taken."))
 				)
 				(xif this:recaptchaError
-					(@"div" (@"p" %("class" "error") "reCAPTCHA error."))
+					(@ "div" (@ "p" % ("class" "error") "reCAPTCHA error."))
 				)
 				(xif this:invalidName
-					(@"div" (@"p" %("class" "error") "Invalid username."))
+					(@ "div" (@ "p" % ("class" "error") "Invalid username."))
 				)
 				(xif this:invalidPass
-					(@"div" (@"p" %("class" "error") "Invalid password."))
+					(@ "div" (@ "p" % ("class" "error") "Invalid password."))
 				)
 				"Register:<br>"
-				(@"form" %("action" "register") %("method" "post")
-					(@"input" %("name" "name") %("type" "text") %("required") %("placeholder" "Username") %("maxlength" "100") %("value" this:name) %("pattern" "[a-zA-Z0-9]+") %("oninvalid" "this.setCustomValidity('Minimum 1 character required, alphanumeric')") %("oninput" "setCustomValidity('')"))
-					(@"br")
+				(@ "form" % ("action" "register") % ("method" "post")
+					(@ "input" % ("name" "name") % ("type" "text") % ("required") % ("placeholder" "Username") % ("maxlength" "100") % ("value" this:name) % ("pattern" "[a-zA-Z0-9]+") % ("oninvalid" "this.setCustomValidity('Minimum 1 character required, alphanumeric')") % ("oninput" "setCustomValidity('')"))
+					(@ "br")
 					"""<input name="pass" type="text" required placeholder="Password" maxlength="100" pattern="[a-zA-Z0-9]{5,}" oninvalid="this.setCustomValidity('Minimum 5 characters required, alphanumeric')" oninput="setCustomValidity('')">
 					<div class="g-recaptcha" data-sitekey="6Lek5yYTAAAAAAgYB34twlRzBIt1iYK4cWQsLcEJ"></div>
 					<input type="submit" value="Submit">"""

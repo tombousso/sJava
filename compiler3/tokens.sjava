@@ -9,6 +9,7 @@
 
 (define-class Token (Emitter) 'public
 	(line int 'public)
+	(endLine int 'public)
 	(prec int 'public)
 	(what String 'public)
 	(toks List{Token} 'public)
@@ -59,6 +60,14 @@
 
 (define-class Transformed () 'interface 'abstract 'public)
 
+(define-class CommentToken (Token Transformed) 'public
+	(val String 'public)
+	((<init> line int val String) void 'public
+		(super:<init> line)
+		(set this:val val)
+	)
+)
+
 (define-class ConstToken (Token Transformed) 'public
 	((<init> line int what String) void 'public
 		(super:<init> line 0 what)
@@ -70,12 +79,27 @@
 
 (define-class SToken (Token Transformed) 'public
 	(val String 'public)
-	((<init> line int val String) void 'public
+	(tripleQuote bool 'public)
+	((<init> line int val String tripleQuote bool) void 'public
 		(super:<init> line)
 		(set this:val val)
+		(set this:tripleQuote tripleQuote)
 	)
 	((toString) String 'public
-		(concat "\"" (org.apache.commons.lang3.StringEscapeUtils:escapeJava this:val) "\"")
+		(if this:tripleQuote
+			(begin
+				(define escaped this:val)
+				(if (escaped:endsWith "\"")
+					(set escaped (concat (escaped:substring 0 (- (escaped:length) 1)) "\\\""))
+					(if (escaped:endsWith "\\")
+						(set escaped (concat (escaped:substring 0 (- (escaped:length) 1)) "\\\\"))
+					)
+				)
+				(set escaped (escaped:replace "\"\"\"" "\\\"\"\""))
+				(concat "\"\"\"" escaped "\"\"\"")
+			)
+			(concat "\"" (org.apache.commons.lang3.StringEscapeUtils:escapeJava this:val) "\"")
+		)
 	)
 	((<init>) void 'public
 		(super:<init>)

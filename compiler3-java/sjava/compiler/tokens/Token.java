@@ -10,6 +10,7 @@ import sjava.compiler.handlers.Handler;
 
 public class Token extends Emitter {
     public int line;
+    public int endLine;
     public int prec;
     public String what;
     public List<Token> toks;

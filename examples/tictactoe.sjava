@@ -78,46 +78,46 @@
 		(define n (App:check))
 		(if (= n App:turn)
 			depth
-		(if (!= n 0)
-			(- 0 depth)
-			(begin
-				(define max (= player App:turn))
-				(if max
-					(begin
-						(define best -9999)
-						(for (define x 0) (< x 3) (inc x)
-							(for (define y 0) (< y 3) (inc y)
-								(if (= (aget (aget App:board x) y) 0)
-									(begin
-										(aset (aget App:board x) y player)
-										(define v (App:minimax (if (= player 1) 2 1) (- depth 1)))
-										(if (> v best) (set best v))
-										(aset (aget App:board x) y 0)
+			(if (!= n 0)
+				(- 0 depth)
+				(begin
+					(define max (= player App:turn))
+					(if max
+						(begin
+							(define best -9999)
+							(for (define x 0) (< x 3) (inc x)
+								(for (define y 0) (< y 3) (inc y)
+									(if (= (aget (aget App:board x) y) 0)
+										(begin
+											(aset (aget App:board x) y player)
+											(define v (App:minimax (if (= player 1) 2 1) (- depth 1)))
+											(if (> v best) (set best v))
+											(aset (aget App:board x) y 0)
+										)
 									)
 								)
 							)
+							(if (= best -9999) 0 best)
 						)
-						(if (= best -9999) 0 best)
-					)
-					(begin
-						(define best 9999)
-						(for (define x 0) (< x 3) (inc x)
-							(for (define y 0) (< y 3) (inc y)
-								(if (= (aget (aget App:board x) y) 0)
-									(begin
-										(aset (aget App:board x) y player)
-										(define v (App:minimax (if (= player 1) 2 1) (- depth 1)))
-										(if (< v best) (set best v))
-										(aset (aget App:board x) y 0)
+						(begin
+							(define best 9999)
+							(for (define x 0) (< x 3) (inc x)
+								(for (define y 0) (< y 3) (inc y)
+									(if (= (aget (aget App:board x) y) 0)
+										(begin
+											(aset (aget App:board x) y player)
+											(define v (App:minimax (if (= player 1) 2 1) (- depth 1)))
+											(if (< v best) (set best v))
+											(aset (aget App:board x) y 0)
+										)
 									)
 								)
 							)
+							(if (= best 9999) 0 best)
 						)
-						(if (= best 9999) 0 best)
 					)
 				)
 			)
-		)
 		)
 	)
 	((bestMove) void 'static
@@ -208,25 +208,25 @@
 		(scene:setOnMouseClicked (lambda EventHandler{MouseEvent} (event)
 			(if App:win
 				(App:reset)
-			(if (= (aget (aget App:board App:mouseX) App:mouseY) 0)
-				(begin
-					(App:play App:mouseX App:mouseY)
-					(App:bestMove)
-					(define n (App:check))
-					(if (!= n 0)
-						(begin
-							(println (if (= n 1) "X" "O") " won! Click to start a new game.")
-							(set App:win true)
+				(if (= (aget (aget App:board App:mouseX) App:mouseY) 0)
+					(begin
+						(App:play App:mouseX App:mouseY)
+						(App:bestMove)
+						(define n (App:check))
+						(if (!= n 0)
+							(begin
+								(println (if (= n 1) "X" "O") " won! Click to start a new game.")
+								(set App:win true)
+							)
 						)
-					)
-					(if (= App:turns 9)
-						(begin
-							(println "Tie! Click to start a new game.")
-							(set App:win true)
+						(if (= App:turns 9)
+							(begin
+								(println "Tie! Click to start a new game.")
+								(set App:win true)
+							)
 						)
 					)
 				)
-			)
 			)
 		))
 		(stage:show)

@@ -81,7 +81,8 @@
 		(define p2 (method:getGenericParameterTypes))
 		(define r1 (this:m:getReturnType))
 		(define r2 (method:getReturnType))
-		(if (&&
+		(if
+			(&&
 				((method:getName):equals (this:m:getName))
 				(= (alen p1) (alen p2))
 				(! (Type:isSame generic this:pt))
@@ -92,7 +93,8 @@
 				(define diff (! (Type:isSame (r1:getRawType) (r2:getRawType))))
 				(define overrides true)
 				(while (&& overrides (!= i n))
-					(if (&&
+					(if
+						(&&
 							(! diff)
 							(! (Type:isSame ((aget p1 i):getRawType) ((aget p2 i):getRawType)))
 						)
@@ -125,7 +127,8 @@
 	)
 	((select method Method generic Type) void
 		(define c (method:getDeclaringClass))
-		(if (&&
+		(if
+			(&&
 				((method:getName):equals this:name)
 				(||
 					(! (c:isInterface))
@@ -174,7 +177,8 @@
 						(while (! (|| stop (= i (alen this:types))))
 							(define at
 								(Main:resolveType tvs generic
-									(if (&&
+									(if
+										(&&
 											arrayNeeded
 											(>= i (- np 1))
 										)
