@@ -11,7 +11,7 @@ rwildcard=$(patsubst %,%,$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(
 
 JARS=$(wildcard $(TOP)lib/*)
 
-JAVA=java
+JAVA=java -Dsjava.home=$(TOP)
 
 STD=$(TOP)bin/sjava/std/Function0.class
 STD_MACROS=$(TOP)std/macros.sjava
@@ -30,13 +30,13 @@ COMPILER3_JAVA_FILES=$(patsubst $(TOP)bin/%.class,$(TOP)compiler3-java/%.java,$(
 
 JAR=$(TOP)sjava.jar
 
-.PHONY: diff12 diff23 diff
+.PHONY: diff12 diff23 diff java-sources java-compile jar
 
 diff12: $(COMPILER2)
 	diff -r $(TOP)bin/1-2 $(TOP)bin/2-2
 
 $(COMPILER3_3): $(COMPILER3_FILES)
-	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin) sjava.compiler.Main $(STD_MACROS) $(COMPILER3_FILES) -d $(TOP)bin/3-3/
+	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin) sjava.compiler.Main build $(COMPILER3_FILES) -d $(TOP)bin/3-3/
 
 diff23: $(COMPILER) $(COMPILER3_3)
 	diff -r $(TOP)bin/sjava/compiler $(TOP)bin/3-3/sjava/compiler
@@ -49,24 +49,27 @@ $(COMPILER1): $(TOP)compiler1.scm $(TOP)compiler2.sjava
 $(COMPILER2): $(COMPILER1) $(TOP)compiler2.sjava
 	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/1-2) compiler2.Main $(TOP)compiler2.sjava -d $(TOP)bin/2-2/
 
-$(COMPILER3): $(COMPILER2) $(COMPILER3_FILES) $(STD_FILES)
+$(COMPILER3): $(COMPILER2) $(COMPILER3_FILES) $(STD_MACROS)
 	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-2) compiler2.Main $(STD_MACROS) $(COMPILER3_FILES) -d $(TOP)bin/2-3/
 
-$(COMPILER): $(COMPILER3) $(COMPILER3_FILES) $(STD_FILES)
-	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-3) sjava.compiler.Main $(STD_MACROS) $(COMPILER3_FILES) -d $(TOP)bin/
+$(COMPILER): $(COMPILER3) $(COMPILER3_FILES) $(STD)
+	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-3) sjava.compiler.Main build $(COMPILER3_FILES) -d $(TOP)bin/
+
+$(STD): $(COMPILER3) $(STD_FILES)
+	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-3) sjava.compiler.Main build $(STD_FILES) -d $(TOP)bin/
 
 $(TOP)compiler3-java/sjava/compiler/Main.java: $(COMPILER)
-	mkdir -p $(TOP)compiler3-java/sjava
-	$(JAVA) -jar $(TOP)fernflower.jar -ind="    " -dgs=1 $(TOP)bin/sjava $(TOP)compiler3-java/sjava
+	mkdir -p $(TOP)compiler3-java/sjava/compiler
+	$(JAVA) -jar $(TOP)fernflower.jar -ind="    " -dgs=1 $(TOP)bin/sjava/compiler $(TOP)compiler3-java/sjava/compiler
 
 java-sources: $(TOP)compiler3-java/sjava/compiler/Main.java
 
 java-compile: diff
 	javac -Xdiags:verbose -classpath $(call classpathify,$(JARS)) $(COMPILER3_JAVA_FILES)
-	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)compiler3-java) sjava.compiler.Main $(STD_MACROS) $(COMPILER3_FILES) -d $(TOP)bin/java-3-3/
+	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)compiler3-java) sjava.compiler.Main build $(COMPILER3_FILES) -d $(TOP)bin/java-3-3/
 	diff -r $(TOP)bin/sjava/compiler $(TOP)bin/java-3-3/sjava/compiler
 
-$(JAR): $(COMPILER)
-	jar cfm $(TOP)sjava.jar $(TOP)Manifest.txt -C $(TOP)bin $(TOP)sjava/
+$(JAR): $(COMPILER) $(TOP)Manifest.txt
+	jar cfm $(TOP)sjava.jar $(TOP)Manifest.txt -C $(TOP)bin sjava/compiler -C $(TOP)bin sjava/std
 
 jar: $(JAR)

@@ -3,10 +3,10 @@ package sjava.compiler.emitters;
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Type;
 import sjava.compiler.AMethodInfo;
-import sjava.compiler.handlers.Handler;
+import sjava.compiler.handlers.GenHandler;
 
 public class Emitter {
-    public Type emit(Handler h, AMethodInfo mi, CodeAttr code, Type needed) {
+    public Type emit(GenHandler h, AMethodInfo mi, CodeAttr code, Type needed) {
         Type[] types = this.emitAll(h, mi, code, needed);
         Object var10000;
         if(types == null) {
@@ -19,7 +19,7 @@ public class Emitter {
         return (Type)var10000;
     }
 
-    public Type[] emitAll(Handler h, AMethodInfo mi, CodeAttr code, Object needed) {
+    public Type[] emitAll(GenHandler h, AMethodInfo mi, CodeAttr code, Object needed) {
         return new Type[]{this.emit(h, mi, code, (Type)needed)};
     }
 }

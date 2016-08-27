@@ -1,6 +1,7 @@
 package sjava.compiler;
 
 import java.util.ArrayList;
+import java.util.List;
 import org.apache.commons.lang3.StringEscapeUtils;
 import sjava.compiler.Main;
 import sjava.compiler.tokens.CToken;
@@ -11,18 +12,12 @@ import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 
-class Lexer {
+public class Lexer {
     String code;
     int i;
     int ml;
     String s;
     int line;
-
-    Lexer(String code) {
-        this.code = code;
-        this.ml = code.length();
-        this.line = 1;
-    }
 
     int getprec() {
         int p = -1;
@@ -171,8 +166,11 @@ class Lexer {
         return (Token)out;
     }
 
-    ArrayList<Token> lex() {
+    List<Token> lex(String code) {
+        this.code = code;
         this.i = 0;
+        this.ml = code.length();
+        this.line = 1;
         ArrayList out = new ArrayList();
 
         while(this.i != this.ml) {

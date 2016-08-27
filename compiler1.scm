@@ -1487,13 +1487,15 @@
 		(define argTypes ::Class[] (Class[] String[]:class))
 		(define main ::java.lang.reflect.Method #!null)
 
-		((java.io.File "bin/1-2/compiler2"):mkdirs)
+		(define phome (java.lang.System:getProperty "sjava.home"))
+		(define home (if (eq? phome #!null) "." phome))
+		((java.io.File (string-append home "/bin/1-2/compiler2")):mkdirs)
 
 		(for-each
 			(lambda (class ::ClassType)
 				(define classFile :: byte[] (*:writeToArray class))
 				(cl:addClass (*:getSimpleName class) classFile)
-				(java.nio.file.Files:write (java.nio.file.Paths:get (string-append "bin/1-2/compiler2/" (*:getSimpleName class) ".class")) classFile)
+				(java.nio.file.Files:write (java.nio.file.Paths:get (string-append home "/bin/1-2/compiler2/" (*:getSimpleName class) ".class")) classFile)
 			)
 			newClasses
 		)

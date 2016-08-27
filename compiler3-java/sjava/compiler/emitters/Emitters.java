@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.emitters.Emitter;
-import sjava.compiler.handlers.Handler;
+import sjava.compiler.handlers.GenHandler;
 
 public class Emitters extends Emitter {
     public List<Emitter> emitters;
@@ -19,7 +19,7 @@ public class Emitters extends Emitter {
         this.emitters = emitters;
     }
 
-    public Type[] emitAll(Handler h, AMethodInfo mi, CodeAttr code, Object needed) {
+    public Type[] emitAll(GenHandler h, AMethodInfo mi, CodeAttr code, Object needed) {
         Type[] types = new Type[this.emitters.size()];
 
         for(int i = 0; i < types.length; ++i) {

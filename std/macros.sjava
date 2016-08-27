@@ -140,7 +140,11 @@
 (define-macro (cond @cases)
 	(define out (aget cases (- (alen cases) 1)))
 	(define n
-		(if ((out:toks:get 0):what:equals "true")
+		(if
+			(&&
+				(instance? (out:toks:get 0) ConstToken)
+				((as ConstToken (out:toks:get 0)):val:equals "true")
+			)
 			(begin
 				(set out `(begin ,(out:toks:subList 1 (out:toks:size))))
 				2
@@ -163,6 +167,26 @@
 		)
 	)
 	out
+)
+(define-macro (instanceCond var @cases)
+	(define newCases
+		(mapA case cases
+			(if
+				(&&
+					(instance? (case:toks:get 0) ConstToken)
+					((as ConstToken (case:toks:get 0)):val:equals "true")
+				)
+				case
+				~((instance? ,var ,(case:toks:get 0))
+					(define ,var ,(case:toks:get 0) ,var)
+					,(case:toks:subList 1 (case:toks:size))
+				)
+			)
+		)
+	)
+	`(cond
+		,newCases
+	)
 )
 (define-macro (doubleDispatch call arg)
 	(define j 1)
@@ -203,92 +227,92 @@
 	)
 	out
 )
-(define-macro (xml @tags)
-	(define appends
-		(mapA tag tags
-			(if
-				(&&
-					(instance? tag BlockToken)
-					(instance? (tag:toks:get 0) VToken)
-					((as VToken (tag:toks:get 0)):val:equals "@")
-				)
-				(begin
-					(define tagName (tag:toks:get 1))
-					(define attrAppends (ArrayList{Token}))
-					(define i 2)
-					(while
-						(&&
-							(< i (tag:toks:size))
-							(instance? (tag:toks:get i) VToken)
-							((as VToken (tag:toks:get i)):val:equals "%")
-						)
-						(define attr (tag:toks:get (+ i 1)))
-						(attrAppends:add
-							(if (= (attr:toks:size) 1)
-								`(begin
-									(define val ,(attr:toks:get 0))
-									(sb:append " ")
-									(sb:append val)
-								)
-								`(begin
-									(define val ,(attr:toks:get 1))
-									(if (!= val null)
-										(begin
-											(sb:append " ")
-											(sb:append ,(attr:toks:get 0))
-											(sb:append "=\"")
-											(sb:append val)
-											(sb:append "\"")
-										)
-									)
-								)
-							)
-						)
-						(inc i 2)
-					)
-					(define hasClose (!= i (tag:toks:size)))
-					(define closeAppends
-						(if hasClose
-							(Token[]
-								`(sb:append "</")
-								`(sb:append tagName)
-								`(sb:append ">")
-							)
-							(Token[])
-						)
-					)
-					`(begin
-						(define tagName ,tagName)
-						(sb:append "<")
-						(sb:append tagName)
-						,attrAppends
-						(sb:append ">")
-						(sb:append (xml ,(tag:toks:subList i (tag:toks:size))))
-						,closeAppends
-					)
-				)
-				(begin
-					(if (&& (instance? tag BlockToken) ((as VToken (tag:toks:get 0)):val:equals "xif"))
-						(begin
-							(if (= (tag:toks:size) 3)
-								`(if ,(tag:toks:get 1)
-									(sb:append (xml ,(tag:toks:get 2)))
-								)
-								`(if ,(tag:toks:get 1)
-									(sb:append (xml ,(tag:toks:get 2)))
-									(sb:append (xml ,(tag:toks:get 3)))
-								)
-							)
-						)
-						`(sb:append ,tag)
-					)
-				)
-			)
-		)
-	)
-	`(begin
-		(define sb (StringBuffer))
-		,appends
-		sb
-	)
-)
+;(define-macro (xml @tags)
+;	(define appends
+;		(mapA tag tags
+;			(if
+;				(&&
+;					(instance? tag BlockToken)
+;					(instance? (tag:toks:get 0) VToken)
+;					((as VToken (tag:toks:get 0)):val:equals "@")
+;				)
+;				(begin
+;					(define tagName (tag:toks:get 1))
+;					(define attrAppends (ArrayList{Token}))
+;					(define i 2)
+;					(while
+;						(&&
+;							(< i (tag:toks:size))
+;							(instance? (tag:toks:get i) VToken)
+;							((as VToken (tag:toks:get i)):val:equals "%")
+;						)
+;						(define attr (tag:toks:get (+ i 1)))
+;						(attrAppends:add
+;							(if (= (attr:toks:size) 1)
+;								`(begin
+;									(define val ,(attr:toks:get 0))
+;									(sb:append " ")
+;									(sb:append val)
+;								)
+;								`(begin
+;									(define val ,(attr:toks:get 1))
+;									(if (!= val null)
+;										(begin
+;											(sb:append " ")
+;											(sb:append ,(attr:toks:get 0))
+;											(sb:append "=\"")
+;											(sb:append val)
+;											(sb:append "\"")
+;										)
+;									)
+;								)
+;							)
+;						)
+;						(inc i 2)
+;					)
+;					(define hasClose (!= i (tag:toks:size)))
+;					(define closeAppends
+;						(if hasClose
+;							(Token[]
+;								`(sb:append "</")
+;								`(sb:append tagName)
+;								`(sb:append ">")
+;							)
+;							(Token[])
+;						)
+;					)
+;					`(begin
+;						(define tagName ,tagName)
+;						(sb:append "<")
+;						(sb:append tagName)
+;						,attrAppends
+;						(sb:append ">")
+;						(sb:append (xml ,(tag:toks:subList i (tag:toks:size))))
+;						,closeAppends
+;					)
+;				)
+;				(begin
+;					(if (&& (instance? tag BlockToken) ((as VToken (tag:toks:get 0)):val:equals "xif"))
+;						(begin
+;							(if (= (tag:toks:size) 3)
+;								`(if ,(tag:toks:get 1)
+;									(sb:append (xml ,(tag:toks:get 2)))
+;								)
+;								`(if ,(tag:toks:get 1)
+;									(sb:append (xml ,(tag:toks:get 2)))
+;									(sb:append (xml ,(tag:toks:get 3)))
+;								)
+;							)
+;						)
+;						`(sb:append ,tag)
+;					)
+;				)
+;			)
+;		)
+;	)
+;	`(begin
+;		(define sb (StringBuffer))
+;		,appends
+;		sb
+;	)
+;)

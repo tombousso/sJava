@@ -1,0 +1,22 @@
+(include
+	`((abc)
+		a
+	) ((abc """a"""))
+	`()
+)
+(if
+	(||
+		(||
+			false
+		)
+		false
+	)
+	true
+)
+---
+(
+	(abc
+		def
+	):ghi 456 789
+)
+---

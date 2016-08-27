@@ -1,0 +1,40 @@
+(package sjava.examples.formatterTest)
+
+(import java.nio.file.*)
+(define-class Main () 'public
+	((main args String[]) void 'public 'static
+		(Main:printFormatted
+			"""
+
+(include
+	`(
+		(
+			abc
+		)
+		a
+	)( (abc\"""a\"""
+	) )
+`()
+)(if (
+
+	|| (||
+		false
+		)
+		false)
+	true
+)"""
+		)
+		(Main:printFormatted
+			"""
+			((
+				abc
+				def
+			):ghi 456 789)
+			
+		"""
+		)
+	)
+	((printFormatted code String) void 'static
+		(println (sjava.compiler.Main:formatCode code) "---")
+	)
+)

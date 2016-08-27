@@ -53,8 +53,14 @@
 	((toString) String 'public
 		this:what
 	)
-	((emit h Handler mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(h:compile this mi code needed)
+	)
+	((firstLine) int 'public
+		this:line
+	)
+	((lastLine) int 'public
+		this:endLine
 	)
 )
 
@@ -69,8 +75,13 @@
 )
 
 (define-class ConstToken (Token Transformed) 'public
-	((<init> line int what String) void 'public
-		(super:<init> line 0 what)
+	(val String 'public)
+	((<init> line int val String) void 'public
+		(super:<init> line)
+		(set this:val val)
+	)
+	((toString) String 'public
+		this:val
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -173,6 +184,18 @@
 	((toString) String 'public
 		(concat "(" (this:toksString) ")")
 	)
+	((firstLine) int 'public
+		(if (= (this:toks:size) 0)
+			this:line
+			((this:toks:get 0):firstLine)
+		)
+	)
+	((lastLine) int 'public
+		(if (= (this:toks:size) 0)
+			this:line
+			((this:toks:get (- (this:toks:size) 1)):lastLine)
+		)
+	)
 	((<init>) void 'public
 		(super:<init>)
 	)
@@ -198,6 +221,9 @@
 	)
 	((toString) String 'public
 		(concat (this:toks:get 0) ":" (this:toks:get 1))
+	)
+	((firstLine) int 'public
+		((this:toks:get 0):firstLine)
 	)
 	((<init>) void 'public
 		(super:<init>)

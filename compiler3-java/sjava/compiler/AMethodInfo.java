@@ -17,7 +17,6 @@ import sjava.compiler.ClassInfo;
 import sjava.compiler.Main;
 import sjava.compiler.Var;
 import sjava.compiler.handlers.GenHandler;
-import sjava.compiler.handlers.Handler;
 import sjava.compiler.mfilters.BridgeFilter;
 import sjava.compiler.tokens.BeginToken;
 import sjava.compiler.tokens.BlockToken;
@@ -118,9 +117,9 @@ public class AMethodInfo {
         return this.ci.getType(tok);
     }
 
-    public void compileMethodBody(Handler h) {
+    public void compileMethodBody(GenHandler h) {
         if(!this.method.isAbstract()) {
-            h.compile((Token)this.block, this, (CodeAttr)null, this.method.getReturnType());
+            h.compile(this.block, this, (CodeAttr)null, this.method.getReturnType());
             BridgeFilter filter = new BridgeFilter(this.method);
             filter.searchAll();
             CodeAttr code = this.method.startCode();
@@ -134,7 +133,7 @@ public class AMethodInfo {
                 }
             }
 
-            Type ret = h.compile((Token)this.block, this, code, this.method.getReturnType());
+            Type ret = h.compile(this.block, this, code, this.method.getReturnType());
             code.popScope();
             if(ret != Main.returnType && code.reachableHere()) {
                 code.emitReturn();

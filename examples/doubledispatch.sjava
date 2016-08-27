@@ -1,3 +1,5 @@
+(package sjava.examples.doubledispatch)
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(define objects (Object[] "a" "b" 1 2))

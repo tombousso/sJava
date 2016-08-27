@@ -1,17 +1,22 @@
+(package sjava.examples.lol)
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(define x 3)
-		((lambda ()
-			(begin
-				(print x)
-				(print x)
+		(
+			(lambda ()
+				(begin
+					(println x)
+					(println x)
+				)
+				(
+					(lambda ()
+						(print x)
+						(println ((aget ((Thread:currentThread):getStackTrace) 1):getLineNumber))
+						(println x)
+					)
+				)
 			)
-			((lambda ()
-				(print x)
-				(print x)
-			))
-		))
-		(println)
-		(throw (Exception))
+		)
 	)
 )

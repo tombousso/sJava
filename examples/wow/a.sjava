@@ -1,6 +1,10 @@
+(package sjava.examples.wow)
+
+(import sjava.examples.wow.x.y)
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(System:out:println "WOW")
-		(x.y:wow)
+		(y:wow)
 	)
 )

@@ -16,6 +16,10 @@ public class ColonToken extends Token {
         return sb.toString();
     }
 
+    public int firstLine() {
+        return ((Token)super.toks.get(0)).firstLine();
+    }
+
     public ColonToken() {
     }
 }

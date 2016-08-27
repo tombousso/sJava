@@ -1,7 +1,6 @@
 package sjava.compiler;
 
 import gnu.bytecode.Access;
-import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Type;
@@ -16,7 +15,7 @@ import sjava.compiler.ClassInfo;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
-import sjava.compiler.handlers.Handler;
+import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.IncludeToken;
@@ -27,12 +26,11 @@ public class FileScope {
     public String name;
     List<Token> toks;
     HashMap locals;
-    HashMap imports;
+    HashMap<String, String> imports;
     ArrayList<String> starImports;
     HashMap<String, Boolean> found;
     public ClassInfo includes;
-    List<ClassInfo> newClasses;
-    public List<ClassInfo> anonClasses;
+    public List<ClassInfo> newClasses;
     String package_;
     ArrayList<ClassInfo> macros;
     public HashMap<String, List<ClassInfo>> macroNames;
@@ -47,7 +45,6 @@ public class FileScope {
         this.starImports.add("sjava.std.");
         this.found = new HashMap();
         this.newClasses = new ArrayList();
-        this.anonClasses = new ArrayList();
         this.macros = new ArrayList();
         this.package_ = toks.size() > 0 && (Token)toks.get(0) instanceof BlockToken && (Token)((Token)toks.get(0)).toks.get(0) instanceof VToken && ((VToken)((Token)((Token)toks.get(0)).toks.get(0))).val.equals("package")?((VToken)((Token)((Token)toks.get(0)).toks.get(1))).val.concat("."):"";
     }
@@ -128,7 +125,7 @@ public class FileScope {
                 } else if(var8.contains("*")) {
                     this.starImports.add(var8.replace("*", ""));
                 } else {
-                    this.imports.put(var8.substring(var8.lastIndexOf(".") + 1), Type.getType(var8));
+                    this.imports.put(var8.substring(var8.lastIndexOf(".") + 1), var8);
                 }
             } else if(first.val.equals("define-macro")) {
                 LinkedHashMap scope = new LinkedHashMap();
@@ -139,7 +136,7 @@ public class FileScope {
                 var10000[0] = Main.getCompilerType("AMethodInfo");
                 var10000[1] = Type.getType("gnu.bytecode.Type");
                 var10000[2] = Type.intType;
-                var10000[3] = Main.getCompilerType("handlers.Handler");
+                var10000[3] = Main.getCompilerType("handlers.GenHandler");
                 Type[] types = var10000;
                 int mods = Access.PUBLIC | Access.STATIC;
                 scope.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
@@ -183,19 +180,11 @@ public class FileScope {
 
     }
 
-    void compileMacros(ArrayClassLoader cl) {
+    void compileMacros() {
         for(int i = 0; i != this.macros.size(); ++i) {
             ClassInfo macros = (ClassInfo)this.macros.get(i);
             ((AMethodInfo)macros.methods.get(0)).compileMethodBody();
-            String cname = macros.c.getName();
-            byte[] ba = macros.c.writeToArray();
-            cl.addClass(cname, ba);
-
-            try {
-                macros.rc = cl.loadClass(cname, true);
-            } catch (Throwable var7) {
-                var7.printStackTrace();
-            }
+            macros.rc = macros.getClazz();
         }
 
     }
@@ -217,15 +206,7 @@ public class FileScope {
             }
         }
 
-        ArrayClassLoader cl = new ArrayClassLoader();
-        cl.addClass("Includes", includes.c.writeToArray());
-
-        try {
-            this.includes.rc = cl.loadClass("Includes", true);
-        } catch (Throwable var9) {
-            var9.printStackTrace();
-        }
-
+        includes.rc = includes.getClazz();
     }
 
     int compileIncludes(List<Token> toks, int n) {
@@ -234,7 +215,7 @@ public class FileScope {
             if(tok.toks != null && tok.toks.size() > 0) {
                 if((Token)tok.toks.get(0) instanceof VToken && ((VToken)((Token)tok.toks.get(0))).val.equals("include")) {
                     String name = "$".concat(Integer.toString(n));
-                    MethodInfo mi = new MethodInfo(this.includes, tok.toks.subList(1, tok.toks.size()), this.includes.c.addMethod(name, new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.Handler")}, Main.getCompilerType("tokens.Token"), Access.PUBLIC | Access.STATIC), new LinkedHashMap());
+                    MethodInfo mi = new MethodInfo(this.includes, tok.toks.subList(1, tok.toks.size()), this.includes.c.addMethod(name, new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")}, Main.getCompilerType("tokens.Token"), Access.PUBLIC | Access.STATIC), new LinkedHashMap());
                     toks.set(i, new IncludeToken(tok.line, mi));
                     this.includes.methods.add(mi);
                     mi.compileMethodBody();
@@ -248,7 +229,7 @@ public class FileScope {
         return n;
     }
 
-    public void compileMethods(Handler h) {
+    public void compileMethods(GenHandler h) {
         for(int i = 0; i != this.newClasses.size(); ++i) {
             ((ClassInfo)this.newClasses.get(i)).compileMethods(h);
         }

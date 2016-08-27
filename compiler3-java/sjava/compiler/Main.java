@@ -1,7 +1,6 @@
 package sjava.compiler;
 
 import gnu.bytecode.Access;
-import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.CodeAttr;
@@ -11,9 +10,8 @@ import gnu.bytecode.ParameterizedType;
 import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
+import java.io.File;
 import java.io.PrintStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -23,21 +21,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
-import net.sourceforge.argparse4j.ArgumentParsers;
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.FileScope;
 import sjava.compiler.Lexer;
 import sjava.compiler.Parser;
+import sjava.compiler.commands.BuildCommand;
+import sjava.compiler.commands.Command;
+import sjava.compiler.commands.FormatCommand;
+import sjava.compiler.commands.RunCommand;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.emitters.Emitters;
 import sjava.compiler.emitters.Goto;
 import sjava.compiler.emitters.Nothing;
 import sjava.compiler.handlers.GenHandler;
-import sjava.compiler.handlers.Handler;
 import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.mfilters.MethodCall;
 import sjava.compiler.tokens.AGetToken;
@@ -83,21 +83,18 @@ public class Main {
     static String[][] precs;
     static HashMap<String, Integer> s2prec;
     public static HashMap<String, Character> specialChars;
-    public static HashMap<Type, Method> unboxMethods;
+    public static HashMap<Type, Method> unboxMethods = new HashMap();
     static HashMap<String, Type> constTypes;
     static HashMap<String, Short> accessModifiers;
     public static HashMap<String, Integer> binOps;
     static HashMap<String, Integer> compare2Ops;
     static HashMap<String, Integer> compare1Ops;
-    public static Type unknownType;
-    public static Type returnType;
-    public static Type throwType;
+    public static Type unknownType = Type.getType("unknownType");
+    public static Type returnType = Type.getType("returnType");
+    public static Type throwType = Type.getType("throwType");
+    static Map<String, Command> commands;
 
-    public static void main(String[] args) {
-        unknownType = Type.getType("unknownType");
-        returnType = Type.getType("returnType");
-        throwType = Type.getType("throwType");
-        unboxMethods = new HashMap();
+    static {
         unboxMethods.put(Type.shortType.boxedType(), Type.javalangNumberType.getDeclaredMethod("shortValue", 0));
         unboxMethods.put(Type.intType.boxedType(), Type.javalangNumberType.getDeclaredMethod("intValue", 0));
         unboxMethods.put(Type.longType.boxedType(), Type.javalangNumberType.getDeclaredMethod("longValue", 0));
@@ -174,50 +171,123 @@ public class Main {
             }
         }
 
-        ArgumentParser parser = ArgumentParsers.newArgumentParser("sJava compiler");
-        parser.addArgument(new String[]{"-d"}).setDefault("");
-        parser.addArgument(new String[]{"file"}).nargs("*");
-        Namespace res = (Namespace)null;
+    }
 
-        try {
-            res = parser.parseArgs(args);
-        } catch (Throwable var23) {
-            var23.printStackTrace();
+    static void addCommandToMap(Command c) {
+        commands.put(c.name(), c);
+    }
+
+    public static void main(String[] args) {
+        commands = new LinkedHashMap();
+        addCommandToMap(new BuildCommand());
+        addCommandToMap(new RunCommand());
+        addCommandToMap(new FormatCommand());
+        if(args.length == 0) {
+            printHelp();
+        } else {
+            String arg = args[0];
+            args = (String[])Arrays.copyOfRange(args, 1, args.length);
+            if(commands.containsKey(arg)) {
+                try {
+                    Command cmd = (Command)commands.get(arg);
+                    CommandLine commandLine = cmd.parser.parse(cmd.options, args);
+                    if(commandLine.hasOption("h")) {
+                        cmd.printHelp();
+                    } else {
+                        cmd.run(commandLine, commandLine.getArgList());
+                    }
+                } catch (Throwable var5) {
+                    var5.printStackTrace();
+                }
+            } else {
+                printHelp();
+            }
+
+        }
+    }
+
+    static void printHelp() {
+        PrintStream var10000 = System.out;
+        StringBuilder sb = new StringBuilder();
+        sb.append("usage: sjava [command] [arguments]");
+        var10000.println(sb.toString());
+        var10000 = System.out;
+        StringBuilder sb1 = new StringBuilder();
+        var10000.println(sb1.toString());
+        var10000 = System.out;
+        StringBuilder sb2 = new StringBuilder();
+        sb2.append("Commands:");
+        var10000.println(sb2.toString());
+        var10000 = System.out;
+        StringBuilder sb3 = new StringBuilder();
+        var10000.println(sb3.toString());
+        Set iterable = commands.keySet();
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            String command = (String)it.next();
+            var10000 = System.out;
+            StringBuilder sb4 = new StringBuilder();
+            sb4.append("\t");
+            sb4.append(command);
+            var10000.println(sb4.toString());
         }
 
-        List fileNames = res.getList("file");
+        var10000 = System.out;
+        StringBuilder sb5 = new StringBuilder();
+        var10000.println(sb5.toString());
+    }
+
+    public static List<Token> parse(String code, Lexer lexer, Parser parser) {
+        return parser.parseAll(lexer.lex(code));
+    }
+
+    public static String formatCode(String code) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(formatToks(parse(code, new Lexer(), new Parser(false))));
+        sb.append('\n');
+        return sb.toString();
+    }
+
+    public static Map<String, FileScope> compile(List<String> fNames) {
+        ArrayList fileNames = new ArrayList();
+        String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String pre = System.getProperty("sjava.home") != null?System.getProperty("sjava.home"):(path.endsWith(".jar")?(new File(path)).getParent():".");
+        StringBuilder sb = new StringBuilder();
+        sb.append(pre);
+        sb.append("/std/macros.sjava");
+        fileNames.add(sb.toString());
+        fileNames.addAll(fNames);
         LinkedHashMap files = new LinkedHashMap();
         Iterator it = fileNames.iterator();
 
-        for(int notused1 = 0; it.hasNext(); ++notused1) {
+        for(int notused = 0; it.hasNext(); ++notused) {
             String name = (String)it.next();
-            String s = (String)null;
+            String code = (String)null;
 
             try {
-                s = new String(Files.readAllBytes(Paths.get(name, new String[0])));
-            } catch (Throwable var22) {
-                var22.printStackTrace();
+                code = FileUtils.readFileToString(new File(name));
+            } catch (Throwable var14) {
+                throw new RuntimeException(var14);
             }
 
-            ArrayList toks = (new Lexer(s)).lex();
-            List toks1 = (new Parser(toks, false)).parseAll();
-            StringBuffer sb = new StringBuffer();
-            toksToString(toks1, 1, 0, sb);
-            sb.append('\n');
-            PrintStream var10000 = System.out;
-            StringBuilder sb1 = new StringBuilder();
-            sb1.append(name);
-            sb1.append(" FORMAT:");
-            sb1.append(s.equals(sb.toString()));
-            var10000.println(sb1.toString());
-            toks = (ArrayList)(new Parser(toks)).parseAll();
-            files.put(name, toks);
+            String formatted = formatCode(code);
+            if(!code.equals(formatted)) {
+                PrintStream var10000 = System.out;
+                StringBuilder sb1 = new StringBuilder();
+                sb1.append("Warning: ");
+                sb1.append(name);
+                sb1.append(" isn\'t formatted");
+                var10000.println(sb1.toString());
+            }
+
+            files.put(name, parse(code, new Lexer(), new Parser()));
         }
 
-        compile(files, res.getString("d"));
+        return compile((HashMap)files);
     }
 
-    static void compile(HashMap<String, ArrayList<Token>> files, String dir) {
+    public static Map<String, FileScope> compile(HashMap<String, ArrayList<Token>> files) {
         HashMap locals = new HashMap();
         LinkedHashMap fileScopes = new LinkedHashMap();
         HashMap macroNames = new HashMap();
@@ -242,14 +312,13 @@ public class Main {
             fs1.compileDefs();
         }
 
-        ArrayClassLoader cl = new ArrayClassLoader();
         Set iterable2 = fileScopes.entrySet();
         Iterator it2 = iterable2.iterator();
 
         for(int notused2 = 0; it2.hasNext(); ++notused2) {
             Entry entry2 = (Entry)it2.next();
             FileScope fs2 = (FileScope)entry2.getValue();
-            fs2.compileMacros(cl);
+            fs2.compileMacros();
         }
 
         Set iterable3 = fileScopes.entrySet();
@@ -270,29 +339,7 @@ public class Main {
             fs4.compileMethods(GenHandler.inst);
         }
 
-        Set iterable5 = fileScopes.entrySet();
-        Iterator it5 = iterable5.iterator();
-
-        for(int notused5 = 0; it5.hasNext(); ++notused5) {
-            Entry entry5 = (Entry)it5.next();
-            FileScope fs5 = (FileScope)entry5.getValue();
-            List iterable6 = fs5.newClasses;
-            Iterator it6 = iterable6.iterator();
-
-            for(int notused6 = 0; it6.hasNext(); ++notused6) {
-                ClassInfo var40 = (ClassInfo)it6.next();
-                var40.writeFile(dir);
-            }
-
-            List iterable7 = fs5.anonClasses;
-            Iterator it7 = iterable7.iterator();
-
-            for(int notused7 = 0; it7.hasNext(); ++notused7) {
-                ClassInfo var44 = (ClassInfo)it7.next();
-                var44.writeFile(dir);
-            }
-        }
-
+        return fileScopes;
     }
 
     public static Type resolveType(Map<TypeVariable, Type> map, Type pt, Type t) {
@@ -590,16 +637,7 @@ public class Main {
 
     public static Type numericOpType(Type[] types) {
         List l = Arrays.asList(types);
-        PrimType otype = Type.intType;
-        if(!l.contains(Type.doubleType) && !l.contains(ClassType.make("java.lang.Double"))) {
-            if(l.contains(Type.longType) || l.contains(ClassType.make("java.lang.Long"))) {
-                otype = Type.longType;
-            }
-        } else {
-            otype = Type.doubleType;
-        }
-
-        return otype;
+        return !l.contains(Type.doubleType) && !l.contains(ClassType.make("java.lang.Double"))?(!l.contains(Type.longType) && !l.contains(ClassType.make("java.lang.Long"))?Type.intType:Type.longType):Type.doubleType;
     }
 
     public static boolean allNumeric(Type[] types) {
@@ -630,11 +668,16 @@ public class Main {
         return inv?((n & 1) != 0?n + 1:n - 1):n;
     }
 
-    public static Type emitInvoke(Handler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
+    public static Type emitInvoke(GenHandler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
         boolean output = code != null;
         Type[] types = emitter.emitAll(h, mi, (CodeAttr)null, unknownType);
         MFilter filter = new MFilter(name, types, type);
-        filter.searchAll();
+        if(special) {
+            filter.searchDeclared();
+        } else {
+            filter.searchAll();
+        }
+
         MethodCall mc = filter.getMethodCall();
         Method method = mc.m;
         TypeVariable[] typeParameters = method.getTypeParameters();
@@ -687,10 +730,10 @@ public class Main {
             code.emitCheckcast(out.getRawType());
         }
 
-        return h.castMaybe(code, out, needed);
+        return h.castMaybe(out, needed);
     }
 
-    public static Type emitInvoke(Handler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed) {
+    public static Type emitInvoke(GenHandler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed) {
         return emitInvoke(h, name, type, emitter, mi, code, needed, false);
     }
 
@@ -698,7 +741,7 @@ public class Main {
         return (Type)(allNumeric(types)?numericOpType(types):Type.objectType);
     }
 
-    public static Type emitIf_(Handler h, boolean inv, Token tok, int i, int e, String compare, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
+    public static Type emitIf_(GenHandler h, boolean inv, Token tok, int i, int e, String compare, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
         boolean output = code != null;
         Type var10000;
         if(compare.equals("!")) {
@@ -795,7 +838,7 @@ public class Main {
         return var10000;
     }
 
-    public static Type emitIf(Handler h, boolean inv, Token tok, int i, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
+    public static Type emitIf(GenHandler h, boolean inv, Token tok, int i, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
         Token cond = (Token)tok.toks.get(i);
         return cond instanceof CompareToken?emitIf_(h, inv, cond, 1, cond.toks.size(), ((VToken)((Token)cond.toks.get(0))).val, trueE, falseE, mi, code, needed):emitIf_(h, inv, tok, i, i + 1, "!=0", trueE, falseE, mi, code, needed);
     }
@@ -817,12 +860,12 @@ public class Main {
 
             while(i1 != rparams.length) {
                 code.emitLoad(code.getArg(i1 + 1));
-                GenHandler.inst.castMaybe(code, rparams[i1], target.getGenericParameterTypes()[i1]);
+                GenHandler.castMaybe(code, rparams[i1], target.getGenericParameterTypes()[i1]);
                 ++i1;
             }
 
             code.emitInvoke(target);
-            GenHandler.inst.castMaybe(code, target.getReturnType(), ret.getRawType());
+            GenHandler.castMaybe(code, target.getReturnType(), ret.getRawType());
             code.emitReturn();
         }
 
@@ -835,12 +878,12 @@ public class Main {
         return ClassType.make(sb.toString());
     }
 
-    static int tokToString(Token tok, int line, int tabs, StringBuffer sb) {
-        for(int i = tok.line - line; i > 0; --i) {
+    static int formatTok(Token tok, int line, int toLine, int tabs, StringBuffer sb) {
+        for(int i = toLine - line; i > 0; --i) {
             sb.append("\n");
         }
 
-        if(tok.line != line) {
+        if(toLine != line) {
             for(int i1 = tabs; i1 > 0; --i1) {
                 sb.append("\t");
             }
@@ -848,28 +891,33 @@ public class Main {
 
         line = tok.line;
         if(tok instanceof BlockToken) {
-            blockTokToString(tok, line, tabs, sb);
+            BlockToken tok1 = (BlockToken)tok;
+            formatToks(tok1, tabs, "(", ")", sb);
         } else if(tok instanceof GenericToken) {
-            line = tokToString(((GenericToken)tok).tok, line, tabs, sb);
-            sb.append("{");
-            toksToString(tok.toks, line, tabs, sb);
-            sb.append("}");
+            GenericToken tok2 = (GenericToken)tok;
+            formatTok(tok2.tok, line, line, tabs, sb);
+            formatToks(tok2, tabs, "{", "}", sb);
         } else if(tok instanceof ColonToken) {
-            line = tokToString((Token)tok.toks.get(0), line, tabs, sb);
+            ColonToken tok3 = (ColonToken)tok;
+            line = formatTok((Token)tok3.toks.get(0), line, line, tabs, sb);
             sb.append(":");
-            tokToString((Token)tok.toks.get(1), line, tabs, sb);
+            formatTok((Token)tok3.toks.get(1), line, line, tabs, sb);
         } else if(tok instanceof SingleQuoteToken) {
+            SingleQuoteToken tok4 = (SingleQuoteToken)tok;
             sb.append("\'");
-            tokToString((Token)tok.toks.get(0), line, tabs, sb);
+            formatTok((Token)tok4.toks.get(0), line, line, tabs, sb);
         } else if(tok instanceof QuoteToken) {
-            sb.append(((QuoteToken)tok).transform?"`":"~");
-            tokToString((Token)tok.toks.get(0), line, tabs, sb);
+            QuoteToken tok5 = (QuoteToken)tok;
+            sb.append(tok5.transform?"`":"~");
+            formatTok((Token)tok5.toks.get(0), line, line, tabs, sb);
         } else if(tok instanceof UnquoteToken) {
-            sb.append(((UnquoteToken)tok).s?",$":",");
-            tokToString((Token)tok.toks.get(0), line, tabs, sb);
+            UnquoteToken tok6 = (UnquoteToken)tok;
+            sb.append(tok6.s?",$":",");
+            formatTok((Token)tok6.toks.get(0), line, line, tabs, sb);
         } else if(tok instanceof CommentToken) {
+            CommentToken tok7 = (CommentToken)tok;
             sb.append(";");
-            sb.append(((CommentToken)tok).val);
+            sb.append(tok7.val);
         } else {
             sb.append(tok.toString());
         }
@@ -877,51 +925,63 @@ public class Main {
         return tok.endLine;
     }
 
-    static int blockTokToString(Token block, int line, int tabs, StringBuffer sb) {
-        sb.append("(");
-        int i = 0;
+    static int formatToks(Token block, int tabs, String before, String after, StringBuffer sb) {
+        sb.append(before);
+        int line = 0;
+        boolean cont = true;
         List iterable = block.toks;
         Iterator it = iterable.iterator();
 
-        for(int notused = 0; it.hasNext(); ++notused) {
+        for(int i = 0; it.hasNext(); ++i) {
             Token tok = (Token)it.next();
-            if(i != 0 && tok.line == line) {
-                sb.append(" ");
+            boolean indent = false;
+            int toLine = tok.line;
+            boolean multiline = tok.firstLine() != tok.lastLine();
+            if(i == 0) {
+                if(multiline) {
+                    toLine = line + 1;
+                    indent = true;
+                } else {
+                    toLine = line;
+                }
+            } else if(tok.line == line && multiline) {
+                toLine = tok.line + 1;
+                indent = true;
+            } else {
+                if(tok.line == line) {
+                    sb.append(" ");
+                }
+
+                indent = tok.line != block.line;
             }
 
-            line = tokToString(tok, line, tabs + (tok.line == block.line?0:1), sb);
-            ++i;
+            line = formatTok(tok, line, toLine, tabs + (indent?1:0), sb);
         }
 
-        for(int i1 = block.endLine - line; i1 > 0; --i1) {
+        if(block.firstLine() != block.lastLine()) {
             sb.append("\n");
-        }
 
-        if(line != block.endLine) {
-            for(int i2 = tabs; i2 > 0; --i2) {
+            for(int i1 = tabs; i1 > 0; --i1) {
                 sb.append("\t");
             }
         }
 
-        sb.append(")");
+        sb.append(after);
         line = block.endLine;
         return line;
     }
 
-    static int toksToString(List<Token> toks, int line, int tabs, StringBuffer sb) {
-        int i = 0;
+    static String formatToks(List<Token> toks) {
+        StringBuffer sb = new StringBuffer();
+        int line = toks.size() != 0?((Token)toks.get(0)).line:1;
         Iterator it = toks.iterator();
 
-        for(int notused = 0; it.hasNext(); ++notused) {
+        for(int i = 0; it.hasNext(); ++i) {
             Token tok = (Token)it.next();
-            if(i != 0 && tok.line == line) {
-                sb.append(" ");
-            }
-
-            line = tokToString(tok, line, tabs, sb);
-            ++i;
+            int off = tok.line == line && i != 0?1:0;
+            line = formatTok(tok, line, tok.line + off, 0, sb);
         }
 
-        return line;
+        return sb.toString();
     }
 }

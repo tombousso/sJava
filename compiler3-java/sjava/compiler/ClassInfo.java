@@ -1,6 +1,7 @@
 package sjava.compiler;
 
 import gnu.bytecode.Access;
+import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
@@ -10,14 +11,16 @@ import gnu.bytecode.TypeVariable;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.FileScope;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
-import sjava.compiler.handlers.Handler;
+import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.SingleQuoteToken;
@@ -29,16 +32,17 @@ public class ClassInfo {
     public FileScope fs;
     List<Token> toks;
     public List<AMethodInfo> methods;
-    public int anonymous;
+    public List<ClassInfo> anonClasses;
     public Class rc;
     HashMap<String, TypeVariable> tvs;
+    byte[] classfile;
 
     public ClassInfo(ClassType c, FileScope fs) {
         this.fs = fs;
         this.c = c;
         this.toks = new ArrayList();
         this.methods = new ArrayList();
-        this.anonymous = 1;
+        this.anonClasses = new ArrayList();
         if(c != null) {
             this.c.setClassfileVersion(ClassType.JDK_1_8_VERSION);
             this.c.setSuper(Type.javalangObjectType);
@@ -61,14 +65,63 @@ public class ClassInfo {
         this(new ClassType(name), fs);
     }
 
-    void writeFile(String dir) {
+    byte[] getClassfile() {
+        if(this.classfile == null) {
+            this.classfile = this.c.writeToArray();
+        }
+
+        return this.classfile;
+    }
+
+    public void addToClassLoader(ArrayClassLoader cl) {
+        cl.addClass(this.c.getName(), this.getClassfile());
+        List iterable = this.anonClasses;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            ClassInfo anon = (ClassInfo)it.next();
+            anon.addToClassLoader(cl);
+        }
+
+    }
+
+    public Class getClazz(ArrayClassLoader cl) {
+        Class c = (Class)null;
+
+        try {
+            c = cl.loadClass(this.c.getName());
+            return c;
+        } catch (Throwable var4) {
+            throw new RuntimeException(var4);
+        }
+    }
+
+    public Class getClazz() {
+        ArrayClassLoader cl = new ArrayClassLoader();
+        this.addToClassLoader(cl);
+        return this.getClazz(cl);
+    }
+
+    public void writeFiles(String dir) {
         String pre = dir.concat(this.fs.package_.replace(".", "/"));
         (new File(pre)).mkdirs();
 
         try {
-            this.c.writeToFile(pre.concat(this.c.getSimpleName()).concat(".class"));
-        } catch (Throwable var4) {
-            var4.printStackTrace();
+            StringBuilder sb = new StringBuilder();
+            sb.append(pre);
+            sb.append(this.c.getSimpleName());
+            sb.append(".class");
+            FileUtils.writeByteArrayToFile(new File(sb.toString()), this.getClassfile());
+        } catch (Throwable var9) {
+            throw new RuntimeException(var9);
+        }
+
+        List iterable = this.anonClasses;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            ClassInfo anon = (ClassInfo)it.next();
+            anon.writeFiles(dir);
         }
 
     }
@@ -83,7 +136,7 @@ public class ClassInfo {
 
         name = name.replace("[", "");
         name = name.replace("]", "");
-        boolean rel = name.contains(".");
+        boolean abs = name.contains(".");
         Object var10000;
         if(this.tvs != null && this.tvs.containsKey(name)) {
             var10000 = (TypeVariable)this.tvs.get(name);
@@ -91,19 +144,28 @@ public class ClassInfo {
             var10000 = (Type)Main.constTypes.get(name);
         } else if(this.fs.locals.containsKey(name)) {
             var10000 = (Type)this.fs.locals.get(name);
-        } else if(!rel && this.fs.locals.containsKey(this.fs.package_.concat(name))) {
+        } else if(!abs && this.fs.locals.containsKey(this.fs.package_.concat(name))) {
             var10000 = (Type)this.fs.locals.get(this.fs.package_.concat(name));
         } else if(this.fs.imports.containsKey(name)) {
-            var10000 = (Type)this.fs.imports.get(name);
+            String fullName = (String)this.fs.imports.get(name);
+            if(this.fs.locals.containsKey(fullName)) {
+                var10000 = (Type)this.fs.locals.get(fullName);
+            } else {
+                if(!this.fs.classExists(fullName)) {
+                    throw new RuntimeException();
+                }
+
+                var10000 = Type.getType(fullName);
+            }
         } else {
             Type type = (Type)null;
 
-            for(int i1 = 0; !rel && type == null && i1 != this.fs.starImports.size(); ++i1) {
-                String fullname = ((String)this.fs.starImports.get(i1)).concat(name);
-                if(this.fs.locals.containsKey(fullname)) {
-                    type = (Type)this.fs.locals.get(fullname);
-                } else if(this.fs.classExists(fullname)) {
-                    type = Type.getType(fullname);
+            for(int i1 = 0; !abs && type == null && i1 != this.fs.starImports.size(); ++i1) {
+                String fullName1 = ((String)this.fs.starImports.get(i1)).concat(name);
+                if(this.fs.locals.containsKey(fullName1)) {
+                    type = (Type)this.fs.locals.get(fullName1);
+                } else if(this.fs.classExists(fullName1)) {
+                    type = Type.getType(fullName1);
                 }
             }
 
@@ -208,7 +270,7 @@ public class ClassInfo {
 
     }
 
-    public void compileMethods(Handler h) {
+    public void compileMethods(GenHandler h) {
         for(int i = 0; i != this.methods.size(); ++i) {
             AMethodInfo mi = (AMethodInfo)this.methods.get(i);
             mi.compileMethodBody(h);

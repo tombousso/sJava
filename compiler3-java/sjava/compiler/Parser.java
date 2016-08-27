@@ -12,19 +12,17 @@ import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.UnquoteToken;
 
-class Parser {
-    ArrayList<Token> toks;
+public class Parser {
+    List<Token> toks;
     int i;
     boolean ignoreComments;
 
-    Parser(ArrayList<Token> toks, boolean ignoreComments) {
-        this.toks = toks;
+    public Parser(boolean ignoreComments) {
         this.ignoreComments = ignoreComments;
-        this.i = 0;
     }
 
-    Parser(ArrayList<Token> toks) {
-        this(toks, true);
+    public Parser() {
+        this(true);
     }
 
     Token next() {
@@ -100,7 +98,9 @@ class Parser {
         return this.peek(0).prec;
     }
 
-    List<Token> parseAll() {
+    List<Token> parseAll(List<Token> toks) {
+        this.i = 0;
+        this.toks = toks;
         ArrayList out = new ArrayList();
 
         while(this.i != this.toks.size()) {

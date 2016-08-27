@@ -1,11 +1,12 @@
+(package sjava.examples.scope)
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(define i 0)
 		(label a)
-		(if (= i 1)
+		(if (= i 2)
 			(goto end)
 		)
-		(set i 1)
 		(begin
 			(define i 0)
 			(label a)
@@ -17,6 +18,7 @@
 				)
 			)
 		)
+		(inc i)
 		(goto a)
 		(label end)
 	)

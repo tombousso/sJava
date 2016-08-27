@@ -4,8 +4,6 @@
 (import java.nio.file.*)
 (import gnu.bytecode.*)
 (import java.io.*)
-(import net.sourceforge.argparse4j.ArgumentParsers)
-(import net.sourceforge.argparse4j.inf.*)
 
 (define-class Main () 'public
 	(ML int 'static) ;max length of a special token
@@ -119,25 +117,20 @@
 			(set i (+ i 1))
 		)
 
-		(define parser (ArgumentParsers:newArgumentParser "sJava compiler"))
-		((parser:addArgument (String[] "-d")):setDefault "out")
-		((parser:addArgument (String[] "file")):nargs "*")
-
-		(define res (parser:parseArgs args))
-		(define fileNames List{String} (res:getList "file"))
 		(define files (LinkedHashMap{String List{Token}}))
 
-		(define it (fileNames:iterator))
-		(while (it:hasNext)
-			(define name String (it:next))
+		(define i 0)
+		(while (!= i (- (alen args) 2))
+			(define name (aget args i))
 			(define s (String (Files:readAllBytes (Paths:get name (String[])))))
 			(define toks ((Lexer s):lex))
 			;((Parser toks):parse 0 (toks:size) Main:MP 0)
 			(set toks ((Parser toks):parseAll))
 			(files:put name toks)
+			(set i (+ i 1))
 		)
 		;((System:console):readLine)
-		(Main:compile files (res:getString "d"))
+		(Main:compile files (aget args (- (alen args) 1)))
 		;((System:console):readLine)
 	)
 	((compile files HashMap{String ArrayList{Token}} dir String) void 'static
@@ -838,6 +831,20 @@
 	)
 )
 
+(define-class ConstToken (Token) 'public
+	(val String 'public)
+	((<init> line int val String) void
+		(super:<init> line)
+		(set this:val val)
+	)
+	((toString) String
+		this:val
+	)
+	((<init>) void 'public
+		(super:<init>)
+	)
+)
+
 (define-class Lexer ()
 	(code String)
 	(i int)
@@ -914,7 +921,7 @@
 						(this:nextTok)
 						(define s (this:code:substring oi this:i))
 						(if (|| (s:equals "null") (s:equals "true") (s:equals "false"))
-							(Token this:line -1 s)
+							(ConstToken this:line s)
 							(VToken this:line s)
 						)
 					)
@@ -1236,6 +1243,7 @@
 								(this:imports:put "Token" (Main:getCompilerType "Token"))
 								(this:imports:put "BlockToken" (Main:getCompilerType "BlockToken"))
 								(this:imports:put "VToken" (Main:getCompilerType "VToken"))
+								(this:imports:put "ConstToken" (Main:getCompilerType "ConstToken"))
 							)
 						(if (import:contains "*")
 							(this:starImports:add (import:replace "*" ""))
@@ -2412,16 +2420,17 @@
 	((<clinit>) void 'static (set ConstsHandler:inst (ConstsHandler)))
 	((<init>) void (super:<init>))
 	((valid tok Token mi AMethodInfo needed Type) bool 'public
-		(|| (tok:what:equals "true") (tok:what:equals "false") (tok:what:equals "null"))
+		(instance? tok ConstToken)
 	)
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(if (tok:what:equals "true")
+		(define val (as ConstToken tok):val)
+		(if (val:equals "true")
 			(begin
 				(if output (code:emitPushInt 1))
 				Type:booleanType
 			)
-		(if (tok:what:equals "false")
+		(if (val:equals "false")
 			(begin
 				(if output (code:emitPushInt 0))
 				Type:booleanType
@@ -2920,7 +2929,7 @@
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
 		(define first (tok:toks:get 0))
-		(Main:emitIf_ h false tok 1 (tok:toks:size) (as VToken first):val (Token tok:line -1 "true") (Token tok:line -1 "false") mi code Type:booleanType)
+		(Main:emitIf_ h false tok 1 (tok:toks:size) (as VToken first):val (ConstToken tok:line "true") (ConstToken tok:line "false") mi code Type:booleanType)
 	)
 )
 

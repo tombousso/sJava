@@ -1,3 +1,5 @@
+(package sjava.examples.test)
+
 (import java.util.*)
 (import java.util.stream.*)
 (import java.util.function.*)
@@ -41,12 +43,14 @@
 		(inc x)
 		(dec x 4)
 
-		(define runnable (object (Runnable)
-			((run) void 'public
-				(System:out:println (concat x " == " 3))
-				(System:out:println "AA")
+		(define runnable
+			(object (Runnable)
+				((run) void 'public
+					(System:out:println (concat x " == " 3))
+					(System:out:println "AA")
+				)
 			)
-		))
+		)
 		(runnable)
 		(runnable:run)
 
@@ -92,11 +96,13 @@
 		(define list (Arrays:asList 5 9 3 8 2 9))
 		(System:out:println (+ (list:get 0) 1))
 		(define stream (list:stream))
-		(set stream (stream:filter
-			(lambda Predicate{Integer} (i)
-				(> i 5)
+		(set stream
+			(stream:filter
+				(lambda Predicate{Integer} (i)
+					(> i 5)
+				)
 			)
-		))
+		)
 		(define collector (Collectors:toList))
 		(define filtered (stream:collect collector))
 		(println filtered)
@@ -116,9 +122,17 @@
 
 		(println (instance? "a" Object))
 
-		(println (synchronized "a"
-			3
-		))
+		(println
+			(synchronized "a"
+				3
+			)
+		)
+
+		(include `(System:out:println "abc"))
+
+		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
+		(System:out:format "%d:%s\n" 5 "wow")
+		(System:out:format "5:wow\n")
 
 		;(System:out:println null)
 	)

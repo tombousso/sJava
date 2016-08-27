@@ -162,7 +162,7 @@
 									(aset types (- np 1)
 										(if default
 											(aget params (- np 1))
-											(ArrayType (aget this:types (- np 1)))
+											(ArrayType (aget this:types (- np 1))) ;can be more specific
 										)
 									)
 									types

@@ -1,3 +1,5 @@
+(package sjava.examples.macro)
+
 (define-macro (getTimestamp f)
 	`,$((java.text.SimpleDateFormat (as sjava.compiler.tokens.SToken f):val):format (java.util.Date))
 )
@@ -17,19 +19,18 @@
 		(repeat 5 (System:out:println i))
 
 		(System:out:println ("Compiled at ":concat (getTimestamp "HH:mm:ss MM/dd/yyyy")))
-		(System:out:println ("Compile time dice roll result: ":concat (include
-			;inline macro
-			(begin
-				(System:out:println "Compile time")
-				`,$(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
+		(System:out:println
+			("Compile time dice roll result: ":concat
+				(include
+					;inline macro
+					(begin
+						(System:out:println "Compile time")
+						`,$(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
+					)
+				)
 			)
-		)))
+		)
 		(System:out:println ("Runtime random number up to 1000: ":concat (rand 1000)))
-		(include `(System:out:println "abc"))
-
-		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
-		(System:out:format "%d:%s\n" 5 "wow")
-		(System:out:format "5:wow\n")
 
 		(System:out:println "A") (System:out:println "B") (System:out:println "C")
 

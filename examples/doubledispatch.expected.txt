@@ -1,0 +1,9 @@
+0 string1
+1 string1
+2 integer1
+3 integer1
+
+0 string2
+1 string2
+2 integer2
+3 integer2

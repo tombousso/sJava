@@ -4,7 +4,7 @@
 	{% if context.get("taken") %}
 		<div><p class="error">Username is already taken.</p></div>
 	{% endif %}
-	{% if context.get("recaptcha error") %}
+	{% if context.get("recaptchaError") %}
 		<div><p class="error">reCAPTCHA error.</p></div>
 	{% endif %}
 	{% if context.get("invalidName") %}

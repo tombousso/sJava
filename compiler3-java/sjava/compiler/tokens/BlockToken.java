@@ -19,6 +19,14 @@ public class BlockToken extends Token {
         return sb.toString();
     }
 
+    public int firstLine() {
+        return super.toks.size() == 0?super.line:((Token)super.toks.get(0)).firstLine();
+    }
+
+    public int lastLine() {
+        return super.toks.size() == 0?super.line:((Token)super.toks.get(super.toks.size() - 1)).lastLine();
+    }
+
     public BlockToken() {
     }
 }

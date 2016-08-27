@@ -1,0 +1,119 @@
+(package sjava.compiler.commands)
+
+(import sjava.compiler.*)
+
+(import java.util.*)
+(import gnu.bytecode.*)
+(import java.io.*)
+(import org.apache.commons.cli.*)
+
+(define-class Command () 'public 'abstract
+	(parser DefaultParser 'public)
+	(options Options 'public)
+	((<init>) void
+		(super:<init>)
+		(set this:parser (DefaultParser))
+		(set this:options (Options))
+		(this:options:addOption (((Option:builder "h"):longOpt "help"):build))
+	)
+	((name) String 'public 'abstract)
+	((helpHeader) String "")
+	((helpFooter) String "")
+	((helpArgs) String 'abstract)
+	((printHelp) void 'public
+		((HelpFormatter):printHelp (concat "sjava " (this:name) " " (this:helpArgs)) (this:helpHeader) this:options (this:helpFooter))
+	)
+	((run commandLine CommandLine args List{String}) void 'public 'abstract)
+)
+
+(define-class BuildCommand (Command) 'public
+	((<init>) void 'public
+		(super:<init>)
+		(this:options:addOption ((((Option:builder "d"):hasArg):desc "Output directory for classfiles"):build))
+	)
+	((name) String 'public "build")
+	((helpArgs) String "[options] [files]")
+	((run commandLine CommandLine args List{String}) void 'public
+		(define fileNames args)
+		(if (= (fileNames:size) 0)
+			(this:printHelp)
+			(begin
+				(define dir (if (commandLine:hasOption "d") (commandLine:getOptionValue "d") ""))
+
+				(define fileScopes (Main:compile fileNames))
+				(forEach entry (fileScopes:entrySet)
+					(define fs (entry:getValue))
+					(forEach ci fs:newClasses
+						(ci:writeFiles dir)
+					)
+				)
+			)
+		)
+	)
+)
+
+(define-class RunCommand (Command) 'public
+	((<init>) void 'public
+		(super:<init>)
+	)
+	((name) String 'public "run")
+	((helpArgs) String "<MainClass> [files]")
+	((run commandLine CommandLine args List{String}) void 'public
+		(if (< (args:size) 2)
+			(this:printHelp)
+			(try
+				(begin
+					(define fileNames (args:subList 1 (args:size)))
+
+					(define fileScopes (Main:compile fileNames))
+					(define cl (ArrayClassLoader))
+					(define found ClassInfo null)
+					(forEach entry (fileScopes:entrySet)
+						(define fs (entry:getValue))
+						(forEach ci fs:newClasses
+							(if ((ci:c:getName):equals (args:get 0))
+								(set found ci)
+							)
+							(ci:addToClassLoader cl)
+						)
+					)
+					(if (= found null)
+						(println (args:get 0) " not found")
+						(((found:getClazz cl):getMethod "main" (class String[])):invoke null null)
+					)
+				)
+				(e Throwable (e:printStackTrace))
+			)
+		)
+	)
+)
+
+(define-class FormatCommand (Command) 'public
+	((<init>) void 'public
+		(super:<init>)
+	)
+	((name) String 'public "fmt")
+	((helpArgs) String "[files]")
+	((run commandLine CommandLine args List{String}) void 'public
+		(define fileNames args)
+		(if (= (fileNames:size) 0)
+			(this:printHelp)
+			(try
+				(begin
+					(forEach name fileNames
+						(define f (File name))
+						(define in (org.apache.commons.io.FileUtils:readFileToString f))
+						(define out (Main:formatCode in))
+						(if (! (in:equals out))
+							(begin
+								(println "Overwriting " name)
+								(org.apache.commons.io.FileUtils:writeStringToFile f out)
+							)
+						)
+					)
+				)
+				(e Throwable (e:printStackTrace))
+			)
+		)
+	)
+)

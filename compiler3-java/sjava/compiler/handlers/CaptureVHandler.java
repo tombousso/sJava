@@ -34,11 +34,11 @@ class CaptureVHandler extends GenHandler {
 
     }
 
-    public Type compile(VToken tok, AMethodInfo mi, CodeAttr code, Type needed) {
-        boolean output = code != null;
+    public Type compile(VToken tok, AMethodInfo mi, Type needed) {
+        boolean output = super.code != null;
         AVar found = mi.getVar(tok);
         if(found instanceof VCaptured) {
-            this.assignField((VCaptured)found, mi, code);
+            this.assignField((VCaptured)found, mi, super.code);
         }
 
         Type var10000;
@@ -49,11 +49,11 @@ class CaptureVHandler extends GenHandler {
             }
 
             VCaptured vcaptured = new VCaptured(outer, (Field)null);
-            this.assignField(vcaptured, mi, code);
+            this.assignField(vcaptured, mi, super.code);
             ((Map)((ArrayDeque)mi.scopes.get(tok.macro)).getLast()).put(tok.val, vcaptured);
-            var10000 = vcaptured.load(code);
+            var10000 = vcaptured.load(super.code);
         } else {
-            var10000 = found.load(code);
+            var10000 = found.load(super.code);
         }
 
         return var10000;

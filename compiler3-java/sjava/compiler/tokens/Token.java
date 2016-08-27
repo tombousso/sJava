@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.emitters.Emitter;
-import sjava.compiler.handlers.Handler;
+import sjava.compiler.handlers.GenHandler;
 
 public class Token extends Emitter {
     public int line;
@@ -66,7 +66,15 @@ public class Token extends Emitter {
         return this.what;
     }
 
-    public Type emit(Handler h, AMethodInfo mi, CodeAttr code, Type needed) {
+    public Type emit(GenHandler h, AMethodInfo mi, CodeAttr code, Type needed) {
         return h.compile(this, mi, code, needed);
+    }
+
+    public int firstLine() {
+        return this.line;
+    }
+
+    public int lastLine() {
+        return this.endLine;
     }
 }
