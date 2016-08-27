@@ -1,6 +1,6 @@
 bin/*
 !bin/1-2/
-compiler3-java/**/*.class
+generated-java/**/*.class
 vertx/cp.txt
 vertx/bin/
 vertx/.vertx/

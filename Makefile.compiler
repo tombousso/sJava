@@ -26,7 +26,7 @@ COMPILER3_FILES=$(call rwildcard,$(TOP)compiler3/,*.sjava)
 STD_FILES=$(wildcard $(TOP)std/*.sjava)
 
 COMPILER3_CLASSFILES=$(call rwildcard,$(TOP)bin/sjava/compiler/,*.class)
-COMPILER3_JAVA_FILES=$(patsubst $(TOP)bin/%.class,$(TOP)compiler3-java/%.java,$(COMPILER3_CLASSFILES))
+COMPILER3_JAVA_FILES=$(patsubst $(TOP)bin/%.class,$(TOP)generated-java/%.java,$(COMPILER3_CLASSFILES))
 
 JAR=$(TOP)sjava.jar
 
@@ -43,7 +43,7 @@ diff23: $(COMPILER) $(COMPILER3_3)
 
 diff: diff12 diff23
 
-$(COMPILER1): $(TOP)compiler1.scm $(TOP)compiler2.sjava
+$(COMPILER1): #$(TOP)compiler1.scm $(TOP)compiler2.sjava
 	$(JAVA) -classpath $(call classpathify,$(JARS)) kawa.repl $(TOP)compiler1.scm $(TOP)compiler2.sjava
 
 $(COMPILER2): $(COMPILER1) $(TOP)compiler2.sjava
@@ -58,15 +58,15 @@ $(COMPILER): $(COMPILER3) $(COMPILER3_FILES) $(STD)
 $(STD): $(COMPILER3) $(STD_FILES)
 	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-3) sjava.compiler.Main build $(STD_FILES) -d $(TOP)bin/
 
-$(TOP)compiler3-java/sjava/compiler/Main.java: $(COMPILER)
-	mkdir -p $(TOP)compiler3-java/sjava/compiler
-	$(JAVA) -jar $(TOP)fernflower.jar -ind="    " -dgs=1 $(TOP)bin/sjava/compiler $(TOP)compiler3-java/sjava/compiler
+$(TOP)generated-java/sjava/compiler/Main.java: $(COMPILER)
+	mkdir -p $(TOP)generated-java/sjava/compiler
+	$(JAVA) -jar $(TOP)fernflower.jar -ind="    " -dgs=1 $(TOP)bin/sjava/compiler $(TOP)generated-java/sjava/compiler
 
-java-sources: $(TOP)compiler3-java/sjava/compiler/Main.java
+java-sources: $(TOP)generated-java/sjava/compiler/Main.java
 
 java-compile: diff
 	javac -Xdiags:verbose -classpath $(call classpathify,$(JARS)) $(COMPILER3_JAVA_FILES)
-	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)compiler3-java) sjava.compiler.Main build $(COMPILER3_FILES) -d $(TOP)bin/java-3-3/
+	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)generated-java) sjava.compiler.Main build $(COMPILER3_FILES) -d $(TOP)bin/java-3-3/
 	diff -r $(TOP)bin/sjava/compiler $(TOP)bin/java-3-3/sjava/compiler
 
 $(JAR): $(COMPILER) $(TOP)Manifest.txt

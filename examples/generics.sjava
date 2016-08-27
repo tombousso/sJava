@@ -3,7 +3,7 @@
 (import java.util.*)
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
-		(define al (ArrayList{Integer}))
+		(define al (ArrayList{Integer})) ;constructor
 		(al:add 3)
 		(al:add 4)
 		(System:out:println (+ (al:get 0) (al:get 1))) ;prints 7
