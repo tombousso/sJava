@@ -10,12 +10,14 @@
 (import javafx.scene.paint.*)
 (import javafx.animation.*)
 (import javafx.event.*)
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(set App:userPlayer 1)
 		(Application:launch (class App))
 	)
 )
+
 (define-class App (Application) 'public
 	(gc GraphicsContext 'static)
 	(mouseX int 'static)
@@ -29,6 +31,85 @@
 	(turns int 'static)
 	((<init>) void 'public
 		(super:<init>)
+	)
+	((start stage Stage) void
+		(App:reset)
+		(set App:wh 512)
+		(set App:cell (/ 512 3))
+		(stage:setTitle "Tic Tac Toe")
+		(stage:setResizable false)
+		(define root (Group))
+		(define canvas (Canvas 512 512))
+		((root:getChildren):add canvas)
+		(set App:gc (canvas:getGraphicsContext2D))
+		(define scene (Scene root))
+		(stage:setScene scene)
+		(stage:sizeToScene)
+		(
+			(object (AnimationTimer)
+				((handle currentTime long) void
+					(App:gc:clearRect 0 0 App:wh App:wh)
+					(App:gc:setStroke Color:BLACK)
+
+					(App:gc:setLineWidth 1)
+					(App:gc:strokeLine App:cell 0 App:cell App:wh)
+					(App:gc:strokeLine (* 2 App:cell) 0 (* 2 App:cell) App:wh)
+					(App:gc:strokeLine 0 App:cell App:wh App:cell)
+					(App:gc:strokeLine 0 (* 2 App:cell) App:wh (* 2 App:cell))
+
+					(for (define x 0) (< x 3) (inc x)
+						(for (define y 0) (< y 3) (inc y)
+							(App:draw x y (aget (aget App:board x) y))
+						)
+					)
+
+					(App:gc:setStroke Color:GREENYELLOW)
+					(if (&& (! App:win) (< App:mouseX 3) (< App:mouseY 3) (= (aget (aget App:board App:mouseX) App:mouseY) 0))
+						(App:draw App:mouseX App:mouseY App:turn)
+					)
+				)
+			):start
+		)
+		(scene:setOnKeyPressed
+			(lambda EventHandler{KeyEvent} (event)
+				(if (= (event:getCode) KeyCode:ESCAPE)
+					(stage:close)
+				)
+			)
+		)
+		(scene:setOnMouseMoved
+			(lambda EventHandler{MouseEvent} (event)
+				(set App:mouseX (/ (event:getX) App:cell))
+				(set App:mouseY (/ (event:getY) App:cell))
+			)
+		)
+		(scene:setOnMouseClicked
+			(lambda EventHandler{MouseEvent} (event)
+				(if App:win
+					(App:reset)
+					(if (= (aget (aget App:board App:mouseX) App:mouseY) 0)
+						(begin
+							(App:play App:mouseX App:mouseY)
+							(App:bestMove)
+							(define n (App:check))
+							(if (!= n 0)
+								(begin
+									(println (if (= n 1) "X" "O") " won! Click to start a new game.")
+									(set App:win true)
+								)
+							)
+							(if (= App:turns 9)
+								(begin
+									(println "Tie! Click to start a new game.")
+									(set App:win true)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+		(stage:show)
 	)
 	((draw cx int cy int w int) void 'static
 		(App:gc:setLineWidth 10)
@@ -158,84 +239,5 @@
 		(aset (aget App:board x) y App:turn)
 		(set App:turn (if (= App:turn 1) 2 1))
 		(inc App:turns)
-	)
-	((start stage Stage) void
-		(App:reset)
-		(set App:wh 512)
-		(set App:cell (/ 512 3))
-		(stage:setTitle "Tic Tac Toe")
-		(stage:setResizable false)
-		(define root (Group))
-		(define canvas (Canvas 512 512))
-		((root:getChildren):add canvas)
-		(set App:gc (canvas:getGraphicsContext2D))
-		(define scene (Scene root))
-		(stage:setScene scene)
-		(stage:sizeToScene)
-		(
-			(object (AnimationTimer)
-				((handle currentTime long) void
-					(App:gc:clearRect 0 0 App:wh App:wh)
-					(App:gc:setStroke Color:BLACK)
-
-					(App:gc:setLineWidth 1)
-					(App:gc:strokeLine App:cell 0 App:cell App:wh)
-					(App:gc:strokeLine (* 2 App:cell) 0 (* 2 App:cell) App:wh)
-					(App:gc:strokeLine 0 App:cell App:wh App:cell)
-					(App:gc:strokeLine 0 (* 2 App:cell) App:wh (* 2 App:cell))
-
-					(for (define x 0) (< x 3) (inc x)
-						(for (define y 0) (< y 3) (inc y)
-							(App:draw x y (aget (aget App:board x) y))
-						)
-					)
-
-					(App:gc:setStroke Color:GREENYELLOW)
-					(if (&& (! App:win) (< App:mouseX 3) (< App:mouseY 3) (= (aget (aget App:board App:mouseX) App:mouseY) 0))
-						(App:draw App:mouseX App:mouseY App:turn)
-					)
-				)
-			):start
-		)
-		(scene:setOnKeyPressed
-			(lambda EventHandler{KeyEvent} (event)
-				(if (= (event:getCode) KeyCode:ESCAPE)
-					(stage:close)
-				)
-			)
-		)
-		(scene:setOnMouseMoved
-			(lambda EventHandler{MouseEvent} (event)
-				(set App:mouseX (/ (event:getX) App:cell))
-				(set App:mouseY (/ (event:getY) App:cell))
-			)
-		)
-		(scene:setOnMouseClicked
-			(lambda EventHandler{MouseEvent} (event)
-				(if App:win
-					(App:reset)
-					(if (= (aget (aget App:board App:mouseX) App:mouseY) 0)
-						(begin
-							(App:play App:mouseX App:mouseY)
-							(App:bestMove)
-							(define n (App:check))
-							(if (!= n 0)
-								(begin
-									(println (if (= n 1) "X" "O") " won! Click to start a new game.")
-									(set App:win true)
-								)
-							)
-							(if (= App:turns 9)
-								(begin
-									(println "Tie! Click to start a new game.")
-									(set App:win true)
-								)
-							)
-						)
-					)
-				)
-			)
-		)
-		(stage:show)
 	)
 )

@@ -28,19 +28,21 @@ A more complex example of an sJava program including generics, autoboxing/unboxi
 	)
 
 
-The bytecode for this example can be found at [the bottom of the page](#final-thoughts).
-
 The sJava compiler outputs Java bytecode in classfiles just like the Java compiler.
 
 ##Walkthrough!
 
-###Hierarchy
+###Requirements
+JDK 8 - `java`  
+Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwin32/files/make/3.81/make-3.81.exe/download?use_mirror=heanet&download=))
+
+###Hierarchy (optional)
 ####`compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
 
 	├── compiler3/ (The main compiler)
 	│   ├── commands.sjava (BuildCommand, RunCommand, FormatCommand, etc.)
 	│   ├── emitters.sjava
-	│   ├── handlers.sjava (Bulk of the compilation code. The compile methods in a Handler act on Tokens using double dispatch)
+	│   ├── handlers.sjava (Bulk of the compilation code. compile methods in a Handler act on Tokens using double dispatch)
 	│   ├── Main.sjava (Lexer, Parser, various structures, CLI entry, statics)
 	│   ├── mfilters.sjava (Figuring out which methods to call)
 	│   └── tokens.sjava
@@ -67,10 +69,6 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 	├── sjava.bat (Windows script for *sjava.jar*)
 	└── generated-java/ (Auto generated Java version of compiler3 using fernflower)
 
-###Requirements
-Java 8 - `java`  
-Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwin32/files/make/3.81/make-3.81.exe/download?use_mirror=heanet&download=))
-
 ###Steps
 Once you've downloaded/cloned this repo open a terminal in its root directory.  
 (On Windows use `sjava.bat` instead of `./sjava`):
@@ -88,12 +86,12 @@ Once you've downloaded/cloned this repo open a terminal in its root directory.
 	usage: sjava run <MainClass> [files]
 
 (Inspired by Golang)  
-To run the tictactoe example which uses a JavaFX GUI:
+To run `examples/tictactoe.sjava`, which uses a JavaFX GUI:
 
 	> ./sjava run sjava.examples.tictactoe.Main examples/tictactoe.sjava
 
 Check out the code, it's about 200 lines.  
-The run command compiles sJava code and runs it from memory.
+The `run` command compiles sJava code and runs it from memory.  
 To rebuild `sjava.jar`:
 
 	> make jar
@@ -103,6 +101,7 @@ Have a look in `bin/sjava/compiler/tokens/` if you're interested in the differen
 To run all of the tests in `examples/`:
 
 	> make tester
+	doubledispatch: PASSED
 	formatterTest: PASSED
 	generics: PASSED
 	...
@@ -112,7 +111,7 @@ You can run the `tictactoe` example again (this time the classfiles are precompi
 
 	> make run-tictactoe
 
-And to run `examples/macro.sjava`:
+To run `examples/macro.sjava`:
 
 	> make run-macro
 	Compiled at 21:16:37 08/27/2016
@@ -123,14 +122,41 @@ And to run `examples/macro.sjava`:
 	Compile time dice roll result: 3
 	Runtime random number up to 1000: 131
 
-The date is the same in both runs because `make` didn't recompile `macro.sjava`, since it didn't change.
+The date is the same in both runs because `make` didn't recompile `macro.sjava`, since it didn't change.  
+And finally to run `doubledispatch`:
+
+	> make run-doubledispatch
+	0 string1
+	1 string1
+	2 integer1
+	3 integer1
+
+	0 string2
+	1 string2
+	2 integer2
+	3 integer2
+
+If you have a look at `examples/doubledispatch.sjava` you will notice that it uses several macros, including `println` and `forEachI` ("`I`" suffix means the user wants to define an index variable).  
+The most interesting macro is called on line 24, `doubleDispatch`. This macro roughly expands to:
+
+	(cond
+		((instance? o String)
+			(this:visit i (as String o))
+		)
+		((instance? o Integer)
+			(this:visit i (as Integer o))
+		)
+	)
+
+`cond` itself is actually a macro.  
+All of these macros are defined in `std/macros.sjava`.
 
 ###Language features
 In Java for-each loops and string concatenation are built in to the compiler. In sJava features like these are implemented as "standard macros" (`forEach` and `concat`) in `std/macros.sjava`, and they are available to all programs.
 
 Compile-time macros in sJava are very powerful. For example the `forEach` macro is able to ask the compiler at compile-time about the type of the object which the user is trying to iterate over. It checks if the type is an `ArrayType`, and if so it will create code which loops by incrementing a counter. Otherwise it will assume the user is trying to iterate over an `Iterable` and try to create an `Iterator`.
 
-The `concat` macro will automatically call `Arrays:toString` when passed in  `ArrayType`s.
+The `concat` macro will automatically call `Arrays:toString` when passed in `ArrayType`s.
 
 You can create a `printTest.sjava` file:
 
@@ -147,7 +173,7 @@ And run it:
 
 The `println` macro takes in a variable number of arguments and passes them all  to `concat` so you can see the `Arrays:toString` functionality in action.
 
-More features can be found in `examples/test.sjava` which demonstrates lambdas, in other examples, and in the code for `compiler3`.  Also if you're adventurous you can check out `vertx/` which is a little site I made using the Vertx library and sJava.
+More features can be found in `examples/test.sjava`, in other examples, and in `compiler3/**.sjava`.  Also if you're adventurous you can check out `vertx/` which is a little site I made using the Vertx library and sJava.
 
 If you've followed the walkthrough all the way until here, congrats! Let me know if you have any thoughts. The compiler still has some bugs I'm sure but overall it works reasonably well. If there's an error in compilation it will at least tell you which line is problematic, but parsing errors aren't handled right now.
 
@@ -168,7 +194,8 @@ If there are no errors then the `diff` command ran successfully meaning that the
 sJava borrows a lot from Kawa which is a Scheme implementation for the JVM. [Kawa](http://www.gnu.org/software/kawa/) is a really cool dynamic language (first class functions, macros, etc.) which can interact with traditional statically typed Java code. The first compiler for sJava was written in Kawa (`compiler1.scm`).  `compiler2` and `compiler3` are written in sJava.
 
 ### sJava Features
-* compile-time macros
+* hygenic compile-time macros
+* lambdas
 * autoboxing/unboxing
 * if statements/conditionals (short circuit)
 * arrays
