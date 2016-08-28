@@ -106,7 +106,7 @@ To run all of the tests in `examples/`:
 	generics: PASSED
 	...
 
-This will compile all of the examples and check the ones which have expected outputs.
+This will compile all of the examples and check the ones which have expected outputs.  
 You can run the `tictactoe` example again (this time the classfiles are precompiled in `bin/sjava/examples/tictactoe`):
 
 	> make run-tictactoe
@@ -170,6 +170,11 @@ And run it:
 
 	> ./sjava run Main printTest.sjava
 	Counting to 3: [1, 2, 3]
+
+Or build then run:
+
+	> ./sjava build printTest.sjava
+	> java Main
 
 The `println` macro takes in a variable number of arguments and passes them all  to `concat` so you can see the `Arrays:toString` functionality in action.
 
