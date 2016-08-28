@@ -33,8 +33,8 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 ##Walkthrough!
 
 ###Requirements
-JDK 8 - `java`  
-Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwin32/files/make/3.81/make-3.81.exe/download?use_mirror=heanet&download=))
+Java 8 - `java`  
+Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwin32/files/make/3.81/make-3.81.exe/download?use_mirror=heanet&download=) and run `set PATH=C:\Program Files (x86)\GnuWin32\bin;%PATH%` to add it to PATH temporarily)
 
 ###Hierarchy (optional)
 ####`compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
@@ -71,7 +71,7 @@ Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwi
 
 ###Steps
 Once you've downloaded/cloned this repo open a terminal in its root directory.  
-(On Windows use `sjava.bat` instead of `./sjava`):
+(On Windows use `sjava` instead of `./sjava`):
 
 	> ./sjava
 	usage: sjava [command] [arguments]
@@ -92,9 +92,9 @@ To run `examples/tictactoe.sjava`, which uses a JavaFX GUI:
 
 Check out the code, it's about 200 lines.  
 The `run` command compiles sJava code and runs it from memory.  
-To rebuild `sjava.jar`:
+To build `compiler3` into `bin/`:
 
-	> make jar
+	> make compiler
 
 If everything works you should notice a couple of new folders in your `bin/` directory including `bin/sjava/` (the main compiler), which is created when  `bin/2-3/` (`compiler3` compiled by `compiler2`) compiles `compiler3`.  
 Have a look in `bin/sjava/compiler/tokens/` if you're interested in the different Token types which are used during compilation.  

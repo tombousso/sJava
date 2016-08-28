@@ -30,7 +30,7 @@ COMPILER3_JAVA_FILES=$(patsubst $(TOP)bin/%.class,$(TOP)generated-java/%.java,$(
 
 JAR=$(TOP)sjava.jar
 
-.PHONY: diff12 diff23 diff java-sources java-compile jar
+.PHONY: diff12 diff23 diff java-sources java-compile jar compiler
 
 diff12: $(COMPILER2)
 	diff -r $(TOP)bin/1-2 $(TOP)bin/2-2
@@ -54,6 +54,8 @@ $(COMPILER3): $(COMPILER2) $(COMPILER3_FILES) $(STD_MACROS)
 
 $(COMPILER): $(COMPILER3) $(COMPILER3_FILES) $(STD)
 	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-3) sjava.compiler.Main build $(COMPILER3_FILES) -d $(TOP)bin/
+
+compiler: $(COMPILER)
 
 $(STD): $(COMPILER3) $(STD_FILES)
 	$(JAVA) -classpath $(call classpathify,$(JARS) $(TOP)bin/2-3) sjava.compiler.Main build $(STD_FILES) -d $(TOP)bin/
