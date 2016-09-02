@@ -95,9 +95,8 @@
 
 		(define list (Arrays:asList 5 9 3 8 2 9))
 		(System:out:println (+ (list:get 0) 1))
-		(define stream (list:stream))
-		(set stream
-			(stream:filter
+		(define stream
+			((list:stream):filter
 				(lambda Predicate{Integer} (i)
 					(> i 5)
 				)
@@ -133,6 +132,19 @@
 		(System:out:format "%d:%s\n" (Object[] 5 "wow"))
 		(System:out:format "%d:%s\n" 5 "wow")
 		(System:out:format "5:wow\n")
+
+		(println
+			(with (ArrayList)
+				(add 3)
+				(add "k")
+				(add 4)
+				(add "m")
+				(add "n")
+				(add 7)
+				(set 1 "l")
+				(remove 2)
+			)
+		)
 
 		;(System:out:println null)
 	)

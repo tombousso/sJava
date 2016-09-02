@@ -1,0 +1,527 @@
+Index: gnu/bytecode/ArrayType.java
+===================================================================
+--- gnu/bytecode/ArrayType.java	(revision 8926)
++++ gnu/bytecode/ArrayType.java	(working copy)
+@@ -121,6 +121,13 @@
+             return -3;
+     }
+ 
++    public boolean equals(Object other) {
++        if (other instanceof ArrayType) {
++            return elements.equals(((ArrayType) other).elements);
++        }
++        return false;
++    }
++
+     public void writeExternal(ObjectOutput out) throws IOException {
+         out.writeObject(elements);
+     }
+Index: gnu/bytecode/ClassType.java
+===================================================================
+--- gnu/bytecode/ClassType.java	(revision 8926)
++++ gnu/bytecode/ClassType.java	(working copy)
+@@ -72,7 +72,11 @@
+   private ClassType superClass;
+   /** The constant pool index of the superClass, or -1 if unassigned. */
+   int superClassIndex = -1;
++  
++  private Type genericSuperClass;
+ 
++  Type[] genericInterfaces;
++
+   ClassType[] interfaces;
+   private ClassType[] allInterfaces;
+   int[] interfaceIndexes;
+@@ -392,21 +396,29 @@
+     TypeVariable[] typeParameters;
+ 
+     public TypeVariable[] getTypeParameters() {
+-	TypeVariable[] params = typeParameters;
+-	if (params == null && (flags & EXISTING_CLASS) != 0
+-	    && getReflectClass() != null) {
+-	    java.lang.reflect.TypeVariable[] rparams
+-		= reflectClass.getTypeParameters();
+-	    int nparams = rparams.length;
+-	    params = new TypeVariable[nparams];
+-	    for (int i = 0;  i < nparams;  i++) {
+-		params[i] = TypeVariable.make(rparams[i]);
+-	    }
+-	    typeParameters = params;
+-	}
+-	return params;
++        TypeVariable[] params = typeParameters;
++        if (params == null && (flags & EXISTING_CLASS) != 0
++            && getReflectClass() != null) {
++            java.lang.reflect.TypeVariable[] rparams
++            = reflectClass.getTypeParameters();
++            int nparams = rparams.length;
++            params = new TypeVariable[nparams];
++            for (int i = 0;  i < nparams;  i++) {
++                params[i] = TypeVariable.make(rparams[i]);
++            }
++            typeParameters = params;
++        }
++        return params;
+     }
+ 
++    public void setTypeParameters(TypeVariable[] typeParameters) {
++        this.typeParameters = typeParameters;
++    }
++
++    public void setTypeParameters(Type[] typeParameters) {
++        this.typeParameters = Arrays.copyOf(typeParameters, typeParameters.length, TypeVariable[].class);
++    }
++
+   /**
+    * Set the superclass of the is class.
+    * @param name name of super class, or null if this is "Object".
+@@ -416,23 +428,42 @@
+     setSuper(name == null ? Type.pointer_type : ClassType.make(name));
+   }
+ 
+-  public void setSuper (ClassType superClass)
+-  {
+-    this.superClass = superClass;
+-  }
++    public void setSuper (ClassType superClass)
++    {
++        this.superClass = superClass;
++        this.genericSuperClass = superClass;
++    }
+ 
+-  public synchronized ClassType getSuperclass ()
+-  {
+-    if (superClass == null
+-	&& ! isInterface()
+-	&& ! ("java.lang.Object".equals(getName()))
+-	&& (flags & EXISTING_CLASS) != 0 && getReflectClass() != null)
+-      {
+-	superClass = (ClassType) make(reflectClass.getSuperclass());
+-      }
+-    return superClass;
+-  }
++    public void setSuper (Type superClass)
++    {
++        this.superClass = (ClassType) superClass.getRawType();
++        this.genericSuperClass = superClass;
++    }
+ 
++    public synchronized ClassType getSuperclass ()
++    {
++        if (superClass == null
++            && ! isInterface()
++            && ! ("java.lang.Object".equals(getName()))
++            && (flags & EXISTING_CLASS) != 0 && getReflectClass() != null)
++        {
++            superClass = (ClassType) make(reflectClass.getSuperclass());
++        }
++        return superClass;
++    }
++
++    public synchronized Type getGenericSuperclass ()
++    {
++        if (genericSuperClass == null
++            && ! isInterface()
++            && ! ("java.lang.Object".equals(getName()))
++            && (flags & EXISTING_CLASS) != 0 && getReflectClass() != null)
++        {
++            genericSuperClass = make(reflectClass.getGenericSuperclass());
++        }
++        return genericSuperClass;
++    }
++
+   public String getPackageName()
+   {
+     String name = getName();
+@@ -440,26 +471,42 @@
+     return index < 0 ? "" : name.substring(0, index);
+   }
+ 
+-  /**
+-   * @return the interfaces this class is declared to implement
+-   * (not those inherited from its superclass/superinterfaces).
+-   */
+-  public synchronized ClassType[] getInterfaces()
+-  {
+-    if (interfaces == null
+-	&& (flags & EXISTING_CLASS) != 0 && getReflectClass() != null)
+-      {
+-	Class[] reflectInterfaces = reflectClass.getInterfaces();
+-	int numInterfaces = reflectInterfaces.length;
+-	interfaces
+-	  = numInterfaces == 0 ? noClasses : new ClassType[numInterfaces];
++    /**
++     * @return the interfaces this class is declared to implement
++     * (not those inherited from its superclass/superinterfaces).
++     */
++    public synchronized ClassType[] getInterfaces()
++    {
++        if (interfaces == null
++            && (flags & EXISTING_CLASS) != 0 && getReflectClass() != null)
++        {
++            Class[] reflectInterfaces = reflectClass.getInterfaces();
++            int numInterfaces = reflectInterfaces.length;
++            interfaces
++            = numInterfaces == 0 ? noClasses : new ClassType[numInterfaces];
+ 
+-	for (int i = 0; i < numInterfaces; i++)
+-	  interfaces[i] = (ClassType) Type.make(reflectInterfaces[i]);
+-      }
+-    return interfaces;
+-  }
++            for (int i = 0; i < numInterfaces; i++)
++                interfaces[i] = (ClassType) Type.make(reflectInterfaces[i]);
++        }
++        return interfaces;
++    }
++  
++    public synchronized Type[] getGenericInterfaces()
++    {
++        if (genericInterfaces == null
++            && (flags & EXISTING_CLASS) != 0 && getReflectClass() != null)
++        {
++            java.lang.reflect.Type[] reflectInterfaces = reflectClass.getGenericInterfaces();
++            int numInterfaces = reflectInterfaces.length;
++            genericInterfaces
++            = numInterfaces == 0 ? Type.typeArray0 : new Type[numInterfaces];
+ 
++            for (int i = 0; i < numInterfaces; i++)
++                genericInterfaces[i] = Type.make(reflectInterfaces[i]);
++        }
++        return genericInterfaces;
++    }
++
+     /** Get all the interfaces this class implements.
+      * Includes those inherited from its superclass/superinterfaces.
+      */
+@@ -493,31 +540,74 @@
+         return true;
+     }
+ 
+-  public void setInterfaces (ClassType[] interfaces)
+-  { this.interfaces = interfaces; }
++    public void setInterfaces (ClassType[] interfaces)
++    {
++        this.interfaces = interfaces;
++        this.genericInterfaces = interfaces;
++    }
++  
++    public void setInterfaces (Type[] interfaces)
++    {
++        this.interfaces = new ClassType[interfaces.length];
++        for (int i = 0; i < interfaces.length; i++)
++            this.interfaces[i] = (ClassType) interfaces[i].getRawType();
++        this.genericInterfaces = interfaces;
++    }
+ 
+-  /** Add an interface to the list of implemented interfaces. */
+-  public void addInterface (ClassType newInterface)
+-  {
+-    int oldCount;
+-    if (interfaces == null || interfaces.length == 0)
+-      {
+-	oldCount = 0;
+-	interfaces = new ClassType[1];
+-      }
+-    else
+-      {
+-	oldCount = interfaces.length;
+-	for (int i = oldCount;  --i >= 0; )
+-	  if (interfaces[i] == newInterface)
+-	    return;
+-	ClassType[] newInterfaces = new ClassType[oldCount+1];
+-	System.arraycopy(interfaces, 0, newInterfaces, 0, oldCount);
+-	interfaces = newInterfaces;
+-      }
+-    interfaces[oldCount] = newInterface;
+-  }
++    /** Add an interface to the list of implemented interfaces. */
++    public void addInterface (ClassType newInterface)
++    {
++        int oldCount;
++        if (interfaces == null || interfaces.length == 0)
++        {
++            oldCount = 0;
++            interfaces = new ClassType[1];
++            genericInterfaces = new Type[1];
++        }
++        else
++        {
++            oldCount = interfaces.length;
++            for (int i = oldCount;  --i >= 0; )
++            if (Type.isSame(interfaces[i], newInterface))
++                return;
++            ClassType[] newInterfaces = new ClassType[oldCount+1];
++            System.arraycopy(interfaces, 0, newInterfaces, 0, oldCount);
++            interfaces = newInterfaces;
++            Type[] newGenericInterfaces = new Type[oldCount+1];
++            System.arraycopy(genericInterfaces, 0, newGenericInterfaces, 0, oldCount);
++            genericInterfaces = newGenericInterfaces;
++        }
++        interfaces[oldCount] = newInterface;
++        genericInterfaces[oldCount] = newInterface;
++    }
+ 
++    public void addInterface (Type newInterface)
++    {
++        int oldCount;
++        if (interfaces == null || interfaces.length == 0)
++        {
++            oldCount = 0;
++            interfaces = new ClassType[1];
++            genericInterfaces = new Type[1];
++        }
++        else
++        {
++            oldCount = interfaces.length;
++            for (int i = oldCount;  --i >= 0; )
++                if (Type.isSame(interfaces[i], newInterface.getRawType()) ||
++                    Type.isSame(genericInterfaces[i], newInterface))
++                    return;
++            ClassType[] newInterfaces = new ClassType[oldCount+1];
++            System.arraycopy(interfaces, 0, newInterfaces, 0, oldCount);
++            interfaces = newInterfaces;
++            Type[] newGenericInterfaces = new Type[oldCount+1];
++            System.arraycopy(genericInterfaces, 0, newGenericInterfaces, 0, oldCount);
++            genericInterfaces = newGenericInterfaces;
++        }
++        interfaces[oldCount] = (ClassType) newInterface.getRawType();
++        genericInterfaces[oldCount] = newInterface;
++    }
++
+   public final boolean isInterface()
+   { return (getModifiers() & Access.INTERFACE) != 0; }
+ 
+@@ -736,8 +826,14 @@
+     * a new one.
+     * In contrast, the other addMethod methods always create new Methods. */
+   public synchronized Method addMethod (String name, int flags,
+-			   Type[] arg_types, Type return_type)
++                             Type[] generic_arg_types, Type return_type)
+   {
++    int n = generic_arg_types.length;
++    Type[] arg_types = new Type[n];
++    for (int i = 0; i < n; i++) {
++      Type g = generic_arg_types[i];
++      arg_types[i] = g == null ? null : g.getRawType();
++    }
+     Method method = getDeclaredMethod(name, arg_types);
+     if (method != null
+         && return_type.equals(method.getReturnType())
+@@ -745,6 +841,7 @@
+       return method;
+     method = addMethod(name, flags);
+     method.arg_types = arg_types;
++    method.generic_arg_types = generic_arg_types;
+     method.return_type = return_type;
+     return method;
+   }
+@@ -1133,6 +1230,28 @@
+         return null;
+     }
+ 
++    public String getClassSignature() {
++        StringBuilder buf = new StringBuilder();
++        if (typeParameters != null && typeParameters.length != 0)
++        {
++            int n = typeParameters.length;
++            buf.append('<');
++            for (int i = 0;  i < n; i++) {
++                TypeVariable tt = typeParameters[i];
++                buf.append(tt.getName());
++                buf.append(":");
++                buf.append(tt.getRawType().getMaybeGenericSignature());
++            }
++            buf.append(">");
++        }
++        buf.append(getGenericSuperclass().getMaybeGenericSignature());
++        if (getInterfaces() != null)
++            for (Type c : getGenericInterfaces())
++                buf.append(c.getMaybeGenericSignature());
++        return buf.toString();
++    }
++
++
+   /** Do various fixups after generating code but before we can write it out.
+    * This includes assigning constant pool indexes where needed,
+    * finalizing labels, etc. */
+@@ -1140,6 +1259,8 @@
+   {
+     if (constants == null)
+       constants = new ConstantPool();
++    if (typeParameters != null && typeParameters.length != 0)
++      new SignatureAttr(getClassSignature()).addToFrontOf(this);
+     if (thisClassIndex == 0)
+       thisClassIndex = constants.addClass(this).index;
+     if (superClass == this)
+Index: gnu/bytecode/CodeAttr.java
+===================================================================
+--- gnu/bytecode/CodeAttr.java	(revision 8926)
++++ gnu/bytecode/CodeAttr.java	(working copy)
+@@ -2095,6 +2095,9 @@
+             top = ((ArrayType) top).getComponentType();
+             continue;
+           }
++        else if (top instanceof ArrayType
++                 && required == Type.objectType)
++          return false;
+         return true;
+       }
+   }
+Index: gnu/bytecode/Method.java
+===================================================================
+--- gnu/bytecode/Method.java	(revision 8926)
++++ gnu/bytecode/Method.java	(working copy)
+@@ -19,6 +19,7 @@
+ public class Method implements AttrContainer, Member {
+     private String name;
+     Type[] arg_types;
++    Type[] generic_arg_types;
+     Type return_type;
+     int access_flags;
+     int name_index; /* Index in constant table, or 0 if un-assigned */
+@@ -27,9 +28,9 @@
+     ClassType classfile;
+     CodeAttr code;
+     /* #ifdef JAVA8 */
+-    // java.lang.reflect.Executable rmethod;
++    java.lang.reflect.Executable rmethod;
+     /* #else */
+-    java.lang.reflect.AccessibleObject rmethod;
++    // java.lang.reflect.AccessibleObject rmethod;
+     /* #endif */
+ 
+     Attribute attributes;
+@@ -309,7 +310,7 @@
+         if (name_index == 0 && name != null)
+             name_index = constants.addUtf8(name).index;
+         String signature = getSignature();
+-        String genericSignature = makeGenericSignature(arg_types, return_type);
++        String genericSignature = makeGenericSignature(generic_arg_types, return_type);
+         if (signature_index == 0)
+             signature_index = constants.addUtf8(signature).index;
+         if (genericSignature != null && ! genericSignature.equals(signature)) {
+@@ -326,6 +327,8 @@
+ 
+     public final Type[] getParameterTypes() { return arg_types; }
+ 
++    public final Type[] getGenericParameterTypes() { return generic_arg_types; }
++
+     public final ClassType[] getExceptions()
+     {
+         if (exceptions == null) return null;
+@@ -384,4 +387,23 @@
+         exceptions = null;
+         code = null;
+     }
++
++    TypeVariable[] typeParameters;
++
++    public TypeVariable[] getTypeParameters() {
++        TypeVariable[] params = typeParameters;
++        /* #ifdef JAVA8 */
++        if (params == null && rmethod != null) {
++            java.lang.reflect.TypeVariable[] rparams
++            = rmethod.getTypeParameters();
++            int nparams = rparams.length;
++            params = new TypeVariable[nparams];
++            for (int i = 0; i < nparams; i++) {
++                params[i] = TypeVariable.make(rparams[i]);
++            }
++            typeParameters = params;
++        }
++        /* #endif */
++        return params;
++    }
+ };
+Index: gnu/bytecode/Type.java
+===================================================================
+--- gnu/bytecode/Type.java	(revision 8926)
++++ gnu/bytecode/Type.java	(working copy)
+@@ -139,8 +139,13 @@
+     static Type make(java.lang.reflect.Type type) {
+ 	if (type instanceof Class)
+ 	    return make((Class) type);
+-	if (type instanceof java.lang.reflect.GenericArrayType)
+-	    return null;
++    if (type instanceof java.lang.reflect.GenericArrayType) {
++        java.lang.reflect.GenericArrayType gatype
++        = (java.lang.reflect.GenericArrayType) type;
++        Type component = make(gatype.getGenericComponentType());
++        if (component == null) return null;
++        return new ArrayType(component);
++    }
+ 	if (type instanceof java.lang.reflect.ParameterizedType) {
+ 	    java.lang.reflect.ParameterizedType ptype
+ 		= (java.lang.reflect.ParameterizedType) type;
+Index: gnu/bytecode/TypeVariable.java
+===================================================================
+--- gnu/bytecode/TypeVariable.java	(revision 8926)
++++ gnu/bytecode/TypeVariable.java	(working copy)
+@@ -12,31 +12,35 @@
+     java.lang.reflect.TypeVariable rtype;
+ 
+     public TypeVariable(String name) {
+-	super(name);
++        this(name, Type.objectType);
+     }
+ 
++    public TypeVariable(String name, ClassType rawType) {
++        super(name);
++        this.rawType = rawType;
++    }
++
+     public static TypeVariable make(java.lang.reflect.TypeVariable rtype) {
+-	TypeVariable tvar = new TypeVariable(rtype.getName());
+-	tvar.rawType = Type.objectType;
+-	java.lang.reflect.Type[] bounds = rtype.getBounds();
+-	Type bound = null;
+-	if (bounds.length == 1) {
+-	    java.lang.reflect.Type bound0 = bounds[0];
+-	    if (bound0 instanceof Class)
+-		bound = Type.make(bound0);
+-	    else if (bound0 instanceof java.lang.reflect.ParameterizedType)
+-		bound = Type.make(((java.lang.reflect.ParameterizedType) bound0).getRawType());
+-	}
+-	if (bound != null)
+-	    bound = bound.getRawType();
+-	if (bound instanceof ClassType)
+-	    tvar.rawType = (ClassType) bound;
+-	tvar.rtype = rtype;
+-	return tvar;
++        TypeVariable tvar = new TypeVariable(rtype.getName());
++        java.lang.reflect.Type[] bounds = rtype.getBounds();
++        Type bound = null;
++        if (bounds.length == 1) {
++            java.lang.reflect.Type bound0 = bounds[0];
++            if (bound0 instanceof Class)
++                bound = Type.make(bound0);
++            else if (bound0 instanceof java.lang.reflect.ParameterizedType)
++                bound = Type.make(((java.lang.reflect.ParameterizedType) bound0).getRawType());
++        }
++        if (bound != null)
++            bound = bound.getRawType();
++        if (bound instanceof ClassType)
++            tvar.rawType = (ClassType) bound;
++        tvar.rtype = rtype;
++        return tvar;
+     }
+ 
+     public int compare(Type other) {
+-	return rawType.compare(other);
++        return rawType.compare(other);
+     }
+ 
+     public ClassType getRawType() {
+@@ -50,6 +54,11 @@
+     @Override
+     public String getSignature () { return getRawType().getSignature(); }
+ 
++    @Override
++    public String getGenericSignature() {
++        return "T"+getName()+";";
++    }
++
+     public boolean equals(Object other) {
+         if (! (other instanceof TypeVariable))
+             return false;

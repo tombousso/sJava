@@ -71,10 +71,10 @@
 			`(collection:size)
 		)
 	)
-	(define o (type `(begin (define ,item ,(itemT:getName)) (define ,i int) ,block)))
+	(define o (type `(begin (define ,item ,$(itemT:getName)) (define ,i int) ,block)))
 	`(begin
 		(define collection ,collection)
-		(define out (,((o:getName):concat "[]") len:,len))
+		(define out (,$((o:getName):concat "[]") len:,len))
 		(forEachI ,item collection ,i (aset out ,i (begin ,block)))
 		out
 	)
@@ -114,7 +114,7 @@
 	(define args (Token[] len:n))
 	(define i 0)
 	(while (!= i n)
-		(define v `,(Character:toString (as char (+ 97 i))))
+		(define v `,$(Character:toString (as char (+ 97 i))))
 		(define t (aget types i))
 		(aset decl (* i 2) v)
 		(aset decl (+ (* i 2) 1) t)
@@ -177,7 +177,7 @@
 					((as ConstToken (case:toks:get 0)):val:equals "true")
 				)
 				case
-				~((instance? ,var ,(case:toks:get 0))
+				`((instance? ,var ,(case:toks:get 0))
 					(define ,var ,(case:toks:get 0) ,var)
 					,(case:toks:subList 1 (case:toks:size))
 				)
@@ -209,10 +209,10 @@
 			)
 			(begin
 				(define t (aget (omi:method:getParameterTypes) (- special 1)))
-				(define ncall ~(,call:toks))
-				(ncall:toks:set special ~(as ,(t:getName) ,arg))
+				(define ncall `(,call:toks))
+				(ncall:toks:set special `(as ,$(t:getName) ,arg))
 				(conds:add
-					~((instance? ,arg ,(t:getName))
+					`((instance? ,arg ,$(t:getName))
 						,ncall
 					)
 				)
@@ -226,6 +226,15 @@
 		)
 	)
 	out
+)
+(define-macro (with obj @calls)
+	`(begin
+		(define obj ,obj)
+		,(mapA call calls
+			`(obj:,(call:toks:get 0) ,(call:toks:subList 1 (call:toks:size)))
+		)
+		obj
+	)
 )
 ;(define-macro (xml @tags)
 ;	(define appends

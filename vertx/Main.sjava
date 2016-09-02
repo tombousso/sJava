@@ -13,12 +13,11 @@
 (import io.vertx.ext.web.templ.PebbleTemplateEngine)
 
 (define-class Main (AbstractVerticle) 'public
-	(vertx Vertx 'static)
 	((main args String[]) void 'public 'static
-		(set Main:vertx (Vertx:vertx))
-		(Main:vertx:deployVerticle "Main" ((DeploymentOptions):setInstances 5))
+		(define vertx (Vertx:vertx))
+		(vertx:deployVerticle "Main" ((DeploymentOptions):setInstances 5))
 		((System:console):readLine)
-		(Main:vertx:close)
+		(vertx:close)
 	)
 
 	(httpClient HttpClient)

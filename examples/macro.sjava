@@ -1,7 +1,7 @@
 (package sjava.examples.macro)
 
 (define-macro (getTimestamp f)
-	`,$((java.text.SimpleDateFormat (as sjava.compiler.tokens.SToken f):val):format (java.util.Date))
+	`,((java.text.SimpleDateFormat (as sjava.compiler.tokens.SToken f):val):format (java.util.Date))
 )
 (define-macro (timestwo expr)
 	`(begin
@@ -13,26 +13,24 @@
 (define-macro (rand n)
 	`(Integer:toString ((java.util.Random):nextInt ,n))
 )
+
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(define i -1)
-		(repeat 5 (System:out:println i))
+		(repeat 2 (println i))
 
-		(System:out:println ("Compiled at ":concat (getTimestamp "HH:mm:ss MM/dd/yyyy")))
-		(System:out:println
-			("Compile time dice roll result: ":concat
-				(include
-					;inline macro
-					(begin
-						(System:out:println "Compile time")
-						`,$(Integer:toString (+ ((java.util.Random):nextInt 6) 1))
-					)
+		(println "Compiled at " (getTimestamp "HH:mm:ss MM/dd/yyyy"))
+		(println
+			"Compile time dice roll result: "
+			(include
+				;inline macro
+				(begin
+					(System:out:println "Compile time")
+					`,(+ ((java.util.Random):nextInt 6) 1)
 				)
 			)
 		)
-		(System:out:println ("Runtime random number up to 1000: ":concat (rand 1000)))
-
-		(System:out:println "A") (System:out:println "B") (System:out:println "C")
+		(println ("Runtime random number up to 1000: ":concat (rand 1000)))
 
 		(define x 3)
 		(inc x)

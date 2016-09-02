@@ -240,13 +240,13 @@
 								(define t (this:compile const mi null Main:unknownType))
 								(define type ClassType
 									(Main:getCompilerType
-										(if (as UnquoteToken o):s
-											"tokens.SToken"
+										(if (as UnquoteToken o):var
+											"tokens.VToken"
 											(if (= t Type:charType)
 												"tokens.CToken"
 												(if (instance? t PrimType)
 													"tokens.NToken"
-													"tokens.VToken"
+													"tokens.SToken"
 												)
 											)
 										)
@@ -355,14 +355,7 @@
 	)
 	((compile tok QuoteToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(define out (this:compileQuasi (tok:toks:get 0) mi this:code (Main:getCompilerType "tokens.Token")))
-		(if tok:transform
-			(begin
-				(if output (this:code:emitLoad (this:code:getArg 0)))
-				(if output (this:code:emitInvoke ((as ClassType (Main:getCompilerType "Main")):getDeclaredMethod "transformBlock" 2)))
-			)
-		)
-		out
+		(this:compileQuasi (tok:toks:get 0) mi this:code (Main:getCompilerType "tokens.Token"))
 	)
 	((compile tok ConstToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -392,15 +385,20 @@
 		(if (= tok:ret null)
 			(try
 				(set tok:ret
-					(
-						(mi:ci:fs:includes:rc:getMethod (tok:mi:method:getName)
-							(Class[]
-								(class AMethodInfo)
-								(class gnu.bytecode.Type)
-								Integer:TYPE
-								(class GenHandler)
+					(Main:transformBlock
+						(as Token
+							(
+								(mi:ci:fs:includes:rc:getMethod (tok:mi:method:getName)
+									(Class[]
+										(class AMethodInfo)
+										(class gnu.bytecode.Type)
+										Integer:TYPE
+										(class GenHandler)
+									)
+								):invoke null (Object[] mi needed 0 this)
 							)
-						):invoke null (Object[] mi needed 0 this)
+						)
+						mi
 					)
 				)
 				(e Throwable (throw (RuntimeException e)))
@@ -602,7 +600,12 @@
 					)
 				)
 				(try
-					(set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))))
+					(set tok:ret
+						(Main:transformBlock
+							(as Token ((ci:rc:getMethod name classes):invoke null (args:toArray)))
+							mi
+						)
+					)
 					(e Throwable (throw (RuntimeException e)))
 				)
 			)

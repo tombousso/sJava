@@ -244,14 +244,12 @@
 )
 
 (define-class QuoteToken (Token) 'public
-	(transform bool 'public)
-	((<init> line int toks List{Token} transform bool) void 'public
+	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 		(set this:neverTransform true)
-		(set this:transform transform)
 	)
 	((toString) String 'public
-		(concat (if this:transform "`" "~") (this:toks:get 0))
+		(concat "`" (this:toks:get 0))
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -259,14 +257,14 @@
 )
 
 (define-class UnquoteToken (Token) 'public
-	(s bool 'public)
-	((<init> line int toks List{Token} s bool) void 'public
+	(var bool 'public)
+	((<init> line int toks List{Token} var bool) void 'public
 		(super:<init> line toks)
-		(set this:s s)
+		(set this:var var)
 		(set this:alwaysTransform true)
 	)
 	((toString) String 'public
-		(concat (if this:s ",$" ",") ((this:toks:get 0):toString))
+		(concat (if this:var ",$" ",") ((this:toks:get 0):toString))
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -274,9 +272,9 @@
 )
 
 (define-class IncludeToken (Token Transformed) 'public
-	(mi MethodInfo 'public)
+	(mi AMethodInfo 'public)
 	(ret Token 'public)
-	((<init> line int mi MethodInfo) void 'public
+	((<init> line int mi AMethodInfo) void 'public
 		(super:<init> line)
 		(set this:mi mi)
 	)

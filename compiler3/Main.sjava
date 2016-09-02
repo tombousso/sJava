@@ -100,7 +100,7 @@
 			(String[][]
 				(String[] "\"\"\"" "\"" ")" "}" ";")
 				(String[] ":" "{")
-				(String[] "(" "'" "," ",$" "`" "~")
+				(String[] "(" "'" "," ",$" "`")
 			)
 		)
 
@@ -432,6 +432,7 @@
 			)
 		)
 		(if transform (set ntok:transformed true))
+		(block:toks:set i ntok)
 		(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
 			(begin
 				(define val (as VToken (tok:toks:get 0)):val)
@@ -442,19 +443,14 @@
 		)
 		ntok
 	)
-	((transformBlockTokReplace block Token mi AMethodInfo transform bool i int) Token 'public 'static
-		(block:toks:set i (Main:transformBlockTok block mi transform i))
-	)
 	((transformBlockToks block Token mi AMethodInfo transform bool i int) Token 'public 'static
 		(if (&& transform (instance? block BlockToken))
 			(set (as BlockToken block):labels (HashMap))
 		)
-		(define ntoks (ArrayList{Token} (block:toks:subList 0 i)))
 		(while (!= i (block:toks:size))
-			(ntoks:add (Main:transformBlockTok block mi transform i))
+			(Main:transformBlockTok block mi transform i)
 			(set i (+ i 1))
 		)
-		(set block:toks ntoks)
 		block
 	)
 	((transformBlockToks block Token mi AMethodInfo transform bool) Token 'public 'static
@@ -466,21 +462,32 @@
 	((transformBlock block Token mi AMethodInfo transform bool) Token 'static
 		(if (&& (!= block:toks null) (&& (! block:transformed) (! (instance? block Transformed))))
 			(begin
-				(if transform
-					(cond
-						;((instance? block ColonToken)
-						;	(mi:getType (block:toks:get 0))
-						;	(println block)
-						;)
-						((instance? block BlockToken)
-							(cond
-								((= (block:toks:size) 0)
-									(return (EmptyToken block:line block:toks))
-								)
-								(true
-									(cond
-										((instance? (block:toks:get 0) VToken)
-											(define val (as VToken (block:toks:get 0)):val)
+				(cond
+					;((instance? block ColonToken)
+					;	(mi:getType (block:toks:get 0))
+					;	(println block)
+					;)
+					((instance? block BlockToken)
+						(cond
+							((= (block:toks:size) 0)
+								(if transform (return (EmptyToken block:line block:toks)))
+							)
+							(true
+								(cond
+									((instance? (block:toks:get 0) VToken)
+										(define val (as VToken (block:toks:get 0)):val)
+										(cond
+											((val:equals "quote")
+												(return (QuoteToken block:line (block:toks:subList 1 (block:toks:size))))
+											)
+											((val:equals "unquote")
+												(return (UnquoteToken block:line (block:toks:subList 1 (block:toks:size)) false))
+											)
+											((val:equals "varunquote")
+												(return (UnquoteToken block:line (block:toks:subList 1 (block:toks:size)) true))
+											)
+										)
+										(if transform
 											(cond
 												((val:equals "object")
 													(return (ObjectToken block:line block:toks))
@@ -556,18 +563,18 @@
 												)
 											)
 										)
-										((instance? (block:toks:get 0) ColonToken)
-											(begin
-												(define out (CallToken block:line block:toks))
-												(Main:transformBlockTokReplace (out:toks:get 0) mi true 0)
-												(Main:transformBlockToks out mi true 1)
-												(return out)
-											)
+									)
+									((&& transform (instance? (block:toks:get 0) ColonToken))
+										(begin
+											(define out (CallToken block:line block:toks))
+											(Main:transformBlockTok (out:toks:get 0) mi true 0)
+											(Main:transformBlockToks out mi true 1)
+											(return out)
 										)
 									)
 								)
+								(if transform (return (Main:transformBlockToks (DefaultToken block:line block:toks) mi)))
 							)
-							(return (Main:transformBlockToks (DefaultToken block:line block:toks) mi))
 						)
 					)
 				)
@@ -850,11 +857,11 @@
 				(set line (Main:formatTok (tok:toks:get 0) line line tabs sb))
 			)
 			(QuoteToken
-				(sb:append (if tok:transform "`" "~"))
+				(sb:append "`")
 				(set line (Main:formatTok (tok:toks:get 0) line line tabs sb))
 			)
 			(UnquoteToken
-				(sb:append (if tok:s ",$" ","))
+				(sb:append (if tok:var ",$" ","))
 				(set line (Main:formatTok (tok:toks:get 0) line line tabs sb))
 			)
 			(CommentToken
@@ -1150,13 +1157,13 @@
 				((w:equals "(")
 					(BlockToken t:line (this:subToks ")"))
 				)
-				((|| (w:equals "'") (w:equals "`") (w:equals "~") (w:equals ",$") (w:equals ","))
+				((|| (w:equals "'") (w:equals "`") (w:equals ",$") (w:equals ","))
 					(define al (ArrayList (Arrays:asList (Object[] (this:parse 0)))))
 					(if (|| (w:equals ",") (w:equals ",$"))
 						(UnquoteToken t:line al (w:equals ",$"))
 						(if (w:equals "'")
 							(SingleQuoteToken t:line al)
-							(QuoteToken t:line al (w:equals "`"))
+							(QuoteToken t:line al)
 						)
 					)
 				)
@@ -1465,7 +1472,9 @@
 				(if (&& (instance? (tok:toks:get 0) VToken) ((as VToken (tok:toks:get 0)):val:equals "include"))
 					(begin
 						(define name ("$":concat (Integer:toString n)))
-						(define mi (MethodInfo this:includes (tok:toks:subList 1 (tok:toks:size)) (this:includes:c:addMethod name (Type[] (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.GenHandler")) (Main:getCompilerType "tokens.Token") (| Access:PUBLIC Access:STATIC)) (LinkedHashMap)))
+						(define scope (LinkedHashMap))
+						(scope:put "mi" (Arg 0 (Main:getCompilerType "AMethodInfo")))
+						(define mi (MethodInfo this:includes (tok:toks:subList 1 (tok:toks:size)) (this:includes:c:addMethod name (Type[] (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.GenHandler")) (Main:getCompilerType "tokens.Token") (| Access:PUBLIC Access:STATIC)) scope))
 						(toks:set i (IncludeToken tok:line mi))
 						(this:includes:methods:add mi)
 						(mi:compileMethodBody)
@@ -1836,7 +1845,7 @@
 				(define ret (h:compile this:block this code (this:method:getReturnType)))
 				(code:popScope)
 
-				(if (&& (!= ret Main:returnType) (code:reachableHere))
+				(if (code:reachableHere)
 					(code:emitReturn)
 				)
 			)

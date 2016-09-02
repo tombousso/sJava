@@ -90,7 +90,7 @@
 		
 		(set Main:precs (String[][]
 			(String[] ":" "{")
-			(String[] "(" ")" "}" "'" "," ",$" "`" "~" "\n" "\r\n" ";")
+			(String[] "(" ")" "}" "'" "," ",$" "`" "\n" "\r\n" ";")
 		))
 
 		(set Main:specialChars (HashMap{String Character}))
@@ -980,11 +980,9 @@
 )
 
 (define-class QuoteToken (Token) 'public
-	(transform bool 'public)
-	((<init> line int toks List{Token} transform bool) void
+	((<init> line int toks List{Token}) void
 		(super:<init> line toks)
 		(set this:neverTransform true)
-		(set this:transform transform)
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -992,10 +990,10 @@
 )
 
 (define-class UnquoteToken (Token) 'public
-	(s bool 'public)
-	((<init> line int toks List{Token} s bool) void
+	(var bool 'public)
+	((<init> line int toks List{Token} var bool) void
 		(super:<init> line toks)
-		(set this:s s)
+		(set this:var var)
 		(set this:alwaysTransform true)
 	)
 	((<init>) void 'public
@@ -1041,12 +1039,12 @@
 					)
 					null
 				)
-			(if (|| (w:equals "'") (w:equals "`") (w:equals "~") (w:equals ",$") (w:equals ","))
+			(if (|| (w:equals "'") (w:equals "`") (w:equals ",$") (w:equals ","))
 				(begin
 					(define al (ArrayList (Arrays:asList (Object[] (this:parse 0)))))
 					(if (|| (w:equals ",") (w:equals ",$"))
 						(UnquoteToken t:line al (w:equals ",$"))
-						(QuoteToken t:line al (w:equals "`"))
+						(QuoteToken t:line al)
 					)
 				)
 			(if (&& (!= (w:length) 0) (Character:isWhitespace (w:charAt 0)))
@@ -2128,7 +2126,7 @@
 						(tok:toks:subList 1 (tok:toks:size))
 					)
 				)
-				(set tok:ret (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))))
+				(set tok:ret (Main:transformBlock (as Token ((ci:rc:getMethod name classes):invoke null (args:toArray))) mi))
 			)
 		)
 		(mi:pushLevel)
@@ -2150,12 +2148,15 @@
 		(define tok IncludeToken tok)
 		(if (= tok:ret null)
 			(set tok:ret
-				((mi:ci:fs:includes:rc:getMethod ((as IncludeToken tok):mi:method:getName) (Class[]
-					(class AMethodInfo)
-					(class gnu.bytecode.Type)
-					Integer:TYPE
-					(class Handler)
-				)):invoke null (Object[] mi needed 0 h))
+				(Main:transformBlock
+					(as Token ((mi:ci:fs:includes:rc:getMethod ((as IncludeToken tok):mi:method:getName) (Class[]
+						(class AMethodInfo)
+						(class gnu.bytecode.Type)
+						Integer:TYPE
+						(class Handler)
+					)):invoke null (Object[] mi needed 0 h)))
+					mi
+				)
 			)
 		)
 		(h:compile tok:ret mi code needed)
@@ -2284,13 +2285,13 @@
 								(define const (tok:toks:get 0))
 								(define t (h:compile const mi null Main:unknownType))
 								(define type ClassType
-									(if (as UnquoteToken tok):s
-										(Type:getType "compiler2.SToken")
+									(if (as UnquoteToken tok):var
+										(Type:getType "compiler2.VToken")
 									(if (= t Type:charType)
 										(Type:getType "compiler2.CToken")
 									(if (instance? t PrimType)
 										(Type:getType "compiler2.NToken")
-										(Type:getType "compiler2.VToken")
+										(Type:getType "compiler2.SToken")
 									)
 									)
 									)
@@ -2404,14 +2405,7 @@
 	)
 	((compile h Handler tok Token mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(define out (this:compileQuasi h (tok:toks:get 0) mi code (Type:getType "compiler2.Token")))
-		(if (as QuoteToken tok):transform
-			(begin
-				(if output (code:emitLoad (code:getArg 0)))
-				(if output (code:emitInvoke ((ClassType:make "compiler2.Main"):getDeclaredMethod "transformBlock" 2)))
-			)
-		)
-		out
+		(this:compileQuasi h (tok:toks:get 0) mi code (Type:getType "compiler2.Token"))
 	)
 )
 
