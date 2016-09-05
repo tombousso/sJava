@@ -109,7 +109,7 @@ task java_compile(type: JavaCompile, dependsOn: [":compiler3_3"]) {
 	dependencyCacheDir = file("${buildDir}/tmp/dependency-cache")
 	doLast {
 		task java_compile_test(type: SJavaCompile) {
-			classpath = files("generated-java")
+			compilerClasspath = files("generated-java")
 			source = fileTree("compiler3")
 			destinationDir = file("bin/java-3-3")
 		}
