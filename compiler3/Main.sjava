@@ -935,7 +935,7 @@
 				(forEach file files
 					(define fname (file:getName))
 					(define name (fname:substring 0 (fname:indexOf ".")))
-					(define c (Class:forName (concat "sjava.examples." name ".Main")))
+					(define c (Class:forName (concat "examples." name ".Main")))
 					(define baos (ByteArrayOutputStream))
 					(define ps (PrintStream baos))
 					(define old System:out)
@@ -1559,7 +1559,7 @@
 		(this:getClazz cl)
 	)
 	((writeFiles dir String) void 'public
-		(define pre (dir:concat (this:fs:package_:replace "." "/")))
+		(define pre (concat dir "/" (this:fs:package_:replace "." "/")))
 		((File pre):mkdirs)
 		(try
 			(org.apache.commons.io.FileUtils:writeByteArrayToFile (File (concat pre (this:c:getSimpleName) ".class")) (this:getClassfile))

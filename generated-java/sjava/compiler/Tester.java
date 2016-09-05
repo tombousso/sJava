@@ -21,7 +21,7 @@ public class Tester {
                 String fname = file.getName();
                 String name = fname.substring(0, fname.indexOf("."));
                 StringBuilder sb = new StringBuilder();
-                sb.append("sjava.examples.");
+                sb.append("examples.");
                 sb.append(name);
                 sb.append(".Main");
                 Class c = Class.forName(sb.toString());

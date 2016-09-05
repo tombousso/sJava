@@ -103,17 +103,21 @@ public class ClassInfo {
     }
 
     public void writeFiles(String dir) {
-        String pre = dir.concat(this.fs.package_.replace(".", "/"));
+        StringBuilder sb = new StringBuilder();
+        sb.append(dir);
+        sb.append("/");
+        sb.append(this.fs.package_.replace(".", "/"));
+        String pre = sb.toString();
         (new File(pre)).mkdirs();
 
         try {
-            StringBuilder sb = new StringBuilder();
-            sb.append(pre);
-            sb.append(this.c.getSimpleName());
-            sb.append(".class");
-            FileUtils.writeByteArrayToFile(new File(sb.toString()), this.getClassfile());
-        } catch (Throwable var9) {
-            throw new RuntimeException(var9);
+            StringBuilder sb1 = new StringBuilder();
+            sb1.append(pre);
+            sb1.append(this.c.getSimpleName());
+            sb1.append(".class");
+            FileUtils.writeByteArrayToFile(new File(sb1.toString()), this.getClassfile());
+        } catch (Throwable var10) {
+            throw new RuntimeException(var10);
         }
 
         List iterable = this.anonClasses;

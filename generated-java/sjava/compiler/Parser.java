@@ -55,7 +55,7 @@ public class Parser {
         Object var10000;
         if(w.equals("(")) {
             var10000 = new BlockToken(t.line, this.subToks(")"));
-        } else if(!w.equals("\'") && !w.equals("`") && !w.equals("~") && !w.equals(",$") && !w.equals(",")) {
+        } else if(!w.equals("\'") && !w.equals("`") && !w.equals(",$") && !w.equals(",")) {
             if(this.ignoreComments && t instanceof CommentToken) {
                 return null;
             }
@@ -63,7 +63,7 @@ public class Parser {
             var10000 = t;
         } else {
             ArrayList al = new ArrayList(Arrays.asList(new Object[]{this.parse(0)}));
-            var10000 = !w.equals(",") && !w.equals(",$")?(w.equals("\'")?new SingleQuoteToken(t.line, al):new QuoteToken(t.line, al, w.equals("`"))):new UnquoteToken(t.line, al, w.equals(",$"));
+            var10000 = !w.equals(",") && !w.equals(",$")?(w.equals("\'")?new SingleQuoteToken(t.line, al):new QuoteToken(t.line, al)):new UnquoteToken(t.line, al, w.equals(",$"));
         }
 
         Object left = var10000;

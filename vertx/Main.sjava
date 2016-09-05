@@ -16,7 +16,9 @@
 	((main args String[]) void 'public 'static
 		(define vertx (Vertx:vertx))
 		(vertx:deployVerticle "Main" ((DeploymentOptions):setInstances 5))
-		((System:console):readLine)
+		(println "Serving at localhost:8080")
+		(println "Press enter to stop")
+		(System:in:read)
 		(vertx:close)
 	)
 
@@ -164,11 +166,9 @@
 									(if ((JsonObject (buf:toString)):getBoolean "success")
 										(this:conn:updateWithParams
 											"INSERT INTO users (name, pass) VALUES (?, ?)"
-											(
-												((JsonArray):add
-													name
-												):add
-												(BCrypt:hashpw pass (BCrypt:gensalt 12))
+											(with (JsonArray)
+												(add name)
+												(add (BCrypt:hashpw pass (BCrypt:gensalt 12)))
 											)
 											onUpdated
 										)

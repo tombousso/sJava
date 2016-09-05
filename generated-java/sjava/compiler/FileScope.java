@@ -215,7 +215,9 @@ public class FileScope {
             if(tok.toks != null && tok.toks.size() > 0) {
                 if((Token)tok.toks.get(0) instanceof VToken && ((VToken)((Token)tok.toks.get(0))).val.equals("include")) {
                     String name = "$".concat(Integer.toString(n));
-                    MethodInfo mi = new MethodInfo(this.includes, tok.toks.subList(1, tok.toks.size()), this.includes.c.addMethod(name, new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")}, Main.getCompilerType("tokens.Token"), Access.PUBLIC | Access.STATIC), new LinkedHashMap());
+                    LinkedHashMap scope = new LinkedHashMap();
+                    scope.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
+                    MethodInfo mi = new MethodInfo(this.includes, tok.toks.subList(1, tok.toks.size()), this.includes.c.addMethod(name, new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")}, Main.getCompilerType("tokens.Token"), Access.PUBLIC | Access.STATIC), scope);
                     toks.set(i, new IncludeToken(tok.line, mi));
                     this.includes.methods.add(mi);
                     mi.compileMethodBody();

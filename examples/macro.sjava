@@ -1,4 +1,4 @@
-(package sjava.examples.macro)
+(package examples.macro)
 
 (define-macro (getTimestamp f)
 	`,((java.text.SimpleDateFormat (as sjava.compiler.tokens.SToken f):val):format (java.util.Date))

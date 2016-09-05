@@ -5,3 +5,5 @@ vertx/cp.txt
 vertx/bin/
 vertx/.vertx/
 vertx/file-uploads/
+.gradle/
+vertx/.gradle/

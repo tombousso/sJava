@@ -1,4 +1,4 @@
-(package sjava.examples.wow.x)
+(package examples.wow.x)
 
 (define-class y () 'public
 	((wow) void 'public 'static

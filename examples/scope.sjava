@@ -1,4 +1,4 @@
-(package sjava.examples.scope)
+(package examples.scope)
 
 (define-class Main () 'public
 	((main args String[]) void 'public 'static

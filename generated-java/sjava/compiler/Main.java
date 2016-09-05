@@ -149,7 +149,7 @@ public class Main {
         compare1Ops.put(">0", Integer.valueOf(158));
         compare1Ops.put("!=null", Integer.valueOf(198));
         compare1Ops.put("==null", Integer.valueOf(199));
-        precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";"}, {":", "{"}, {"(", "\'", ",", ",$", "`", "~"}};
+        precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";"}, {":", "{"}, {"(", "\'", ",", ",$", "`"}};
         specialChars = new HashMap();
         specialChars.put("space", Character.valueOf(' '));
         specialChars.put("singlequote", Character.valueOf('\''));
@@ -475,6 +475,7 @@ public class Main {
             ntok.transformed = true;
         }
 
+        block.toks.set(i, ntok);
         if(transform && tok instanceof BlockToken && tok.toks.size() > 0 && (Token)tok.toks.get(0) instanceof VToken) {
             String val = ((VToken)((Token)tok.toks.get(0))).val;
             if(val.equals("label")) {
@@ -485,21 +486,16 @@ public class Main {
         return ntok;
     }
 
-    public static Token transformBlockTokReplace(Token block, AMethodInfo mi, boolean transform, int i) {
-        return (Token)block.toks.set(i, transformBlockTok(block, mi, transform, i));
-    }
-
     public static Token transformBlockToks(Token block, AMethodInfo mi, boolean transform, int i) {
         if(transform && block instanceof BlockToken) {
             ((BlockToken)block).labels = new HashMap();
         }
 
-        ArrayList ntoks;
-        for(ntoks = new ArrayList(block.toks.subList(0, i)); i != block.toks.size(); ++i) {
-            ntoks.add(transformBlockTok(block, mi, transform, i));
+        while(i != block.toks.size()) {
+            transformBlockTok(block, mi, transform, i);
+            ++i;
         }
 
-        block.toks = ntoks;
         return block;
     }
 
@@ -513,116 +509,134 @@ public class Main {
 
     static Token transformBlock(Token block, AMethodInfo mi, boolean transform) {
         if(block.toks != null && !block.transformed && !(block instanceof Transformed)) {
-            if(transform && block instanceof BlockToken) {
+            if(block instanceof BlockToken) {
                 if(block.toks.size() == 0) {
-                    return new EmptyToken(block.line, block.toks);
-                }
-
-                if((Token)block.toks.get(0) instanceof VToken) {
-                    String val = ((VToken)((Token)block.toks.get(0))).val;
-                    if(val.equals("object")) {
-                        return new ObjectToken(block.line, block.toks);
+                    if(transform) {
+                        return new EmptyToken(block.line, block.toks);
                     }
-
-                    if(val.equals("lambda")) {
-                        return new LambdaToken(block.line, block.toks);
-                    }
-
-                    if(mi.ci.fs.macroNames.containsKey(val)) {
-                        return new MacroCallToken(block.line, block.toks);
-                    }
-
-                    if(val.equals("begin")) {
-                        if(block.toks.size() == 2) {
-                            return transformBlock((Token)block.toks.get(1), mi);
+                } else {
+                    if((Token)block.toks.get(0) instanceof VToken) {
+                        String val = ((VToken)((Token)block.toks.get(0))).val;
+                        if(val.equals("quote")) {
+                            return new QuoteToken(block.line, block.toks.subList(1, block.toks.size()));
                         }
 
-                        return transformBlockToks(new BeginToken(block.line, block.toks), mi);
+                        if(val.equals("unquote")) {
+                            return new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), false);
+                        }
+
+                        if(val.equals("varunquote")) {
+                            return new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), true);
+                        }
+
+                        if(transform) {
+                            if(val.equals("object")) {
+                                return new ObjectToken(block.line, block.toks);
+                            }
+
+                            if(val.equals("lambda")) {
+                                return new LambdaToken(block.line, block.toks);
+                            }
+
+                            if(mi.ci.fs.macroNames.containsKey(val)) {
+                                return new MacroCallToken(block.line, block.toks);
+                            }
+
+                            if(val.equals("begin")) {
+                                if(block.toks.size() == 2) {
+                                    return transformBlock((Token)block.toks.get(1), mi);
+                                }
+
+                                return transformBlockToks(new BeginToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("label")) {
+                                return new LabelToken(block.line, block.toks);
+                            }
+
+                            if(val.equals("goto")) {
+                                return new GotoToken(block.line, block.toks);
+                            }
+
+                            if(val.equals("define")) {
+                                return transformBlockToks(new DefineToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("try")) {
+                                return transformBlockToks(new TryToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("instance?")) {
+                                return transformBlockToks(new InstanceToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("set")) {
+                                return transformBlockToks(new SetToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("aset")) {
+                                return transformBlockToks(new ASetToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("aget")) {
+                                return transformBlockToks(new AGetToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("alen")) {
+                                return transformBlockToks(new ALenToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("as")) {
+                                return transformBlockToks(new AsToken(block.line, block.toks), mi);
+                            }
+
+                            if(binOps.containsKey(val)) {
+                                return transformBlockToks(new BinOpToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("if")) {
+                                return transformBlockToks(new IfToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("while")) {
+                                return transformBlockToks(new WhileToken(block.line, block.toks), mi);
+                            }
+
+                            if(isCompare(val)) {
+                                return transformBlockToks(new CompareToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("throw")) {
+                                return transformBlockToks(new ThrowToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("class")) {
+                                return transformBlockToks(new ClassToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("synchronized")) {
+                                return transformBlockToks(new SynchronizedToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("type")) {
+                                return transformBlockToks(new TypeToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals("return")) {
+                                return transformBlockToks(new ReturnToken(block.line, block.toks), mi);
+                            }
+                        }
+                    } else if(transform && (Token)block.toks.get(0) instanceof ColonToken) {
+                        CallToken out = new CallToken(block.line, block.toks);
+                        transformBlockTok((Token)out.toks.get(0), mi, true, 0);
+                        transformBlockToks(out, mi, true, 1);
+                        return out;
                     }
 
-                    if(val.equals("label")) {
-                        return new LabelToken(block.line, block.toks);
+                    if(transform) {
+                        return transformBlockToks(new DefaultToken(block.line, block.toks), mi);
                     }
-
-                    if(val.equals("goto")) {
-                        return new GotoToken(block.line, block.toks);
-                    }
-
-                    if(val.equals("define")) {
-                        return transformBlockToks(new DefineToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("try")) {
-                        return transformBlockToks(new TryToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("instance?")) {
-                        return transformBlockToks(new InstanceToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("set")) {
-                        return transformBlockToks(new SetToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("aset")) {
-                        return transformBlockToks(new ASetToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("aget")) {
-                        return transformBlockToks(new AGetToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("alen")) {
-                        return transformBlockToks(new ALenToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("as")) {
-                        return transformBlockToks(new AsToken(block.line, block.toks), mi);
-                    }
-
-                    if(binOps.containsKey(val)) {
-                        return transformBlockToks(new BinOpToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("if")) {
-                        return transformBlockToks(new IfToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("while")) {
-                        return transformBlockToks(new WhileToken(block.line, block.toks), mi);
-                    }
-
-                    if(isCompare(val)) {
-                        return transformBlockToks(new CompareToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("throw")) {
-                        return transformBlockToks(new ThrowToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("class")) {
-                        return transformBlockToks(new ClassToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("synchronized")) {
-                        return transformBlockToks(new SynchronizedToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("type")) {
-                        return transformBlockToks(new TypeToken(block.line, block.toks), mi);
-                    }
-
-                    if(val.equals("return")) {
-                        return transformBlockToks(new ReturnToken(block.line, block.toks), mi);
-                    }
-                } else if((Token)block.toks.get(0) instanceof ColonToken) {
-                    CallToken out = new CallToken(block.line, block.toks);
-                    transformBlockTokReplace((Token)out.toks.get(0), mi, true, 0);
-                    transformBlockToks(out, mi, true, 1);
-                    return out;
                 }
-
-                return transformBlockToks(new DefaultToken(block.line, block.toks), mi);
             }
 
             transformBlockToks(block, mi, transform);
@@ -908,11 +922,11 @@ public class Main {
             formatTok((Token)tok4.toks.get(0), line, line, tabs, sb);
         } else if(tok instanceof QuoteToken) {
             QuoteToken tok5 = (QuoteToken)tok;
-            sb.append(tok5.transform?"`":"~");
+            sb.append("`");
             formatTok((Token)tok5.toks.get(0), line, line, tabs, sb);
         } else if(tok instanceof UnquoteToken) {
             UnquoteToken tok6 = (UnquoteToken)tok;
-            sb.append(tok6.s?",$":",");
+            sb.append(tok6.var?",$":",");
             formatTok((Token)tok6.toks.get(0), line, line, tabs, sb);
         } else if(tok instanceof CommentToken) {
             CommentToken tok7 = (CommentToken)tok;

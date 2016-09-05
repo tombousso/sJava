@@ -1,4 +1,4 @@
-(package sjava.examples.tictactoe)
+(package examples.tictactoe)
 
 (import java.util.*)
 (import javafx.application.*)

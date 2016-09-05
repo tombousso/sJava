@@ -38,7 +38,7 @@
 		(if (= (fileNames:size) 0)
 			(this:printHelp)
 			(begin
-				(define dir (if (commandLine:hasOption "d") (commandLine:getOptionValue "d") ""))
+				(define dir (if (commandLine:hasOption "d") (commandLine:getOptionValue "d") "."))
 
 				(define fileScopes (Main:compile fileNames))
 				(forEach entry (fileScopes:entrySet)

@@ -1,4 +1,4 @@
-(package sjava.examples.test)
+(package examples.test)
 
 (import java.util.*)
 (import java.util.stream.*)

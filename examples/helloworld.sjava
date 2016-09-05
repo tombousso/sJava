@@ -1,4 +1,4 @@
-(package sjava.examples.helloworld)
+(package examples.helloworld)
 
 (define-class Main () 'public
 	((main args String[]) void 'public 'static

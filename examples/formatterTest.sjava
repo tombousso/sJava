@@ -1,4 +1,4 @@
-(package sjava.examples.formatterTest)
+(package examples.formatterTest)
 
 (import java.nio.file.*)
 (define-class Main () 'public

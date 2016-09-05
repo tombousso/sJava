@@ -1,0 +1,44 @@
+class SJavaCompile extends AbstractCompile {
+	String targetCompatibility = '1.8'
+	String sourceCompatibility = '1.8'
+	def compilerClasspath = project.files('../sjava.jar')
+	FileCollection classpath = project.files()
+	@TaskAction
+	void compile() {
+		def classpath_ = classpath
+		project.javaexec {
+			classpath = compilerClasspath + classpath_
+			main = "sjava.compiler.Main"
+			args = ["build"] + source + ["-d", destinationDir]
+		}
+	}
+}
+
+configurations {
+	classpath
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	classpath 'io.vertx:vertx-web:3.3.2'
+	classpath 'io.vertx:vertx-mysql-postgresql-client:3.3.2'
+	classpath 'io.vertx:vertx-web-templ-pebble:3.3.2'
+	classpath 'org.slf4j:slf4j-api:1.7.21'
+	classpath 'org.slf4j:slf4j-simple:1.7.21'
+	classpath 'de.svenkubiak:jBCrypt:0.4.1'
+}
+
+task compile(type: SJavaCompile) {
+	source = file("Main.sjava")
+	destinationDir = file("bin")
+	classpath = configurations.classpath
+}
+
+task run(type: JavaExec, dependsOn: [":compile"]) {
+	classpath = files("bin") + configurations.classpath
+	main = "Main"
+	standardInput = System.in
+}

@@ -1,4 +1,4 @@
-(package sjava.examples.lol)
+(package examples.lol)
 
 (define-class Main () 'public
 	((main args String[]) void 'public 'static

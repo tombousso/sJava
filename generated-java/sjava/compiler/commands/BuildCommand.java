@@ -29,7 +29,7 @@ public class BuildCommand extends Command {
         if(args.size() == 0) {
             this.printHelp();
         } else {
-            String dir = commandLine.hasOption("d")?commandLine.getOptionValue("d"):"";
+            String dir = commandLine.hasOption("d")?commandLine.getOptionValue("d"):".";
             Map fileScopes = Main.compile(args);
             Set iterable = fileScopes.entrySet();
             Iterator it = iterable.iterator();

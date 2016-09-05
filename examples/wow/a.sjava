@@ -1,6 +1,6 @@
-(package sjava.examples.wow)
+(package examples.wow)
 
-(import sjava.examples.wow.x.y)
+(import examples.wow.x.y)
 
 (define-class Main () 'public
 	((main args String[]) void 'public 'static

@@ -133,9 +133,9 @@ public class AMethodInfo {
                 }
             }
 
-            Type ret = h.compile(this.block, this, code, this.method.getReturnType());
+            h.compile(this.block, this, code, this.method.getReturnType());
             code.popScope();
-            if(ret != Main.returnType && code.reachableHere()) {
+            if(code.reachableHere()) {
                 code.emitReturn();
             }
         }

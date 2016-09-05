@@ -33,12 +33,12 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 ##Walkthrough!
 
 ###Requirements
-Java 8 - `java`  
-Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwin32/files/make/3.81/make-3.81.exe/download?use_mirror=heanet&download=) and run `set PATH=C:\Program Files (x86)\GnuWin32\bin;%PATH%` to add it to PATH temporarily)
+Java 8 - `java`
 
 ###Hierarchy (optional)
 ####`compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
 
+	├── build.gradle (Gradle build script for the compilers and examples)
 	├── compiler3/ (The main compiler)
 	│   ├── commands.sjava (BuildCommand, RunCommand, FormatCommand, etc.)
 	│   ├── emitters.sjava
@@ -62,8 +62,6 @@ Make - `make` ([install link for Windows](https://sourceforge.net/projects/gnuwi
 	├── std/ (The standard library)
 	│   ├── **.sjava
 	│   └── macros.sjava (The standard macros)
-	├── Makefile (Makefile for *examples/*)
-	├── Makefile.compiler (Makefile for the compilers)
 	├── sjava.jar (JAR version of *compiler3* and *std*)
 	├── sjava (Unix script for *sjava.jar*)
 	├── sjava.bat (Windows script for *sjava.jar*)
@@ -88,44 +86,45 @@ Once you've downloaded/cloned this repo open a terminal in its root directory.
 (Inspired by Golang)  
 To run `examples/tictactoe.sjava`, which uses a JavaFX GUI:
 
-	> ./sjava run sjava.examples.tictactoe.Main examples/tictactoe.sjava
+	> ./sjava run examples.tictactoe.Main examples/tictactoe.sjava
 
 Check out the code, it's about 200 lines.  
 The `run` command compiles sJava code and runs it from memory.  
-To build `compiler3` into `bin/`:
+To build `compiler3` into `bin/`  
+(On Windows use `gradlew` instead of `./gradlew`):
 
-	> make compiler
+	> ./gradlew compiler
 
-If everything works you should notice a couple of new folders in your `bin/` directory including `bin/sjava/` (the main compiler), which is created when  `bin/2-3/` (`compiler3` compiled by `compiler2`) compiles `compiler3`.  
-Have a look in `bin/sjava/compiler/tokens/` if you're interested in the different Token types which are used during compilation.  
+If everything works you should notice a couple of new folders in your `bin/` directory including `bin/main/`, which contains the classfiles of `compiler3` and `std`.  
+Have a look in `bin/main/sjava/compiler/tokens/` if you're interested in the different Token types which are used during compilation.  
 To run all of the tests in `examples/`:
 
-	> make tester
+	> ./gradlew tester
 	doubledispatch: PASSED
 	formatterTest: PASSED
 	generics: PASSED
 	...
 
 This will compile all of the examples and check the ones which have expected outputs.  
-You can run the `tictactoe` example again (this time the classfiles are precompiled in `bin/sjava/examples/tictactoe`):
+You can run the `tictactoe` example again (this time the classes are already compiled in `bin/examples/tictactoe`):
 
-	> make run-tictactoe
+	> ./gradlew run_tictactoe
 
 To run `examples/macro.sjava`:
 
-	> make run-macro
+	> ./gradlew run_macro
 	Compiled at 21:16:37 08/27/2016
 	Compile time dice roll result: 3
 	Runtime random number up to 1000: 745
-	> make run-macro
+	> ./gradlew run_macro
 	Compiled at 21:16:37 08/27/2016
 	Compile time dice roll result: 3
 	Runtime random number up to 1000: 131
 
-The date is the same in both runs because `make` didn't recompile `macro.sjava`, since it didn't change.  
+The date is the same in both runs because Gradle didn't recompile `macro.sjava`, since it didn't change.  
 And finally to run `doubledispatch`:
 
-	> make run-doubledispatch
+	> ./gradlew run_doubledispatch
 	0 string1
 	1 string1
 	2 integer1
@@ -175,6 +174,7 @@ Or build then run:
 
 	> ./sjava build printTest.sjava
 	> java Main
+	Counting to 3: [1, 2, 3]
 
 The `println` macro takes in a variable number of arguments and passes them all  to `concat` so you can see the `Arrays:toString` functionality in action.
 
@@ -185,13 +185,13 @@ If you've followed the walkthrough all the way until here, congrats! Let me know
 ###Just for fun
 `fernflower.jar` is a crazy decompiler which can actually convert the bytecode of `compiler3` into proper Java code!
 
-	> make java-sources
+	> ./gradlew java_sources
 
 And now that the Java files have been created:
 
-	> make java-compile
+	> ./gradlew java_compile
 
-If there are no errors then the `diff` command ran successfully meaning that the Java version of `compiler3` successfully compiled `compiler3`.
+If there are no errors then the diff ran successfully meaning that the Java version of `compiler3` successfully compiled `compiler3`.
 
 ##More explanations
 

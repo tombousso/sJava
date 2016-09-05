@@ -263,7 +263,7 @@ public class GenHandler extends Handler {
                 } else if(o1 instanceof UnquoteToken) {
                     Token var7 = (Token)o1.toks.get(0);
                     Type t1 = this.compile(var7, mi, (CodeAttr)null, Main.unknownType);
-                    ClassType type = Main.getCompilerType(((UnquoteToken)o1).s?"tokens.SToken":(t1 == Type.charType?"tokens.CToken":(t1 instanceof PrimType?"tokens.NToken":"tokens.VToken")));
+                    ClassType type = Main.getCompilerType(((UnquoteToken)o1).var?"tokens.VToken":(t1 == Type.charType?"tokens.CToken":(t1 instanceof PrimType?"tokens.NToken":"tokens.SToken")));
                     if(output) {
                         this.code.emitNew(type);
                     }
@@ -430,18 +430,7 @@ public class GenHandler extends Handler {
 
     public Type compile(QuoteToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Type out = this.compileQuasi((Token)tok.toks.get(0), mi, this.code, Main.getCompilerType("tokens.Token"));
-        if(tok.transform) {
-            if(output) {
-                this.code.emitLoad(this.code.getArg(0));
-            }
-
-            if(output) {
-                this.code.emitInvoke(Main.getCompilerType("Main").getDeclaredMethod("transformBlock", 2));
-            }
-        }
-
-        return out;
+        return this.compileQuasi((Token)tok.toks.get(0), mi, this.code, Main.getCompilerType("tokens.Token"));
     }
 
     public Type compile(ConstToken tok, AMethodInfo mi, Type needed) {
@@ -479,7 +468,7 @@ public class GenHandler extends Handler {
         boolean output = this.code != null;
         if(tok.ret == null) {
             try {
-                tok.ret = (Token)mi.ci.fs.includes.rc.getMethod(tok.mi.method.getName(), new Class[]{AMethodInfo.class, Type.class, Integer.TYPE, GenHandler.class}).invoke((Object)null, new Object[]{mi, needed, Integer.valueOf(0), this});
+                tok.ret = Main.transformBlock((Token)mi.ci.fs.includes.rc.getMethod(tok.mi.method.getName(), new Class[]{AMethodInfo.class, Type.class, Integer.TYPE, GenHandler.class}).invoke((Object)null, new Object[]{mi, needed, Integer.valueOf(0), this}), mi);
             } catch (Throwable var6) {
                 throw new RuntimeException(var6);
             }
@@ -669,7 +658,7 @@ public class GenHandler extends Handler {
             args.addAll((Collection)var10001);
 
             try {
-                tok.ret = (Token)ci.rc.getMethod(name, classes).invoke((Object)null, args.toArray());
+                tok.ret = Main.transformBlock((Token)ci.rc.getMethod(name, classes).invoke((Object)null, args.toArray()), mi);
             } catch (Throwable var22) {
                 throw new RuntimeException(var22);
             }
