@@ -90,10 +90,9 @@ To run `examples/tictactoe.sjava`, which uses a JavaFX GUI:
 
 Check out the code, it's about 200 lines.  
 The `run` command compiles sJava code and runs it from memory.  
-To build `compiler3` into `bin/`  
-(On Windows use `gradlew` instead of `./gradlew`):
+To build `compiler3` from source and update your `sjava.jar` (On Windows use `gradlew` instead of `./gradlew`):
 
-	> ./gradlew compiler
+	> ./gradlew jar
 
 If everything works you should notice a couple of new folders in your `bin/` directory including `bin/main/`, which contains the classfiles of `compiler3` and `std`.  
 Have a look in `bin/main/sjava/compiler/tokens/` if you're interested in the different Token types which are used during compilation.  

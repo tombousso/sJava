@@ -236,6 +236,13 @@
 		obj
 	)
 )
+(define-macro (chain obj @calls)
+	(define out obj)
+	(forEach call calls
+		(set out `((unquote out):(unquote (call:toks:get 0)) ,(call:toks:subList 1 (call:toks:size))))
+	)
+	out
+)
 ;(define-macro (xml @tags)
 ;	(define appends
 ;		(mapA tag tags

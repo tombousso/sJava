@@ -14,7 +14,7 @@
 		(super:<init>)
 		(set this:parser (DefaultParser))
 		(set this:options (Options))
-		(this:options:addOption (((Option:builder "h"):longOpt "help"):build))
+		(this:options:addOption (chain (Option:builder "h") (longOpt "help") (build)))
 	)
 	((name) String 'public 'abstract)
 	((helpHeader) String "")

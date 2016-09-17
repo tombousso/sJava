@@ -341,23 +341,25 @@
 	((transformBlock block Token mi AMethodInfo transform bool) Token 'static
 		(if (&& (!= block:toks null) (! block:transformed))
 			(begin
-				(if (&& transform (instance? block BlockToken) (> (block:toks:size) 0) (instance? (block:toks:get 0) VToken))
+				(if (&& (instance? block BlockToken) (> (block:toks:size) 0) (instance? (block:toks:get 0) VToken))
 					(begin
 						(define val (as VToken (block:toks:get 0)):val)
 						(define ret Token
-							(if (val:equals "mvar")
-								(begin
-									(define v VToken (block:toks:get 1))
-									(set v:macro 1)
-									v
-								)
-							(if (val:equals "object")
+							(if (&& transform (val:equals "object"))
 								(ObjectToken block:line block:toks)
-							(if (val:equals "lambda")
+							(if (&& transform (val:equals "lambda"))
 								(LambdaToken block:line block:toks)
-							(if (mi:ci:fs:macroNames:containsKey val)
+							(if (&& transform (mi:ci:fs:macroNames:containsKey val))
 								(MacroCallToken block:line block:toks)
+							(if (val:equals "quote")
+								(Main:transformBlock (QuoteToken block:line (block:toks:subList 1 (block:toks:size))) mi)
+							(if (val:equals "unquote")
+								(Main:transformBlock (UnquoteToken block:line (block:toks:subList 1 (block:toks:size)) false) mi)
+							(if (val:equals "varunquote")
+								(Main:transformBlock (UnquoteToken block:line (block:toks:subList 1 (block:toks:size)) true) mi)
 								null
+							)
+							)
 							)
 							)
 							)

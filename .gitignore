@@ -1,7 +1,6 @@
 bin/*
 !bin/1-2/
 generated-java/**/*.class
-vertx/cp.txt
 vertx/bin/
 vertx/.vertx/
 vertx/file-uploads/

@@ -1,4 +1,4 @@
-buildDir = 'bin/'
+buildDir = "bin/"
 
 buildscript {
 	repositories {
@@ -6,11 +6,11 @@ buildscript {
 	}
 
 	dependencies {
-		classpath 'com.stehno.vanilla:vanilla-core:0.4.0'
+		classpath "com.stehno.vanilla:vanilla-core:0.4.0"
 	}
 }
 
-ext.JARS = fileTree(dir: 'lib', include: ['*.jar'])
+ext.JARS = fileTree(dir: "lib", include: ["*.jar"])
 
 def same(a, b) {
 	def diffs = new com.stehno.vanilla.io.DirectoryDifferenceCollector().scan(a, b)	
@@ -18,9 +18,9 @@ def same(a, b) {
 }
 
 class SJavaCompile extends AbstractCompile {
-	String targetCompatibility = '1.8'
-	String sourceCompatibility = '1.8'
-	def compilerClasspath = project.files('bin/main')
+	String targetCompatibility = "1.8"
+	String sourceCompatibility = "1.8"
+	def compilerClasspath = project.files("bin/main")
 	def compilerLibs = project.ext.JARS
 	FileCollection classpath = project.files()
 	@TaskAction
@@ -36,11 +36,6 @@ class SJavaCompile extends AbstractCompile {
 
 def STD_MACROS = files("std/macros.sjava").collect { it.getCanonicalPath() }
 
-task diff(dependsOn: [":compiler2_2", ":compiler3_3"]) << {
-	println("diff2_2: "+(same(file("bin/1-2"), file("bin/2-2")) ? "good" : "bad"))
-	println("diff3_3: "+(same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler")) ? "good" : "bad"))
-}
-
 task compiler1_2(type: JavaExec) {
 	onlyIf { !file("bin/1-2").exists() }
 	inputs.files("compiler1.scm", "compiler2.sjava")
@@ -50,7 +45,7 @@ task compiler1_2(type: JavaExec) {
 	args = [file("compiler1.scm"), file("compiler2.sjava")]
 }
 
-task compiler2_2(type: JavaExec, dependsOn: [":compiler1_2"]) {
+task compiler2_2(type: JavaExec, dependsOn: [compiler1_2]) {
 	inputs.files("compiler2.sjava")
 	outputs.dir("bin/2-2")
 	main = "compiler2.Main"
@@ -58,7 +53,7 @@ task compiler2_2(type: JavaExec, dependsOn: [":compiler1_2"]) {
 	args = [file("compiler2.sjava"), "-d", "${projectDir}/bin/2-2/"]
 }
 
-task compiler2_3(type: JavaExec, dependsOn: [":compiler2_2"]) {
+task compiler2_3(type: JavaExec, dependsOn: [compiler2_2]) {
 	inputs.files(STD_MACROS)
 	inputs.dir("compiler3")
 	outputs.dir("bin/2-3")
@@ -67,45 +62,51 @@ task compiler2_3(type: JavaExec, dependsOn: [":compiler2_2"]) {
 	args = STD_MACROS + fileTree("compiler3").files + ["-d", "${projectDir}/bin/2-3/"]
 }
 
-task compiler(type: SJavaCompile, dependsOn: [":compiler2_3"]) {
+task compiler(type: SJavaCompile, dependsOn: [compiler2_3]) {
 	inputs.files(STD_MACROS)
 	source = fileTree("compiler3") + fileTree("std")
 	destinationDir = file("bin/main")
 	compilerClasspath = files("bin/2-3")
 }
 
-task compiler3_3(type: SJavaCompile, dependsOn: [":compiler"]) {
+task compiler3_3(type: SJavaCompile, dependsOn: [compiler]) {
 	source = fileTree("compiler3")
 	destinationDir = file("bin/3-3")
 }
 
-task jar(type: Zip, dependsOn: ["compiler"]) {
+task diff(dependsOn: [compiler2_2, compiler3_3]) << {
+	println("diff2_2: "+(same(file("bin/1-2"), file("bin/2-2")) ? "good" : "bad"))
+	println("diff3_3: "+(same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler")) ? "good" : "bad"))
+}
+
+task jar(type: Zip, dependsOn: [compiler]) {
 	archiveName = "sjava.jar"
 	from(file("MANIFEST.MF"), { into("META-INF") })
 	from(fileTree("bin/main/sjava/compiler"), { into("sjava/compiler") })
 	from(fileTree("bin/main/sjava/std"), { into("sjava/std") })
 }
 
-task java_sources(type: JavaExec, dependsOn: [":compiler"]) {
+task java_sources(type: JavaExec, dependsOn: [compiler]) {
 	doFirst {
 		file("generated-java/sjava/compiler").mkdirs()
 	}
 	main = "-jar"
 	args = [
 		file("fernflower.jar"),
-		'-ind=    ',
-		'-dgs=1',
+		"-ind=    ",
+		"-dgs=1",
 		file("bin/main/sjava/compiler"),
 		file("generated-java/sjava/compiler")
 	]
 }
 
-task java_compile(type: JavaCompile, dependsOn: [":compiler3_3"]) {
-	source = fileTree(dir: 'generated-java', include: '**/*.java')
-	destinationDir = file('generated-java')
+task java_compile(type: JavaCompile, dependsOn: [compiler3_3]) {
+	outputs.upToDateWhen { false }
+	source = fileTree(dir: "generated-java", include: "**/*.java")
+	destinationDir = file("generated-java")
 	classpath = JARS
-	sourceCompatibility = '1.8'
-	targetCompatibility = '1.8'
+	sourceCompatibility = "1.8"
+	targetCompatibility = "1.8"
 	dependencyCacheDir = file("${buildDir}/tmp/dependency-cache")
 	doLast {
 		task java_compile_test(type: SJavaCompile) {
@@ -113,7 +114,7 @@ task java_compile(type: JavaCompile, dependsOn: [":compiler3_3"]) {
 			source = fileTree("compiler3")
 			destinationDir = file("bin/java-3-3")
 		}
-		tasks["java_compile_test"].execute()
+		java_compile_test.execute()
 		println("java version works: "+same(file("bin/main/sjava/compiler"), file("bin/java-3-3/sjava/compiler")))
 	}
 }
@@ -123,21 +124,21 @@ def buildTasks = []
 file("examples").listFiles().each { f ->
 	if(f.name.endsWith(".sjava")) {
 		def root = f.name.substring(0, f.name.indexOf("."))
-		buildTasks += task "build_${root}"(type: SJavaCompile, dependsOn: [":compiler"]) {
+		buildTasks += task "build_${root}"(type: SJavaCompile, dependsOn: [compiler]) {
 			source = f
 			destinationDir = file("bin")
 		}
-		task "run_${root}"(type: JavaExec, dependsOn: [":build_${root}"]) {
+		task "run_${root}"(type: JavaExec, dependsOn: ["build_${root}"]) {
 			main = "examples.${root}.Main"
 			classpath = files("bin")
 		}
 	} else if (f.isDirectory()) {
 		def root = f.name;
-		buildTasks += task "build_${root}"(type: SJavaCompile, dependsOn: [":compiler"]) {
+		buildTasks += task "build_${root}"(type: SJavaCompile, dependsOn: [compiler]) {
 			source = fileTree(f)
 			destinationDir = file("bin")
 		}
-		task "run_${root}"(type: JavaExec, dependsOn: [":build_${root}"]) {
+		task "run_${root}"(type: JavaExec, dependsOn: ["build_${root}"]) {
 			main = "examples.${root}.Main"
 			classpath = files("bin")
 		}
