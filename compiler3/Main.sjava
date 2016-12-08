@@ -106,7 +106,6 @@
 
 		(set Main:specialChars (HashMap{String Character}))
 		(Main:specialChars:put "space" #\space)
-		(Main:specialChars:put "singlequote" #\singlequote)
 		(Main:specialChars:put "newline" #\newline)
 		(Main:specialChars:put "lparen" #\lparen)
 		(Main:specialChars:put "rparen" #\rparen)
@@ -149,7 +148,7 @@
 						(cmd:run commandLine (commandLine:getArgList))
 					)
 				)
-				(e Throwable (e:printStackTrace))
+				(e ParseException (e:printStackTrace))
 			)
 			(Main:printHelp)
 		)
@@ -188,7 +187,7 @@
 
 		(forEach name fileNames
 			(define code String null)
-			(try (set code (org.apache.commons.io.FileUtils:readFileToString (File name))) (e Throwable (throw (RuntimeException e))))
+			(try (set code (org.apache.commons.io.FileUtils:readFileToString (File name))) (e IOException (throw (RuntimeException e))))
 			(define formatted (Main:formatCode code))
 			(if (! (code:equals formatted)) (println "Warning: " name " isn't formatted"))
 			(files:put name (Main:parse code (Lexer) (Parser)))
@@ -413,9 +412,6 @@
 									((instance? (block:toks:get 0) VToken)
 										(define val (as VToken (block:toks:get 0)):val)
 										(cond
-											((val:equals "quote")
-												(return (Main:transformBlock (QuoteToken block:line (block:toks:subList 1 (block:toks:size))) mi))
-											)
 											((val:equals "unquote")
 												(return (Main:transformBlock (UnquoteToken block:line (block:toks:subList 1 (block:toks:size)) false) mi))
 											)
@@ -425,6 +421,9 @@
 										)
 										(if transform
 											(cond
+												((val:equals "quote")
+													(return (Main:transformBlock (QuoteToken block:line (block:toks:subList 1 (block:toks:size))) mi))
+												)
 												((val:equals "object")
 													(return (ObjectToken block:line block:toks))
 												)
@@ -471,7 +470,10 @@
 													(return (Main:transformBlockToks (AsToken block:line block:toks) mi))
 												)
 												((Main:binOps:containsKey val)
-													(return (Main:transformBlockToks (BinOpToken block:line block:toks) mi))
+													(return (Main:transformBlockToks (NumOpToken block:line block:toks) mi))
+												)
+												((|| (val:equals ">>") (val:equals "<<"))
+													(return (Main:transformBlockToks (ShiftToken block:line block:toks (val:equals ">>")) mi))
 												)
 												((val:equals "if")
 													(return (Main:transformBlockToks (IfToken block:line block:toks) mi))
@@ -892,7 +894,7 @@
 (define-class Lexer () 'public
 	(code String)
 	(i int)
-	(ml int)
+	(len int)
 	(s String)
 	(line int)
 	((<init>) void 'public
@@ -903,7 +905,7 @@
 		(define p -1)
 		(define l Main:ML)
 		(while (&& (= p -1) (!= l 0))
-			(if (<= (+ this:i l) this:ml)
+			(if (<= (+ this:i l) this:len)
 				(begin
 					(set this:s (this:peek 0 l))
 					(if (Main:s2prec:containsKey this:s)
@@ -936,12 +938,12 @@
 		(this:skip 1)
 	)
 	((nextTok) void
-		(while (&& (!= this:i this:ml) (= (this:getprec) -1) (! (Character:isWhitespace (this:peek))))
+		(while (&& (!= this:i this:len) (= (this:getprec) -1) (! (Character:isWhitespace (this:peek))))
 			(this:skip 1)
 		)
 	)
 	((token) Token
-		(while (&& (!= this:i this:ml) (= (this:getprec) -1) (Character:isWhitespace (this:peek)))
+		(while (&& (!= this:i this:len) (= (this:getprec) -1) (Character:isWhitespace (this:peek)))
 			(this:skip 1)
 		)
 		(define p (this:getprec))
@@ -949,7 +951,7 @@
 		(define out Token
 			(if (= p -1)
 				(begin
-					(define c (if (= this:i this:ml) (as char 0) (this:peek)))
+					(define c (if (= this:i this:len) (as char 0) (this:peek)))
 					(define oi this:i)
 					(if (= c #\#)
 						(begin
@@ -1023,7 +1025,7 @@
 							)
 							(if (this:s:equals ";")
 								(begin
-									(while (&& (!= this:i this:ml) (!= (this:peek) #\newline))
+									(while (&& (!= this:i this:len) (!= (this:peek) #\newline))
 										(this:skip)
 									)
 									(CommentToken this:line (this:code:substring oi this:i))
@@ -1043,11 +1045,11 @@
 	((lex code String) List{Token}
 		(set this:code code)
 		(set this:i 0)
-		(set this:ml (code:length))
+		(set this:len (code:length))
 		(set this:line 1)
 		(define out (ArrayList{Token}))
 		(while
-			(!= this:i this:ml)
+			(!= this:i this:len)
 			(define tok (this:token))
 			(if (!= tok null) (out:add tok))
 		)
@@ -1484,7 +1486,7 @@
 	)
 	((getClazz cl ArrayClassLoader) Class 'public
 		(define c Class null)
-		(try (set c (cl:loadClass (this:c:getName))) (e Throwable (throw (RuntimeException e))))
+		(try (set c (cl:loadClass (this:c:getName))) (e ClassNotFoundException (throw (RuntimeException e))))
 		c
 	)
 	((getClazz) Class 'public
@@ -1497,7 +1499,7 @@
 		((File pre):mkdirs)
 		(try
 			(org.apache.commons.io.FileUtils:writeByteArrayToFile (File (concat pre (this:c:getSimpleName) ".class")) (this:getClassfile))
-			(e Throwable (throw (RuntimeException e)))
+			(e IOException (throw (RuntimeException e)))
 		)
 		(forEach anon this:anonClasses
 			(anon:writeFiles dir)

@@ -15,7 +15,7 @@ import sjava.compiler.tokens.VToken;
 public class Lexer {
     String code;
     int i;
-    int ml;
+    int len;
     String s;
     int line;
 
@@ -23,7 +23,7 @@ public class Lexer {
         int p = -1;
 
         for(int l = Main.ML; p == -1 && l != 0; --l) {
-            if(this.i + l <= this.ml) {
+            if(this.i + l <= this.len) {
                 this.s = this.peek(0, l);
                 if(Main.s2prec.containsKey(this.s)) {
                     p = ((Integer)Main.s2prec.get(this.s)).intValue();
@@ -62,14 +62,14 @@ public class Lexer {
     }
 
     void nextTok() {
-        while(this.i != this.ml && this.getprec() == -1 && !Character.isWhitespace(this.peek())) {
+        while(this.i != this.len && this.getprec() == -1 && !Character.isWhitespace(this.peek())) {
             this.skip(1);
         }
 
     }
 
     Token token() {
-        while(this.i != this.ml && this.getprec() == -1 && Character.isWhitespace(this.peek())) {
+        while(this.i != this.len && this.getprec() == -1 && Character.isWhitespace(this.peek())) {
             this.skip(1);
         }
 
@@ -77,7 +77,7 @@ public class Lexer {
         int oline = this.line;
         Object var10000;
         if(p == -1) {
-            char c = this.i == this.ml?0:this.peek();
+            char c = this.i == this.len?0:this.peek();
             int oi = this.i;
             if(c != 35) {
                 if(Character.isDigit(c) || c == 45 && Character.isDigit(this.peek(1))) {
@@ -104,7 +104,7 @@ public class Lexer {
                     if(!this.s.equals(";")) {
                         var10000 = new Token(this.line, p, this.s);
                     } else {
-                        while(this.i != this.ml && this.peek() != 10) {
+                        while(this.i != this.len && this.peek() != 10) {
                             this.skip();
                         }
 
@@ -169,11 +169,11 @@ public class Lexer {
     List<Token> lex(String code) {
         this.code = code;
         this.i = 0;
-        this.ml = code.length();
+        this.len = code.length();
         this.line = 1;
         ArrayList out = new ArrayList();
 
-        while(this.i != this.ml) {
+        while(this.i != this.len) {
             Token tok = this.token();
             if(tok != null) {
                 out.add(tok);

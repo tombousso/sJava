@@ -11,6 +11,7 @@ import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
@@ -45,7 +47,6 @@ import sjava.compiler.tokens.ALenToken;
 import sjava.compiler.tokens.ASetToken;
 import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
-import sjava.compiler.tokens.BinOpToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
@@ -62,10 +63,12 @@ import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
 import sjava.compiler.tokens.LambdaToken;
 import sjava.compiler.tokens.MacroCallToken;
+import sjava.compiler.tokens.NumOpToken;
 import sjava.compiler.tokens.ObjectToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.ReturnToken;
 import sjava.compiler.tokens.SetToken;
+import sjava.compiler.tokens.ShiftToken;
 import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.SynchronizedToken;
 import sjava.compiler.tokens.ThrowToken;
@@ -152,7 +155,6 @@ public class Main {
         precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";"}, {":", "{"}, {"(", "\'", ",", ",$", "`"}};
         specialChars = new HashMap();
         specialChars.put("space", Character.valueOf(' '));
-        specialChars.put("singlequote", Character.valueOf('\''));
         specialChars.put("newline", Character.valueOf('\n'));
         specialChars.put("lparen", Character.valueOf('('));
         specialChars.put("rparen", Character.valueOf(')'));
@@ -196,7 +198,7 @@ public class Main {
                     } else {
                         cmd.run(commandLine, commandLine.getArgList());
                     }
-                } catch (Throwable var5) {
+                } catch (ParseException var5) {
                     var5.printStackTrace();
                 }
             } else {
@@ -267,7 +269,7 @@ public class Main {
 
             try {
                 code = FileUtils.readFileToString(new File(name));
-            } catch (Throwable var14) {
+            } catch (IOException var14) {
                 throw new RuntimeException(var14);
             }
 
@@ -517,19 +519,19 @@ public class Main {
                 } else {
                     if((Token)block.toks.get(0) instanceof VToken) {
                         String val = ((VToken)((Token)block.toks.get(0))).val;
-                        if(val.equals("quote")) {
-                            return new QuoteToken(block.line, block.toks.subList(1, block.toks.size()));
-                        }
-
                         if(val.equals("unquote")) {
-                            return new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), false);
+                            return transformBlock(new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), false), mi);
                         }
 
                         if(val.equals("varunquote")) {
-                            return new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), true);
+                            return transformBlock(new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), true), mi);
                         }
 
                         if(transform) {
+                            if(val.equals("quote")) {
+                                return transformBlock(new QuoteToken(block.line, block.toks.subList(1, block.toks.size())), mi);
+                            }
+
                             if(val.equals("object")) {
                                 return new ObjectToken(block.line, block.toks);
                             }
@@ -591,7 +593,11 @@ public class Main {
                             }
 
                             if(binOps.containsKey(val)) {
-                                return transformBlockToks(new BinOpToken(block.line, block.toks), mi);
+                                return transformBlockToks(new NumOpToken(block.line, block.toks), mi);
+                            }
+
+                            if(val.equals(">>") || val.equals("<<")) {
+                                return transformBlockToks(new ShiftToken(block.line, block.toks, val.equals(">>")), mi);
                             }
 
                             if(val.equals("if")) {

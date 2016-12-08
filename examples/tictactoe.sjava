@@ -206,7 +206,7 @@
 		(define by 0)
 		(for (define x 0) (< x 3) (inc x)
 			(for (define y 0) (< y 3) (inc y)
-				(if (= (aget (aget App:board x) y) 0)
+				(if (= (aget App:board x y) 0)
 					(begin
 						(aset (aget App:board x) y App:turn)
 						(define n (App:minimax (if (= App:turn 1) 2 1) 10))

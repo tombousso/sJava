@@ -9,6 +9,7 @@ import gnu.bytecode.ParameterizedType;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -91,7 +92,7 @@ public class ClassInfo {
         try {
             c = cl.loadClass(this.c.getName());
             return c;
-        } catch (Throwable var4) {
+        } catch (ClassNotFoundException var4) {
             throw new RuntimeException(var4);
         }
     }
@@ -116,7 +117,7 @@ public class ClassInfo {
             sb1.append(this.c.getSimpleName());
             sb1.append(".class");
             FileUtils.writeByteArrayToFile(new File(sb1.toString()), this.getClassfile());
-        } catch (Throwable var10) {
+        } catch (IOException var10) {
             throw new RuntimeException(var10);
         }
 

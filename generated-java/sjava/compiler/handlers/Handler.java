@@ -8,7 +8,6 @@ import sjava.compiler.tokens.ALenToken;
 import sjava.compiler.tokens.ASetToken;
 import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
-import sjava.compiler.tokens.BinOpToken;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
@@ -25,11 +24,13 @@ import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
 import sjava.compiler.tokens.MacroCallToken;
 import sjava.compiler.tokens.NToken;
+import sjava.compiler.tokens.NumOpToken;
 import sjava.compiler.tokens.ObjectToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.ReturnToken;
 import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.SetToken;
+import sjava.compiler.tokens.ShiftToken;
 import sjava.compiler.tokens.SynchronizedToken;
 import sjava.compiler.tokens.ThrowToken;
 import sjava.compiler.tokens.Token;
@@ -94,7 +95,9 @@ public abstract class Handler {
 
     public abstract Type compile(AsToken var1, AMethodInfo var2, Type var3);
 
-    public abstract Type compile(BinOpToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(NumOpToken var1, AMethodInfo var2, Type var3);
+
+    public abstract Type compile(ShiftToken var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(IfToken var1, AMethodInfo var2, Type var3);
 
@@ -162,8 +165,10 @@ public abstract class Handler {
             var10000 = this.compile((ALenToken)tok, mi, needed);
         } else if(tok instanceof AsToken) {
             var10000 = this.compile((AsToken)tok, mi, needed);
-        } else if(tok instanceof BinOpToken) {
-            var10000 = this.compile((BinOpToken)tok, mi, needed);
+        } else if(tok instanceof NumOpToken) {
+            var10000 = this.compile((NumOpToken)tok, mi, needed);
+        } else if(tok instanceof ShiftToken) {
+            var10000 = this.compile((ShiftToken)tok, mi, needed);
         } else if(tok instanceof IfToken) {
             var10000 = this.compile((IfToken)tok, mi, needed);
         } else if(tok instanceof WhileToken) {

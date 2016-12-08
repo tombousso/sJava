@@ -369,9 +369,17 @@
 	)
 )
 
-(define-class BinOpToken (Token Transformed) 'public
+(define-class NumOpToken (Token Transformed) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
+	)
+)
+
+(define-class ShiftToken (Token Transformed) 'public
+	(right bool 'public)
+	((<init> line int toks List{Token} right bool) void 'public
+		(super:<init> line toks)
+		(set this:right right)
 	)
 )
 

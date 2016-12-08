@@ -49,7 +49,8 @@
 	((compile tok AGetToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ALenToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok AsToken mi AMethodInfo needed Type) Type 'public 'abstract)
-	((compile tok BinOpToken mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok NumOpToken mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok ShiftToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public 'abstract)
@@ -279,7 +280,8 @@
 												(if output (this:code:emitDup))
 												(try
 													(this:compileQuasi ((field:getReflectField):get o) mi this:code (field:getType))
-													(e Throwable (throw (RuntimeException e)))
+													(e NoSuchFieldException (throw (RuntimeException e)))
+													(e IllegalAccessException (throw (RuntimeException e)))
 												)
 												(if output (this:code:emitPutField field))
 											)
@@ -401,7 +403,9 @@
 						mi
 					)
 				)
-				(e Throwable (throw (RuntimeException e)))
+				(e NoSuchMethodException (throw (RuntimeException e)))
+				(e IllegalAccessException (throw (RuntimeException e)))
+				(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
 			)
 		)
 		(this:compile tok:ret mi this:code needed)
@@ -606,7 +610,9 @@
 							mi
 						)
 					)
-					(e Throwable (throw (RuntimeException e)))
+					(e NoSuchMethodException (throw (RuntimeException e)))
+					(e IllegalAccessException (throw (RuntimeException e)))
+					(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
 				)
 			)
 		)
@@ -642,7 +648,7 @@
 			(set type (this:compile (tok:toks:get 2) mi this:code Main:unknownType))
 			(if (= (tok:toks:size) 4)
 				(this:compile (tok:toks:get 3) mi this:code type)
-				(if output (this:code:emitPushDefaultValue needed))
+				(if output (this:code:emitPushDefaultValue type))
 			)
 		)
 		(define var (mi:newVar this:code (as VToken (tok:toks:get 1)) type))
@@ -720,8 +726,11 @@
 	((compile tok AGetToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define type ArrayType (this:compile (tok:toks:get 1) mi this:code Main:unknownType))
-		(this:compile (tok:toks:get 2) mi this:code Type:intType)
-		(if output (this:code:emitArrayLoad))
+		(for (define i 2) (< i (tok:toks:size)) (inc i)
+			(this:compile (tok:toks:get i) mi this:code Type:intType)
+			(if output (this:code:emitArrayLoad))
+			(if (!= i 2) (set type (as ArrayType type:elements)))
+		)
 		type:elements
 	)
 	((compile tok ALenToken mi AMethodInfo needed Type) Type 'public
@@ -735,7 +744,7 @@
 		(define cast (mi:getType (tok:toks:get 1)))
 		(this:compile (tok:toks:get 2) mi this:code cast)
 	)
-	((compile tok BinOpToken mi AMethodInfo needed Type) Type 'public
+	((compile tok NumOpToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define first VToken (tok:toks:get 0))
 		(define otype (Main:numericOpType (this:compileAll tok:toks 1 (tok:toks:size) mi null Main:unknownType)))
@@ -746,6 +755,14 @@
 			(if output (this:code:emitBinop (Main:binOps:get first:val) otype))
 			(set i (+ i 1))
 		)
+		otype
+	)
+	((compile tok ShiftToken mi AMethodInfo needed Type) Type 'public
+		(define output (!= this:code null))
+		(define otype (PrimType:unboxedType (this:compile (tok:toks:get 1) mi null Main:unknownType)))
+		(this:compile (tok:toks:get 1) mi this:code otype)
+		(this:compile (tok:toks:get 2) mi this:code Type:intType)
+		(if output (if tok:right (this:code:emitShr) (this:code:emitShl)))
 		otype
 	)
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
