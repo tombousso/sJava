@@ -11,34 +11,11 @@ import sjava.compiler.handlers.GenHandler;
 public class Token extends Emitter {
     public int line;
     public int endLine;
-    public int prec;
-    public String what;
     public List<Token> toks;
-    public boolean alwaysTransform;
-    public boolean neverTransform;
-    public transient boolean transformed;
-
-    public Token() {
-        this.prec = -1;
-        this.what = "";
-        this.alwaysTransform = false;
-        this.neverTransform = false;
-        this.transformed = false;
-    }
 
     Token(int line) {
         this();
         this.line = line;
-    }
-
-    Token(int line, int prec) {
-        this(line);
-        this.prec = prec;
-    }
-
-    public Token(int line, int prec, String what) {
-        this(line, prec);
-        this.what = what;
     }
 
     public Token(int line, List<Token> toks) {
@@ -62,10 +39,6 @@ public class Token extends Emitter {
         return s.toString();
     }
 
-    public String toString() {
-        return this.what;
-    }
-
     public Type emit(GenHandler h, AMethodInfo mi, CodeAttr code, Type needed) {
         return h.compile(this, mi, code, needed);
     }
@@ -76,5 +49,8 @@ public class Token extends Emitter {
 
     public int lastLine() {
         return this.endLine;
+    }
+
+    public Token() {
     }
 }

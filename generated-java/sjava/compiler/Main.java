@@ -472,11 +472,7 @@ public class Main {
 
     public static Token transformBlockTok(Token block, AMethodInfo mi, boolean transform, int i) {
         Token tok = (Token)block.toks.get(i);
-        Token ntok = transformBlock(tok, mi, transform && !block.neverTransform || block.alwaysTransform);
-        if(transform) {
-            ntok.transformed = true;
-        }
-
+        Token ntok = transformBlock(tok, mi, transform && !(block instanceof QuoteToken) || block instanceof UnquoteToken);
         block.toks.set(i, ntok);
         if(transform && tok instanceof BlockToken && tok.toks.size() > 0 && (Token)tok.toks.get(0) instanceof VToken) {
             String val = ((VToken)((Token)tok.toks.get(0))).val;
@@ -489,10 +485,6 @@ public class Main {
     }
 
     public static Token transformBlockToks(Token block, AMethodInfo mi, boolean transform, int i) {
-        if(transform && block instanceof BlockToken) {
-            ((BlockToken)block).labels = new HashMap();
-        }
-
         while(i != block.toks.size()) {
             transformBlockTok(block, mi, transform, i);
             ++i;
@@ -506,11 +498,11 @@ public class Main {
     }
 
     public static Token transformBlockToks(Token block, AMethodInfo mi) {
-        return transformBlockToks(block, mi, !block.neverTransform);
+        return transformBlockToks(block, mi, !(block instanceof QuoteToken));
     }
 
     static Token transformBlock(Token block, AMethodInfo mi, boolean transform) {
-        if(block.toks != null && !block.transformed && !(block instanceof Transformed)) {
+        if(block.toks != null && !(block instanceof Transformed)) {
             if(block instanceof BlockToken) {
                 if(block.toks.size() == 0) {
                     if(transform) {
@@ -652,7 +644,7 @@ public class Main {
     }
 
     public static Token transformBlock(Token block, AMethodInfo mi) {
-        return transformBlock(block, mi, !block.neverTransform);
+        return transformBlock(block, mi, !(block instanceof QuoteToken));
     }
 
     public static Type numericOpType(Type[] types) {

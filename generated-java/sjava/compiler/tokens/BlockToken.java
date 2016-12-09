@@ -5,7 +5,7 @@ import java.util.List;
 import sjava.compiler.tokens.Token;
 
 public class BlockToken extends Token {
-    public HashMap labels;
+    public transient HashMap labels = new HashMap();
 
     public BlockToken(int line, List<Token> toks) {
         super(line, toks);

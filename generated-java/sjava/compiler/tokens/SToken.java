@@ -1,10 +1,10 @@
 package sjava.compiler.tokens;
 
 import org.apache.commons.lang3.StringEscapeUtils;
-import sjava.compiler.tokens.Token;
+import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.Transformed;
 
-public class SToken extends Token implements Transformed {
+public class SToken extends LexedToken implements Transformed {
     public String val;
     public boolean tripleQuote;
 

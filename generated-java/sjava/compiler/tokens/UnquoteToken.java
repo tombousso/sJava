@@ -9,7 +9,6 @@ public class UnquoteToken extends Token {
     public UnquoteToken(int line, List<Token> toks, boolean var) {
         super(line, toks);
         this.var = var;
-        super.alwaysTransform = true;
     }
 
     public String toString() {

@@ -474,7 +474,7 @@ public class GenHandler extends Handler {
         boolean output = this.code != null;
         if(tok.ret == null) {
             try {
-                tok.ret = Main.transformBlock((Token)mi.ci.fs.includes.rc.getMethod(tok.mi.method.getName(), new Class[]{AMethodInfo.class, Type.class, Integer.TYPE, GenHandler.class}).invoke((Object)null, new Object[]{mi, needed, Integer.valueOf(0), this}), mi);
+                tok.ret = Main.transformBlock((Token)mi.ci.fs.includes.getClazz().getMethod(tok.mi.method.getName(), new Class[]{AMethodInfo.class, Type.class, Integer.TYPE, GenHandler.class}).invoke((Object)null, new Object[]{mi, needed, Integer.valueOf(0), this}), mi);
             } catch (NoSuchMethodException var8) {
                 throw new RuntimeException(var8);
             } catch (IllegalAccessException var9) {
@@ -668,7 +668,7 @@ public class GenHandler extends Handler {
             args.addAll((Collection)var10001);
 
             try {
-                tok.ret = Main.transformBlock((Token)ci.rc.getMethod(name, classes).invoke((Object)null, args.toArray()), mi);
+                tok.ret = Main.transformBlock((Token)ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray()), mi);
             } catch (NoSuchMethodException var24) {
                 throw new RuntimeException(var24);
             } catch (IllegalAccessException var25) {

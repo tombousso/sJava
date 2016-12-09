@@ -6,7 +6,6 @@ import sjava.compiler.tokens.Token;
 public class SingleQuoteToken extends Token {
     public SingleQuoteToken(int line, List<Token> toks) {
         super(line, toks);
-        super.neverTransform = true;
     }
 
     public String toString() {

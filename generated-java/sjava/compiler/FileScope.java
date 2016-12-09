@@ -184,7 +184,6 @@ public class FileScope {
         for(int i = 0; i != this.macros.size(); ++i) {
             ClassInfo macros = (ClassInfo)this.macros.get(i);
             ((AMethodInfo)macros.methods.get(0)).compileMethodBody();
-            macros.rc = macros.getClazz();
         }
 
     }
@@ -206,7 +205,6 @@ public class FileScope {
             }
         }
 
-        includes.rc = includes.getClazz();
     }
 
     int compileIncludes(List<Token> toks, int n) {

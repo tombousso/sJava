@@ -7,13 +7,14 @@ import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.ColonToken;
 import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.UnquoteToken;
 
 public class Parser {
-    List<Token> toks;
+    List<LexedToken> toks;
     int i;
     boolean ignoreComments;
 
@@ -25,14 +26,14 @@ public class Parser {
         this(true);
     }
 
-    Token next() {
-        Token ret = (Token)this.toks.get(this.i);
+    LexedToken next() {
+        LexedToken ret = (LexedToken)this.toks.get(this.i);
         ++this.i;
         return ret;
     }
 
-    Token peek(int n) {
-        return (Token)this.toks.get(this.i + n);
+    LexedToken peek(int n) {
+        return (LexedToken)this.toks.get(this.i + n);
     }
 
     List<Token> subToks(String end) {
@@ -50,7 +51,7 @@ public class Parser {
     }
 
     Token parse(int prec) {
-        Token t = this.next();
+        LexedToken t = this.next();
         String w = t.what;
         Object var10000;
         if(w.equals("(")) {
@@ -98,7 +99,7 @@ public class Parser {
         return this.peek(0).prec;
     }
 
-    List<Token> parseAll(List<Token> toks) {
+    List<Token> parseAll(List<LexedToken> toks) {
         this.i = 0;
         this.toks = toks;
         ArrayList out = new ArrayList();

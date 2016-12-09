@@ -130,7 +130,7 @@ file("examples").listFiles().each { f ->
 		}
 		task "run_${root}"(type: JavaExec, dependsOn: ["build_${root}"]) {
 			main = "examples.${root}.Main"
-			classpath = files("bin")
+			classpath = files("bin", "bin/main")
 		}
 	} else if (f.isDirectory()) {
 		def root = f.name;
@@ -140,7 +140,7 @@ file("examples").listFiles().each { f ->
 		}
 		task "run_${root}"(type: JavaExec, dependsOn: ["build_${root}"]) {
 			main = "examples.${root}.Main"
-			classpath = files("bin")
+			classpath = files("bin", "bin/main")
 		}
 	}
 }

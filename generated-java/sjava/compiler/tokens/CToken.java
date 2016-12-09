@@ -4,10 +4,10 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Map.Entry;
 import sjava.compiler.Main;
-import sjava.compiler.tokens.Token;
+import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.Transformed;
 
-public class CToken extends Token implements Transformed {
+public class CToken extends LexedToken implements Transformed {
     public Character val;
 
     public CToken(int line, Character val) {

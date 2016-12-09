@@ -390,7 +390,7 @@
 					(Main:transformBlock
 						(as Token
 							(
-								(mi:ci:fs:includes:rc:getMethod (tok:mi:method:getName)
+								((mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
 									(Class[]
 										(class AMethodInfo)
 										(class gnu.bytecode.Type)
@@ -606,7 +606,7 @@
 				(try
 					(set tok:ret
 						(Main:transformBlock
-							(as Token ((ci:rc:getMethod name classes):invoke null (args:toArray)))
+							(as Token (((ci:getClazz):getMethod name classes):invoke null (args:toArray)))
 							mi
 						)
 					)

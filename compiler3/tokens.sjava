@@ -10,31 +10,10 @@
 (define-class Token (Emitter) 'public
 	(line int 'public)
 	(endLine int 'public)
-	(prec int 'public)
-	(what String 'public)
 	(toks List{Token} 'public)
-	(alwaysTransform bool 'public)
-	(neverTransform bool 'public)
-	(transformed bool 'public 'transient)
-	((<init>) void 'public
-		(super:<init>)
-		(set this:prec -1)
-		(set this:what "")
-		(set this:alwaysTransform false)
-		(set this:neverTransform false)
-		(set this:transformed false)
-	)
 	((<init> line int) void
 		(this:<init>)
 		(set this:line line)
-	)
-	((<init> line int prec int) void
-		(this:<init> line)
-		(set this:prec prec)
-	)
-	((<init> line int prec int what String) void 'public
-		(this:<init> line prec)
-		(set this:what what)
 	)
 	((<init> line int toks List{Token}) void 'public
 		(this:<init> line)
@@ -50,9 +29,6 @@
 		)
 		(s:toString)
 	)
-	((toString) String 'public
-		this:what
-	)
 	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(h:compile this mi code needed)
 	)
@@ -62,11 +38,34 @@
 	((lastLine) int 'public
 		this:endLine
 	)
+	((<init>) void 'public
+		(super:<init>)
+	)
+)
+
+(define-class LexedToken (Token) 'public
+	(prec int 'public)
+	(what String 'public)
+	((<init> line int) void 'public
+		(super:<init> line)
+		(set this:what "")
+	)
+	((<init> line int prec int what String) void 'public
+		(this:<init> line)
+		(set this:prec prec)
+		(set this:what what)
+	)
+	((toString) String 'public
+		this:what
+	)
+	((<init>) void 'public
+		(super:<init>)
+	)
 )
 
 (define-class Transformed () 'interface 'abstract 'public)
 
-(define-class CommentToken (Token Transformed) 'public
+(define-class CommentToken (LexedToken Transformed) 'public
 	(val String 'public)
 	((<init> line int val String) void 'public
 		(super:<init> line)
@@ -74,7 +73,7 @@
 	)
 )
 
-(define-class ConstToken (Token Transformed) 'public
+(define-class ConstToken (LexedToken Transformed) 'public
 	(val String 'public)
 	((<init> line int val String) void 'public
 		(super:<init> line)
@@ -88,7 +87,7 @@
 	)
 )
 
-(define-class SToken (Token Transformed) 'public
+(define-class SToken (LexedToken Transformed) 'public
 	(val String 'public)
 	(tripleQuote bool 'public)
 	((<init> line int val String tripleQuote bool) void 'public
@@ -117,7 +116,7 @@
 	)
 )
 
-(define-class NToken (Token Transformed) 'public
+(define-class NToken (LexedToken Transformed) 'public
 	(val Number 'public)
 	((<init> line int sval String) void 'public
 		(super:<init> line)
@@ -131,7 +130,7 @@
 	)
 )
 
-(define-class CToken (Token Transformed) 'public
+(define-class CToken (LexedToken Transformed) 'public
 	(val Character 'public)
 	((<init> line int val Character) void 'public
 		(super:<init> line)
@@ -151,7 +150,7 @@
 	)
 )
 
-(define-class VToken (Token Transformed) 'public
+(define-class VToken (LexedToken Transformed) 'public
 	(val String 'public)
 	(macro int 'public 'transient)
 	((<init> line int val String macro int) void
@@ -162,12 +161,6 @@
 	((<init> line int val String) void 'public
 		(this:<init> line val 0)
 	)
-	((javaName) String 'public
-		(if (= this:macro 0)
-			(concat this:val)
-			(concat this:val "$" this:macro)
-		)
-	)
 	((toString) String 'public
 		this:val
 	)
@@ -177,9 +170,10 @@
 )
 
 (define-class BlockToken (Token) 'public
-	(labels HashMap 'public)
+	(labels HashMap 'public 'transient)
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
+		(set this:labels (HashMap))
 	)
 	((toString) String 'public
 		(concat "(" (this:toksString) ")")
@@ -198,6 +192,7 @@
 	)
 	((<init>) void 'public
 		(super:<init>)
+		(set this:labels (HashMap))
 	)
 )
 
@@ -233,7 +228,6 @@
 (define-class SingleQuoteToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
-		(set this:neverTransform true)
 	)
 	((toString) String 'public
 		(concat "'" (this:toks:get 0))
@@ -246,7 +240,6 @@
 (define-class QuoteToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
-		(set this:neverTransform true)
 	)
 	((toString) String 'public
 		(concat "`" (this:toks:get 0))
@@ -261,7 +254,6 @@
 	((<init> line int toks List{Token} var bool) void 'public
 		(super:<init> line toks)
 		(set this:var var)
-		(set this:alwaysTransform true)
 	)
 	((toString) String 'public
 		(concat (if this:var ",$" ",") ((this:toks:get 0):toString))

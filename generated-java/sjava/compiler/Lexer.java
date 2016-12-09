@@ -7,6 +7,7 @@ import sjava.compiler.Main;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.ConstToken;
+import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.NToken;
 import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.Token;
@@ -68,7 +69,7 @@ public class Lexer {
 
     }
 
-    Token token() {
+    LexedToken token() {
         while(this.i != this.len && this.getprec() == -1 && Character.isWhitespace(this.peek())) {
             this.skip(1);
         }
@@ -102,7 +103,7 @@ public class Lexer {
             if(!this.s.equals("\"\"\"")) {
                 if(!this.s.equals("\"")) {
                     if(!this.s.equals(";")) {
-                        var10000 = new Token(this.line, p, this.s);
+                        var10000 = new LexedToken(this.line, p, this.s);
                     } else {
                         while(this.i != this.len && this.peek() != 10) {
                             this.skip();
@@ -163,10 +164,10 @@ public class Lexer {
             ((Token)out).endLine = this.line;
         }
 
-        return (Token)out;
+        return (LexedToken)out;
     }
 
-    List<Token> lex(String code) {
+    List<LexedToken> lex(String code) {
         this.code = code;
         this.i = 0;
         this.len = code.length();
@@ -174,7 +175,7 @@ public class Lexer {
         ArrayList out = new ArrayList();
 
         while(this.i != this.len) {
-            Token tok = this.token();
+            LexedToken tok = this.token();
             if(tok != null) {
                 out.add(tok);
             }

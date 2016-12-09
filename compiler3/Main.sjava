@@ -360,13 +360,12 @@
 				(||
 					(&&
 						transform
-						(! block:neverTransform)
+						(! (instance? block QuoteToken))
 					)
-					block:alwaysTransform
+					(instance? block UnquoteToken)
 				)
 			)
 		)
-		(if transform (set ntok:transformed true))
 		(block:toks:set i ntok)
 		(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
 			(begin
@@ -379,9 +378,6 @@
 		ntok
 	)
 	((transformBlockToks block Token mi AMethodInfo transform bool i int) Token 'public 'static
-		(if (&& transform (instance? block BlockToken))
-			(set (as BlockToken block):labels (HashMap))
-		)
 		(while (!= i (block:toks:size))
 			(Main:transformBlockTok block mi transform i)
 			(set i (+ i 1))
@@ -392,10 +388,11 @@
 		(Main:transformBlockToks block mi transform 0)
 	)
 	((transformBlockToks block Token mi AMethodInfo) Token 'public 'static
-		(Main:transformBlockToks block mi (! block:neverTransform))
+		(Main:transformBlockToks block mi (! (instance? block QuoteToken)))
 	)
 	((transformBlock block Token mi AMethodInfo transform bool) Token 'static
-		(if (&& (!= block:toks null) (&& (! block:transformed) (! (instance? block Transformed))))
+		;check if transform is needed
+		(if (&& (!= block:toks null) (! (instance? block Transformed)))
 			(begin
 				(cond
 					;((instance? block ColonToken)
@@ -520,7 +517,7 @@
 		block
 	)
 	((transformBlock block Token mi AMethodInfo) Token 'static 'public
-		(Main:transformBlock block mi (! block:neverTransform))
+		(Main:transformBlock block mi (! (instance? block QuoteToken)))
 	)
 	((numericOpType types Type[]) Type 'static 'public
 		(define l (Arrays:asList types))
@@ -942,7 +939,7 @@
 			(this:skip 1)
 		)
 	)
-	((token) Token
+	((token) LexedToken
 		(while (&& (!= this:i this:len) (= (this:getprec) -1) (Character:isWhitespace (this:peek)))
 			(this:skip 1)
 		)
@@ -1030,7 +1027,7 @@
 									)
 									(CommentToken this:line (this:code:substring oi this:i))
 								)
-								(Token this:line p this:s)
+								(LexedToken this:line p this:s)
 							)
 						)
 					)
@@ -1042,12 +1039,12 @@
 		)
 		out
 	)
-	((lex code String) List{Token}
+	((lex code String) List{LexedToken}
 		(set this:code code)
 		(set this:i 0)
 		(set this:len (code:length))
 		(set this:line 1)
-		(define out (ArrayList{Token}))
+		(define out (ArrayList{LexedToken}))
 		(while
 			(!= this:i this:len)
 			(define tok (this:token))
@@ -1058,7 +1055,7 @@
 )
 
 (define-class Parser () 'public
-	(toks List{Token})
+	(toks List{LexedToken})
 	(i int)
 	(ignoreComments bool)
 	((<init> ignoreComments bool) void 'public
@@ -1068,12 +1065,12 @@
 	((<init>) void 'public
 		(this:<init> true)
 	)
-	((next) Token
+	((next) LexedToken
 		(define ret (this:toks:get this:i))
 		(inc this:i)
 		ret
 	)
-	((peek n int) Token
+	((peek n int) LexedToken
 		(this:toks:get (+ this:i n))
 	)
 	((subToks end String) List{Token}
@@ -1136,7 +1133,7 @@
 	((prec) int
 		(this:peek 0):prec
 	)
-	((parseAll toks List{Token}) List{Token}
+	((parseAll toks List{LexedToken}) List{Token}
 		(set this:i 0)
 		(set this:toks toks)
 		(define out (ArrayList{Token}))
@@ -1374,8 +1371,6 @@
 			(define macros (this:macros:get i))
 			((macros:methods:get 0):compileMethodBody)
 			;(Files:write (Paths:get (("macros/":concat cname):concat ".class") (String[])) ba (OpenOption[]))
-			;why?
-			(set macros:rc (macros:getClazz))
 			(set i (+ i 1))
 		)
 	)
@@ -1397,8 +1392,6 @@
 			)
 			(set i (+ i 1))
 		)
-		;why?
-		(set includes:rc (includes:getClazz))
 	)
 	((compileIncludes toks List{Token} n int) int
 		(define i 0)
@@ -1438,7 +1431,7 @@
 	(toks List{Token})
 	(methods List{AMethodInfo} 'public)
 	(anonClasses List{ClassInfo} 'public)
-	(rc Class 'public)
+	(rc Class)
 	(tvs HashMap{String TypeVariable})
 	(classfile byte[])
 	((<init> c ClassType fs FileScope) void 'public
@@ -1490,9 +1483,14 @@
 		c
 	)
 	((getClazz) Class 'public
-		(define cl (ArrayClassLoader))
-		(this:addToClassLoader cl)
-		(this:getClazz cl)
+		(if (= this:rc null)
+			(begin
+				(define cl (ArrayClassLoader))
+				(this:addToClassLoader cl)
+				(set this:rc (this:getClazz cl))
+			)
+		)
+		this:rc
 	)
 	((writeFiles dir String) void 'public
 		(define pre (concat dir "/" (this:fs:package_:replace "." "/")))

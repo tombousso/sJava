@@ -34,7 +34,7 @@ public class ClassInfo {
     List<Token> toks;
     public List<AMethodInfo> methods;
     public List<ClassInfo> anonClasses;
-    public Class rc;
+    Class rc;
     HashMap<String, TypeVariable> tvs;
     byte[] classfile;
 
@@ -98,9 +98,13 @@ public class ClassInfo {
     }
 
     public Class getClazz() {
-        ArrayClassLoader cl = new ArrayClassLoader();
-        this.addToClassLoader(cl);
-        return this.getClazz(cl);
+        if(this.rc == null) {
+            ArrayClassLoader cl = new ArrayClassLoader();
+            this.addToClassLoader(cl);
+            this.rc = this.getClazz(cl);
+        }
+
+        return this.rc;
     }
 
     public void writeFiles(String dir) {

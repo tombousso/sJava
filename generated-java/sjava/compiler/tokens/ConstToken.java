@@ -1,9 +1,9 @@
 package sjava.compiler.tokens;
 
-import sjava.compiler.tokens.Token;
+import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.Transformed;
 
-public class ConstToken extends Token implements Transformed {
+public class ConstToken extends LexedToken implements Transformed {
     public String val;
 
     public ConstToken(int line, String val) {
