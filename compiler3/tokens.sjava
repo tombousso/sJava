@@ -435,8 +435,8 @@
 	)
 )
 
-(define-class EmptyToken (Token Transformed) 'public
-	((<init> line int toks List{Token}) void 'public
-		(super:<init> line toks)
+(define-class EmptyToken (BlockToken Transformed) 'public
+	((<init> line int) void 'public
+		(super:<init> line Collections:EMPTY_LIST)
 	)
 )

@@ -20,8 +20,13 @@ def same(a, b) {
 class SJavaCompile extends AbstractCompile {
 	String targetCompatibility = "1.8"
 	String sourceCompatibility = "1.8"
+	@InputFiles
 	def compilerClasspath = project.files("bin/main")
+	@InputFiles
 	def compilerLibs = project.ext.JARS
+	@OutputDirectory
+	File destinationDir
+	@InputFiles
 	FileCollection classpath = project.files()
 	@TaskAction
 	void compile() {
