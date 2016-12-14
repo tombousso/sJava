@@ -29,7 +29,7 @@
 (define-class BuildCommand (Command) 'public
 	((<init>) void 'public
 		(super:<init>)
-		(this:options:addOption ((((Option:builder "d"):hasArg):desc "Output directory for classfiles"):build))
+		(this:options:addOption (chain (Option:builder "d") (hasArg) (desc "Output directory for classfiles") (build)))
 	)
 	((name) String 'public "build")
 	((helpArgs) String "[options] [files]")

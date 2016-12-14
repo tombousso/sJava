@@ -256,7 +256,7 @@
 		(set this:var var)
 	)
 	((toString) String 'public
-		(concat (if this:var ",$" ",") ((this:toks:get 0):toString))
+		(concat (if this:var ",$" ",") (this:toks:get 0))
 	)
 	((<init>) void 'public
 		(super:<init>)

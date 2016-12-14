@@ -165,23 +165,29 @@
 	)
 	((compile tok NToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(if (instance? tok:val Double)
-			(begin
-				(if output (this:code:emitPushDouble (as Double tok:val)))
+		(define val tok:val)
+		(instanceCond val
+			(Double
+				(if output (this:code:emitPushDouble val))
 				Type:doubleType
 			)
-			(begin
+			(Float
+				(if output (this:code:emitPushFloat val))
+				Type:floatType
+			)
+			(Integer
 				(if (! (instance? needed PrimType))
 					(begin
-						(if output (this:code:emitPushInt (as Integer tok:val)))
+						(if output (this:code:emitPushInt val))
 						Type:intType
 					)
 					(begin
-						(if output (this:code:emitPushConstant (as Integer tok:val) needed))
+						(if output (this:code:emitPushConstant val needed))
 						needed
 					)
 				)
 			)
+			(true (throw (RuntimeException)))
 		)
 	)
 	((compile tok ColonToken mi AMethodInfo needed Type) Type 'public
@@ -416,12 +422,10 @@
 		(define ci tok:ci)
 		(define superT (tok:toks:get 1))
 		(define FunctionN (&& lambda (instance? superT BlockToken)))
-		(define emitters
-			(Emitters
-				(if (|| lambda (! (instance? superT BlockToken)))
-					(ArrayList)
-					(superT:toks:subList 1 (superT:toks:size))
-				)
+		(define emitters List{Emitter}
+			(if (|| lambda (! (instance? superT BlockToken)))
+				(ArrayList)
+				(superT:toks:subList 1 (superT:toks:size))
 			)
 		)
 		(if (= ci null)
@@ -508,7 +512,7 @@
 				(if output
 					(begin
 						(define superC (ci:c:getSuperclass))
-						(define types (emitters:emitAll captureH mi null Main:unknownType))
+						(define types (Emitter:emitAll emitters captureH mi null Main:unknownType))
 						(define filter (MFilter "<init>" types superC))
 						(filter:searchDeclared)
 						(define superCons (filter:getMethod))
@@ -551,7 +555,7 @@
 			(begin
 				(define i 0)
 				(while (!= i (alen tok:captured))
-					(emitters:emitters:add (LoadAVar (aget tok:captured i)))
+					(emitters:add (LoadAVar (aget tok:captured i)))
 					(set i (+ i 1))
 				)
 				(Main:emitInvoke this "<init>" ci:c emitters mi this:code Main:unknownType)
@@ -749,11 +753,27 @@
 		(define first VToken (tok:toks:get 0))
 		(define otype (Main:numericOpType (this:compileAll tok:toks 1 (tok:toks:size) mi null Main:unknownType)))
 		(this:compile (tok:toks:get 1) mi this:code otype)
-		(define i 2)
-		(while (!= i (tok:toks:size))
-			(this:compile (tok:toks:get i) mi this:code otype)
-			(if output (this:code:emitBinop (Main:binOps:get first:val) otype))
-			(set i (+ i 1))
+		(if (&& (first:val:equals "-") (= (tok:toks:size) 2))
+			(if output
+				(this:code:emitPrimop
+					(cond
+						((= otype Type:longType) 117)
+						((= otype Type:floatType) 118)
+						((= otype Type:doubleType) 119)
+						(true 116)
+					)
+					1
+					otype
+				)
+			)
+			(begin
+				(define i 2)
+				(while (!= i (tok:toks:size))
+					(this:compile (tok:toks:get i) mi this:code otype)
+					(if output (this:code:emitBinop (Main:binOps:get first:val) otype))
+					(set i (+ i 1))
+				)
+			)
 		)
 		otype
 	)
@@ -768,14 +788,14 @@
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(Main:emitIf this false tok 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) null) mi this:code (if hasElse needed Type:voidType))
+		(Main:emitIf this false tok 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
 	)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(mi:pushScope this:code tok:labels)
 		(define start Label (Label))
 		(if output (start:define this:code))
-		(define t (Main:emitIf this false tok 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) null mi this:code needed))
+		(define t (Main:emitIf this false tok 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi this:code needed))
 		(mi:popScope this:code)
 		t
 	)
@@ -875,7 +895,7 @@
 		(if (= t null)
 			(set t (this:compile (first:toks:get 0) mi this:code Main:unknownType))
 		)
-		(Main:emitInvoke this name t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed special)
+		(Main:emitInvoke this name t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed special)
 	)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -897,7 +917,7 @@
 					)
 					(set method (method:getNext))
 				)
-				(Main:emitInvoke this (tocall:getName) t (Emitters (tok:toks:subList 1 (tok:toks:size))) mi this:code Main:unknownType)
+				(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code Main:unknownType)
 			)
 			(if (instance? type ArrayType)
 				(begin
@@ -924,7 +944,7 @@
 					(define class ClassType (type:getRawType))
 					(if output (this:code:emitNew class))
 					(if output (this:code:emitDup))
-					(Main:emitInvoke this "<init>" type (Emitters (tok:toks:subList 1 (tok:toks:size))) mi this:code Main:unknownType)
+					(Main:emitInvoke this "<init>" type (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code Main:unknownType)
 					type
 				)
 			)

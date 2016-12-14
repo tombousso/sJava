@@ -30,6 +30,18 @@ A more complex example of an sJava program including generics, autoboxing/unboxi
 
 The sJava compiler outputs Java bytecode in classfiles just like the Java compiler.
 
+### sJava features
+* hygenic compile-time macros
+* lambdas
+* autoboxing/unboxing
+* if statements/conditionals (short circuit)
+* arrays
+* generics (full support except wildcards)
+* loops
+* classes/methods/fields
+* a collection of useful "standard" macros (forEach, concat(enate), inc(rement), etc.)
+* most other things you'd except from a Java-like langauge
+
 ##Walkthrough!
 
 ###Requirements
@@ -149,7 +161,7 @@ The most interesting macro is called on line 24, `doubleDispatch`. This macro ro
 `cond` itself is actually a macro.  
 All of these macros are defined in `std/macros.sjava`.
 
-###Language features
+###More on macros
 In Java for-each loops and string concatenation are built in to the compiler. In sJava features like these are implemented as "standard macros" (`forEach` and `concat`) in `std/macros.sjava`, and they are available to all programs.
 
 Compile-time macros in sJava are very powerful. For example the `forEach` macro is able to ask the compiler at compile-time about the type of the object which the user is trying to iterate over. It checks if the type is an `ArrayType`, and if so it will create code which loops by incrementing a counter. Otherwise it will assume the user is trying to iterate over an `Iterable` and try to create an `Iterator`.
@@ -175,7 +187,7 @@ Or build then run:
 	> java Main
 	Counting to 3: [1, 2, 3]
 
-The `println` macro takes in a variable number of arguments and passes them all  to `concat` so you can see the `Arrays:toString` functionality in action.
+The `println` macro takes in a variable number of arguments and passes them all  to `concat`, so you can see the `Arrays:toString` functionality in action.
 
 More features can be found in `examples/test.sjava`, in other examples, and in `compiler3/**.sjava`.  Also if you're adventurous you can check out `vertx/` which is a little site I made using the Vertx library and sJava.
 
@@ -196,17 +208,6 @@ If there are no errors then the diff ran successfully meaning that the Java vers
 
 ### Kawa
 sJava borrows a lot from Kawa which is a Scheme implementation for the JVM. [Kawa](http://www.gnu.org/software/kawa/) is a really cool dynamic language (first class functions, macros, etc.) which can interact with traditional statically typed Java code. The first compiler for sJava was written in Kawa (`compiler1.scm`).  `compiler2` and `compiler3` are written in sJava.
-
-### sJava Features
-* hygenic compile-time macros
-* lambdas
-* autoboxing/unboxing
-* if statements/conditionals (short circuit)
-* arrays
-* generics
-* loops
-* classes/methods/fields
-* some other things
 
 ### Todo
 * verify sJava code and print friendly error messages
@@ -320,12 +321,12 @@ In case you're interested here is the decompiled bytecode of generics.sjava (jav
 		   9: iconst_3
 		  10: invokestatic  #12                 // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
 		  13: invokevirtual #16                 // Method java/util/ArrayList.add:(Ljava/lang/Object;)Z
-		  16: pop                  //Adding the first number
+		  16: pop                  //Adding the first number to the list
 		  17: aload_1
 		  18: iconst_4
 		  19: invokestatic  #12                 // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
 		  22: invokevirtual #16                 // Method java/util/ArrayList.add:(Ljava/lang/Object;)Z
-		  25: pop                  //Adding the second number
+		  25: pop                  //Adding the second number to the list
 		  26: getstatic     #22                 // Field java/lang/System.out:Ljava/io/PrintStream;
 		  29: aload_1
 		  30: iconst_0
@@ -339,7 +340,7 @@ In case you're interested here is the decompiled bytecode of generics.sjava (jav
 		  45: checkcast     #8                  // class java/lang/Integer
 		  48: invokevirtual #32                 // Method java/lang/Number.intValue:()I
 								   //Getting the second number
-		  51: iadd                 //Adding
+		  51: iadd                 //Adding the numbers
 		  52: invokevirtual #38                 // Method java/io/PrintStream.println:(I)V
 								   //Printing
 		  55: return

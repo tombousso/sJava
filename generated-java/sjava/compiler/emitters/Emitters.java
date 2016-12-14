@@ -20,15 +20,6 @@ public class Emitters extends Emitter {
     }
 
     public Type[] emitAll(GenHandler h, AMethodInfo mi, CodeAttr code, Object needed) {
-        Type[] types = new Type[this.emitters.size()];
-
-        for(int i = 0; i < types.length; ++i) {
-            Emitter emitter = (Emitter)this.emitters.get(i);
-            if(emitter != null) {
-                types[i] = emitter.emit(h, mi, code, needed instanceof Type[]?((Type[])needed)[i]:(Type)needed);
-            }
-        }
-
-        return types;
+        return Emitter.emitAll(this.emitters, h, mi, code, needed);
     }
 }

@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -92,6 +93,7 @@ public class Main {
     public static HashMap<String, Integer> binOps;
     static HashMap<String, Integer> compare2Ops;
     static HashMap<String, Integer> compare1Ops;
+    static HashMap<String, String> oppositeOps;
     public static Type unknownType = Type.getType("unknownType");
     public static Type returnType = Type.getType("returnType");
     public static Type throwType = Type.getType("throwType");
@@ -101,6 +103,7 @@ public class Main {
         unboxMethods.put(Type.shortType.boxedType(), Type.javalangNumberType.getDeclaredMethod("shortValue", 0));
         unboxMethods.put(Type.intType.boxedType(), Type.javalangNumberType.getDeclaredMethod("intValue", 0));
         unboxMethods.put(Type.longType.boxedType(), Type.javalangNumberType.getDeclaredMethod("longValue", 0));
+        unboxMethods.put(Type.floatType.boxedType(), Type.javalangNumberType.getDeclaredMethod("floatValue", 0));
         unboxMethods.put(Type.doubleType.boxedType(), Type.javalangNumberType.getDeclaredMethod("doubleValue", 0));
         unboxMethods.put(Type.booleanType.boxedType(), Type.javalangBooleanType.getDeclaredMethod("booleanValue", 0));
         unboxMethods.put(Type.charType.boxedType(), Type.javalangCharacterType.getDeclaredMethod("charValue", 0));
@@ -152,6 +155,15 @@ public class Main {
         compare1Ops.put(">0", Integer.valueOf(158));
         compare1Ops.put("!=null", Integer.valueOf(198));
         compare1Ops.put("==null", Integer.valueOf(199));
+        oppositeOps = new HashMap();
+        oppositeOps.put("!=", "=");
+        oppositeOps.put("=", "!=");
+        oppositeOps.put(">=", "<");
+        oppositeOps.put("<", ">=");
+        oppositeOps.put("<=", ">");
+        oppositeOps.put(">", "<=");
+        oppositeOps.put("!=0", "==0");
+        oppositeOps.put("==0", "!=0");
         precs = new String[][]{{"\"\"\"", "\"", ")", "}", ";"}, {":", "{"}, {"(", "\'", ",", ",$", "`"}};
         specialChars = new HashMap();
         specialChars.put("space", Character.valueOf(' '));
@@ -269,18 +281,31 @@ public class Main {
 
             try {
                 code = FileUtils.readFileToString(new File(name));
-            } catch (IOException var14) {
-                throw new RuntimeException(var14);
+            } catch (IOException var16) {
+                throw new RuntimeException(var16);
             }
 
             String formatted = formatCode(code);
-            if(!code.equals(formatted)) {
-                PrintStream var10000 = System.out;
-                StringBuilder sb1 = new StringBuilder();
-                sb1.append("Warning: ");
-                sb1.append(name);
-                sb1.append(" isn\'t formatted");
-                var10000.println(sb1.toString());
+            int l = 1;
+
+            for(int i = 0; i < code.length(); ++i) {
+                if(code.charAt(i) != formatted.charAt(i)) {
+                    if(!code.equals(formatted)) {
+                        PrintStream var10000 = System.out;
+                        StringBuilder sb1 = new StringBuilder();
+                        sb1.append("Warning: ");
+                        sb1.append(name);
+                        sb1.append(" isn\'t formatted (line ");
+                        sb1.append(l);
+                        sb1.append(")");
+                        var10000.println(sb1.toString());
+                    }
+                    break;
+                }
+
+                if(code.charAt(i) == 10) {
+                    ++l;
+                }
             }
 
             files.put(name, parse(code, new Lexer(), new Parser()));
@@ -501,146 +526,176 @@ public class Main {
         return transformBlockToks(block, mi, !(block instanceof QuoteToken));
     }
 
-    static Token transformBlock(Token block, AMethodInfo mi, boolean transform) {
-        if(block.toks != null && !(block instanceof Transformed)) {
-            if(block instanceof BlockToken) {
-                if(block.toks.size() == 0) {
-                    if(transform) {
-                        return new EmptyToken(block.line, block.toks);
-                    }
-                } else {
-                    if((Token)block.toks.get(0) instanceof VToken) {
-                        String val = ((VToken)((Token)block.toks.get(0))).val;
-                        if(val.equals("unquote")) {
-                            return transformBlock(new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), false), mi);
-                        }
+    public static Token transformForm(Token block, AMethodInfo mi, boolean transform) {
+        String val = ((VToken)((Token)block.toks.get(0))).val;
+        if(val.equals("unquote")) {
+            return transformBlock(new UnquoteToken(block.line, new ArrayList(block.toks.subList(1, block.toks.size())), false), mi);
+        } else if(val.equals("varunquote")) {
+            return transformBlock(new UnquoteToken(block.line, new ArrayList(block.toks.subList(1, block.toks.size())), true), mi);
+        } else {
+            if(transform) {
+                if(val.equals("quote")) {
+                    return transformBlock(new QuoteToken(block.line, new ArrayList(block.toks.subList(1, block.toks.size()))), mi);
+                }
 
-                        if(val.equals("varunquote")) {
-                            return transformBlock(new UnquoteToken(block.line, block.toks.subList(1, block.toks.size()), true), mi);
-                        }
+                if(val.equals("object")) {
+                    return new ObjectToken(block.line, new ArrayList(block.toks));
+                }
 
-                        if(transform) {
-                            if(val.equals("quote")) {
-                                return transformBlock(new QuoteToken(block.line, block.toks.subList(1, block.toks.size())), mi);
-                            }
+                if(val.equals("lambda")) {
+                    return new LambdaToken(block.line, new ArrayList(block.toks));
+                }
 
-                            if(val.equals("object")) {
-                                return new ObjectToken(block.line, block.toks);
-                            }
+                if(mi.ci.fs.macroNames.containsKey(val)) {
+                    return new MacroCallToken(block.line, new ArrayList(block.toks));
+                }
 
-                            if(val.equals("lambda")) {
-                                return new LambdaToken(block.line, block.toks);
-                            }
+                if(val.equals("begin")) {
+                    return block.toks.size() == 2?transformBlock((Token)block.toks.get(1), mi):transformBlockToks(new BeginToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(mi.ci.fs.macroNames.containsKey(val)) {
-                                return new MacroCallToken(block.line, block.toks);
-                            }
+                if(val.equals("label")) {
+                    return new LabelToken(block.line, new ArrayList(block.toks));
+                }
 
-                            if(val.equals("begin")) {
-                                if(block.toks.size() == 2) {
-                                    return transformBlock((Token)block.toks.get(1), mi);
-                                }
+                if(val.equals("goto")) {
+                    return new GotoToken(block.line, new ArrayList(block.toks));
+                }
 
-                                return transformBlockToks(new BeginToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("define")) {
+                    return transformBlockToks(new DefineToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("label")) {
-                                return new LabelToken(block.line, block.toks);
-                            }
+                if(val.equals("try")) {
+                    return transformBlockToks(new TryToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("goto")) {
-                                return new GotoToken(block.line, block.toks);
-                            }
+                if(val.equals("instance?")) {
+                    return transformBlockToks(new InstanceToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("define")) {
-                                return transformBlockToks(new DefineToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("set")) {
+                    return transformBlockToks(new SetToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("try")) {
-                                return transformBlockToks(new TryToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("aset")) {
+                    return transformBlockToks(new ASetToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("instance?")) {
-                                return transformBlockToks(new InstanceToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("aget")) {
+                    return transformBlockToks(new AGetToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("set")) {
-                                return transformBlockToks(new SetToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("alen")) {
+                    return transformBlockToks(new ALenToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("aset")) {
-                                return transformBlockToks(new ASetToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("as")) {
+                    return transformBlockToks(new AsToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("aget")) {
-                                return transformBlockToks(new AGetToken(block.line, block.toks), mi);
-                            }
+                if(binOps.containsKey(val)) {
+                    return transformBlockToks(new NumOpToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("alen")) {
-                                return transformBlockToks(new ALenToken(block.line, block.toks), mi);
-                            }
+                if(val.equals(">>") || val.equals("<<")) {
+                    return transformBlockToks(new ShiftToken(block.line, new ArrayList(block.toks), val.equals(">>")), mi);
+                }
 
-                            if(val.equals("as")) {
-                                return transformBlockToks(new AsToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("if")) {
+                    return transformBlockToks(new IfToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(binOps.containsKey(val)) {
-                                return transformBlockToks(new NumOpToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("while")) {
+                    return transformBlockToks(new WhileToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals(">>") || val.equals("<<")) {
-                                return transformBlockToks(new ShiftToken(block.line, block.toks, val.equals(">>")), mi);
-                            }
+                if(isCompare(val)) {
+                    return transformBlockToks(new CompareToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("if")) {
-                                return transformBlockToks(new IfToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("throw")) {
+                    return transformBlockToks(new ThrowToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("while")) {
-                                return transformBlockToks(new WhileToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("class")) {
+                    return transformBlockToks(new ClassToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(isCompare(val)) {
-                                return transformBlockToks(new CompareToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("synchronized")) {
+                    return transformBlockToks(new SynchronizedToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("throw")) {
-                                return transformBlockToks(new ThrowToken(block.line, block.toks), mi);
-                            }
+                if(val.equals("type")) {
+                    return transformBlockToks(new TypeToken(block.line, new ArrayList(block.toks)), mi);
+                }
 
-                            if(val.equals("class")) {
-                                return transformBlockToks(new ClassToken(block.line, block.toks), mi);
-                            }
-
-                            if(val.equals("synchronized")) {
-                                return transformBlockToks(new SynchronizedToken(block.line, block.toks), mi);
-                            }
-
-                            if(val.equals("type")) {
-                                return transformBlockToks(new TypeToken(block.line, block.toks), mi);
-                            }
-
-                            if(val.equals("return")) {
-                                return transformBlockToks(new ReturnToken(block.line, block.toks), mi);
-                            }
-                        }
-                    } else if(transform && (Token)block.toks.get(0) instanceof ColonToken) {
-                        CallToken out = new CallToken(block.line, block.toks);
-                        transformBlockTok((Token)out.toks.get(0), mi, true, 0);
-                        transformBlockToks(out, mi, true, 1);
-                        return out;
-                    }
-
-                    if(transform) {
-                        return transformBlockToks(new DefaultToken(block.line, block.toks), mi);
-                    }
+                if(val.equals("return")) {
+                    return transformBlockToks(new ReturnToken(block.line, new ArrayList(block.toks)), mi);
                 }
             }
 
-            transformBlockToks(block, mi, transform);
+            return (Token)null;
+        }
+    }
+
+    static Token transformBlock(Token block, AMethodInfo mi, boolean transform) {
+        if(block.toks != null && !(block instanceof Transformed)) {
+            if(block instanceof BlockToken) {
+                BlockToken block1 = (BlockToken)block;
+                if(block1.toks.size() == 0) {
+                    if(transform) {
+                        return new EmptyToken(block1.line);
+                    }
+
+                    return new BlockToken(block1.line, Collections.EMPTY_LIST);
+                }
+
+                if((Token)block1.toks.get(0) instanceof VToken) {
+                    Token o = transformForm(block1, mi, transform);
+                    if(o != null) {
+                        return o;
+                    }
+                } else if(transform && (Token)block1.toks.get(0) instanceof ColonToken) {
+                    CallToken out = new CallToken(block1.line, new ArrayList(block1.toks));
+                    transformBlockTok((Token)out.toks.get(0), mi, true, 0);
+                    transformBlockToks(out, mi, true, 1);
+                    return out;
+                }
+
+                if(transform) {
+                    return transformBlockToks(new DefaultToken(block1.line, new ArrayList(block1.toks)), mi);
+                }
+
+                return transformBlockToks(new BlockToken(block1.line, new ArrayList(block1.toks)), mi, transform);
+            }
+
+            if(block instanceof ColonToken) {
+                ColonToken block2 = (ColonToken)block;
+                return transformBlockToks(new ColonToken(block2.line, new ArrayList(block2.toks)), mi, transform);
+            }
+
+            if(block instanceof QuoteToken) {
+                QuoteToken block3 = (QuoteToken)block;
+                return transformBlockToks(new QuoteToken(block3.line, new ArrayList(block3.toks)), mi, transform);
+            }
+
+            if(block instanceof UnquoteToken) {
+                UnquoteToken block4 = (UnquoteToken)block;
+                return transformBlockToks(new UnquoteToken(block4.line, new ArrayList(block4.toks), block4.var), mi, transform);
+            }
+
+            if(block instanceof GenericToken) {
+                GenericToken block5 = (GenericToken)block;
+                return transformBlockToks(new GenericToken(block5.line, block5.tok, new ArrayList(block5.toks)), mi, transform);
+            }
         }
 
-        return block;
+        if(!(block instanceof Transformed)) {
+            throw new RuntimeException(block.toString());
+        } else {
+            return block;
+        }
     }
 
     public static Token transformBlock(Token block, AMethodInfo mi) {
@@ -649,7 +704,7 @@ public class Main {
 
     public static Type numericOpType(Type[] types) {
         List l = Arrays.asList(types);
-        return !l.contains(Type.doubleType) && !l.contains(ClassType.make("java.lang.Double"))?(!l.contains(Type.longType) && !l.contains(ClassType.make("java.lang.Long"))?Type.intType:Type.longType):Type.doubleType;
+        return !l.contains(Type.doubleType) && !l.contains(ClassType.make("java.lang.Double"))?(!l.contains(Type.floatType) && !l.contains(ClassType.make("java.lang.Float"))?(!l.contains(Type.longType) && !l.contains(ClassType.make("java.lang.Long"))?Type.intType:Type.longType):Type.floatType):Type.doubleType;
     }
 
     public static boolean allNumeric(Type[] types) {
@@ -673,16 +728,16 @@ public class Main {
     }
 
     public static boolean isCompare(String s) {
-        return s.equals("!") || s.equals("&&") || s.equals("||") || compare1Ops.containsKey(s) || compare2Ops.containsKey(s);
+        return s.equals("!") || s.equals("&&") || s.equals("||") || compare2Ops.containsKey(s);
     }
 
-    static int invertComp(boolean inv, int n) {
-        return inv?((n & 1) != 0?n + 1:n - 1):n;
+    static String invertComp(boolean inv, String comp) {
+        return inv?(String)oppositeOps.get(comp):comp;
     }
 
-    public static Type emitInvoke(GenHandler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
+    public static Type emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
         boolean output = code != null;
-        Type[] types = emitter.emitAll(h, mi, (CodeAttr)null, unknownType);
+        Type[] types = Emitter.emitAll(emitters, h, mi, (CodeAttr)null, unknownType);
         MFilter filter = new MFilter(name, types, type);
         if(special) {
             filter.searchDeclared();
@@ -699,7 +754,7 @@ public class Main {
 
         int n;
         for(n = !varargs || types.length >= params.length && arrayDim(params[params.length - 1]) == arrayDim(types[params.length - 1])?0:1; j != params.length - n; ++j) {
-            ((Emitter)emitter.emitters.get(j)).emit(h, mi, code, resolveType(mc.tvs, mc.t, params[j]));
+            ((Emitter)emitters.get(j)).emit(h, mi, code, resolveType(mc.tvs, mc.t, params[j]));
         }
 
         if(n == 1) {
@@ -722,7 +777,7 @@ public class Main {
                     code.emitPushInt(j - oj);
                 }
 
-                ((Emitter)emitter.emitters.get(j)).emit(h, mi, code, et);
+                ((Emitter)emitters.get(j)).emit(h, mi, code, et);
                 if(output) {
                     code.emitArrayStore();
                 }
@@ -745,8 +800,8 @@ public class Main {
         return h.castMaybe(out, needed);
     }
 
-    public static Type emitInvoke(GenHandler h, String name, Type type, Emitters emitter, AMethodInfo mi, CodeAttr code, Type needed) {
-        return emitInvoke(h, name, type, emitter, mi, code, needed, false);
+    public static Type emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
+        return emitInvoke(h, name, type, emitters, mi, code, needed, false);
     }
 
     static Type compareType(Type[] types) {
@@ -758,7 +813,104 @@ public class Main {
         Type var10000;
         if(compare.equals("!")) {
             var10000 = emitIf(h, !inv, tok, i, trueE, falseE, mi, code, needed);
-        } else if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
+        } else if((inv || !compare.equals("&&")) && (!inv || !compare.equals("||"))) {
+            if((inv || !compare.equals("||")) && (!inv || !compare.equals("&&"))) {
+                boolean falseLabel = falseE instanceof Goto;
+                Label skip = new Label();
+                Label label = falseLabel?((Goto)falseE).label:skip;
+                String invCompare = invertComp(inv, compare);
+                if(compare1Ops.containsKey(invCompare)) {
+                    for(int j = i; j != e; ++j) {
+                        Type[] types = h.compileAll(tok.toks, j, j + 1, mi, (CodeAttr)null, unknownType);
+                        Type otype = compareType(types);
+                        h.compileAll(tok.toks, j, j + 1, mi, code, otype);
+                        if(output) {
+                            code.emitGotoIfCompare1(label, ((Integer)compare1Ops.get(invCompare)).intValue());
+                        }
+                    }
+                } else {
+                    for(int j1 = i; j1 + 1 != e; ++j1) {
+                        Type[] types1 = h.compileAll(tok.toks, j1, j1 + 2, mi, (CodeAttr)null, unknownType);
+                        Type otype1 = compareType(types1);
+                        h.compileAll(tok.toks, j1, j1 + 2, mi, code, otype1);
+                        if(otype1 != Type.doubleType && otype1 != Type.floatType) {
+                            if(output) {
+                                code.emitGotoIfCompare2(label, ((Integer)compare2Ops.get(invCompare)).intValue());
+                            }
+                        } else {
+                            boolean lt = compare.equals("<") || compare.equals("<=");
+                            int op = otype1 == Type.doubleType?(lt?151:152):(lt?149:150);
+                            if(output) {
+                                code.emitPrimop(op, 2, Type.intType);
+                            }
+
+                            if(invCompare.equals(">")) {
+                                if(output) {
+                                    code.emitGotoIfIntLeZero(label);
+                                }
+                            } else if(invCompare.equals(">=")) {
+                                if(output) {
+                                    code.emitGotoIfIntLtZero(label);
+                                }
+                            } else if(invCompare.equals("<")) {
+                                if(output) {
+                                    code.emitGotoIfIntGeZero(label);
+                                }
+                            } else if(invCompare.equals("<=")) {
+                                if(output) {
+                                    code.emitGotoIfIntGtZero(label);
+                                }
+                            } else if(invCompare.equals("=")) {
+                                if(output) {
+                                    code.emitGotoIfIntNeZero(label);
+                                }
+                            } else if(invCompare.equals("!=") && output) {
+                                code.emitGotoIfIntEqZero(label);
+                            }
+                        }
+                    }
+                }
+
+                Type type = trueE.emit(h, mi, code, needed);
+                if(!falseLabel) {
+                    Label end = new Label();
+                    if(!(falseE instanceof Nothing) && output && code.reachableHere()) {
+                        code.emitGoto(end);
+                    }
+
+                    if(output) {
+                        skip.define(code);
+                    }
+
+                    falseE.emit(h, mi, code, needed);
+                    if(output) {
+                        end.define(code);
+                    }
+                }
+
+                var10000 = type;
+            } else {
+                Label skipL = new Label();
+                Label trueL = new Label();
+                Goto trueG = new Goto(trueL);
+
+                for(int i1 = 1; i1 != e - 1; ++i1) {
+                    emitIf(h, !inv, tok, i1, Nothing.inst, trueG, mi, code, needed);
+                }
+
+                emitIf(h, !inv, tok, e - 1, new Emitters(new Emitter[]{falseE, new Goto(skipL)}), Nothing.inst, mi, code, needed);
+                if(output) {
+                    trueL.define(code);
+                }
+
+                Type type1 = trueE.emit(h, mi, code, needed);
+                if(output) {
+                    skipL.define(code);
+                }
+
+                var10000 = type1;
+            }
+        } else {
             Label skipL1 = new Label();
             Label falseL = new Label();
             Goto falseG = new Goto(falseL);
@@ -767,84 +919,17 @@ public class Main {
                 emitIf(h, inv, tok, i2, Nothing.inst, falseG, mi, code, needed);
             }
 
-            emitIf(h, inv, tok, e - 1, new Emitters(new Emitter[]{trueE, new Goto(skipL1)}), (Emitter)null, mi, code, needed);
+            emitIf(h, inv, tok, e - 1, new Emitters(new Emitter[]{trueE, new Goto(skipL1)}), Nothing.inst, mi, code, needed);
             if(output) {
                 falseL.define(code);
             }
 
-            if(falseE != null) {
-                falseE.emit(h, mi, code, needed);
-            }
-
+            falseE.emit(h, mi, code, needed);
             if(output) {
                 skipL1.define(code);
             }
 
             var10000 = trueE.emit(h, mi, (CodeAttr)null, needed);
-        } else if(!inv && compare.equals("||") || inv && compare.equals("&&")) {
-            Label skipL = new Label();
-            Label trueL = new Label();
-            Goto trueG = new Goto(trueL);
-
-            for(int i1 = 1; i1 != e - 1; ++i1) {
-                emitIf(h, !inv, tok, i1, Nothing.inst, trueG, mi, code, needed);
-            }
-
-            emitIf(h, !inv, tok, e - 1, new Emitters(new Emitter[]{falseE, new Goto(skipL)}), (Emitter)null, mi, code, needed);
-            if(output) {
-                trueL.define(code);
-            }
-
-            Type type1 = trueE.emit(h, mi, code, needed);
-            if(output) {
-                skipL.define(code);
-            }
-
-            var10000 = type1;
-        } else {
-            boolean falseLabel = falseE instanceof Goto;
-            Label skip = new Label();
-            Label label = falseLabel?((Goto)falseE).label:skip;
-            if(compare1Ops.containsKey(compare)) {
-                for(int j = i; j != e; ++j) {
-                    Type[] types = h.compileAll(tok.toks, j, j + 1, mi, (CodeAttr)null, unknownType);
-                    Type otype = compareType(types);
-                    h.compileAll(tok.toks, j, j + 1, mi, code, otype);
-                    if(output) {
-                        code.emitGotoIfCompare1(label, invertComp(inv, ((Integer)compare1Ops.get(compare)).intValue()));
-                    }
-                }
-            } else {
-                for(int j1 = i; j1 + 1 != e; ++j1) {
-                    Type[] types1 = h.compileAll(tok.toks, j1, j1 + 2, mi, (CodeAttr)null, unknownType);
-                    Type otype1 = compareType(types1);
-                    h.compileAll(tok.toks, j1, j1 + 2, mi, code, otype1);
-                    if(output) {
-                        code.emitGotoIfCompare2(label, invertComp(inv, ((Integer)compare2Ops.get(compare)).intValue()));
-                    }
-                }
-            }
-
-            Type type = trueE.emit(h, mi, code, needed);
-            if(!falseLabel) {
-                Label end = new Label();
-                if(!(trueE instanceof Nothing) && falseE != null && output && code.reachableHere()) {
-                    code.emitGoto(end);
-                }
-
-                if(output) {
-                    skip.define(code);
-                }
-
-                if(falseE != null) {
-                    falseE.emit(h, mi, code, needed);
-                    if(output) {
-                        end.define(code);
-                    }
-                }
-            }
-
-            var10000 = type;
         }
 
         return var10000;
@@ -931,6 +1016,10 @@ public class Main {
             sb.append(";");
             sb.append(tok7.val);
         } else {
+            if(tok.toks != null) {
+                throw new RuntimeException();
+            }
+
             sb.append(tok.toString());
         }
 
@@ -995,5 +1084,9 @@ public class Main {
         }
 
         return sb.toString();
+    }
+
+    public static List<Emitter> toEmitters(List l) {
+        return l;
     }
 }

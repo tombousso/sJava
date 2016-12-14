@@ -14,7 +14,7 @@ public class UnquoteToken extends Token {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.var?",$":",");
-        sb.append(((Token)super.toks.get(0)).toString());
+        sb.append((Token)super.toks.get(0));
         return sb.toString();
     }
 

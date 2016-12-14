@@ -3,6 +3,7 @@ package sjava.compiler;
 import gnu.bytecode.Access;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
+import gnu.bytecode.Method;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import java.util.ArrayList;
@@ -215,7 +216,9 @@ public class FileScope {
                     String name = "$".concat(Integer.toString(n));
                     LinkedHashMap scope = new LinkedHashMap();
                     scope.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
-                    MethodInfo mi = new MethodInfo(this.includes, tok.toks.subList(1, tok.toks.size()), this.includes.c.addMethod(name, new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")}, Main.getCompilerType("tokens.Token"), Access.PUBLIC | Access.STATIC), scope);
+                    Type[] params = new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")};
+                    Method method = this.includes.c.addMethod(name, params, Main.getCompilerType("tokens.Token"), Access.PUBLIC | Access.STATIC);
+                    MethodInfo mi = new MethodInfo(this.includes, tok.toks.subList(1, tok.toks.size()), method, scope);
                     toks.set(i, new IncludeToken(tok.line, mi));
                     this.includes.methods.add(mi);
                     mi.compileMethodBody();

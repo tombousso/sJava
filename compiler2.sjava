@@ -29,6 +29,7 @@
 		(Main:unboxMethods:put (Type:shortType:boxedType) (Type:javalangNumberType:getDeclaredMethod "shortValue" 0))
 		(Main:unboxMethods:put (Type:intType:boxedType) (Type:javalangNumberType:getDeclaredMethod "intValue" 0))
 		(Main:unboxMethods:put (Type:longType:boxedType) (Type:javalangNumberType:getDeclaredMethod "longValue" 0))
+		(Main:unboxMethods:put (Type:floatType:boxedType) (Type:javalangNumberType:getDeclaredMethod "floatValue" 0))
 		(Main:unboxMethods:put (Type:doubleType:boxedType) (Type:javalangNumberType:getDeclaredMethod "doubleValue" 0))
 		(Main:unboxMethods:put (Type:booleanType:boxedType) (Type:javalangBooleanType:getDeclaredMethod "booleanValue" 0))
 		(Main:unboxMethods:put (Type:charType:boxedType) (Type:javalangCharacterType:getDeclaredMethod "charValue" 0))
@@ -306,16 +307,6 @@
 			(set out (+ out 1))
 		)
 		out
-	)
-	((shiftDown toks List i int n int) void 'static
-		;shift down n elements at i
-		(define l (toks:size))
-		(define nl (- l n))
-		(while (!= i nl)
-			(toks:set i (toks:get (+ i n)))
-			(set i (+ i 1))
-		)
-		((toks:subList (- l n) l):clear)
 	)
 	((compileClassMod tok Token c ClassType) bool 'static
 		(if (instance? tok QuoteToken)

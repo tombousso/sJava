@@ -26,6 +26,27 @@
 	((emitAll h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
 		(Type[] (this:emit h mi code (as Type needed)))
 	)
+	((emitAll emitters List{Emitter} h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public 'static
+		(define types (Type[] len:(emitters:size)))
+		(define i 0)
+		(while (< i (alen types))
+			(define emitter (emitters:get i))
+			(if (!= emitter null)
+				(begin
+					(aset types i
+						(emitter:emit h mi code
+							(if (instance? needed Type[])
+								(aget (as Type[] needed) i)
+								(as Type needed)
+							)
+						)
+					)
+				)
+			)
+			(set i (+ i 1))
+		)
+		types
+	)
 )
 
 (define-class Goto (Emitter) 'public
@@ -62,25 +83,7 @@
 	((<init> emitters Emitter[]) void 'public (super:<init>) (set this:emitters (Arrays:asList emitters)))
 	((<init> emitters List) void 'public (super:<init>) (set this:emitters emitters))
 	((emitAll h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
-		(define types (Type[] len:(this:emitters:size)))
-		(define i 0)
-		(while (< i (alen types))
-			(define emitter (this:emitters:get i))
-			(if (!= emitter null)
-				(begin
-					(aset types i
-						(emitter:emit h mi code
-							(if (instance? needed Type[])
-								(aget (as Type[] needed) i)
-								(as Type needed)
-							)
-						)
-					)
-				)
-			)
-			(set i (+ i 1))
-		)
-		types
+		(Emitter:emitAll this:emitters h mi code needed)
 	)
 )
 
