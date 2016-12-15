@@ -4,6 +4,7 @@ import gnu.bytecode.Access;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
+import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
 import java.util.ArrayList;
 import java.util.Map;
@@ -12,9 +13,7 @@ import sjava.compiler.mfilters.AFilter;
 import sjava.compiler.mfilters.MethodCall;
 
 public class MFilter extends AFilter {
-    ArrayList<MethodCall> methods0 = new ArrayList();
-    ArrayList<MethodCall> methods1 = new ArrayList();
-    ArrayList<MethodCall> varmethods = new ArrayList();
+    ArrayList<MethodCall> methods = new ArrayList();
     String name;
     Type[] types;
 
@@ -47,29 +46,18 @@ public class MFilter extends AFilter {
                 Type[] reals = var10000;
                 Map tvs = Main.unresolveTvs(method.getTypeParameters(), params, reals);
                 boolean stop = false;
-                int maxLevel = 0;
 
                 for(int i = 0; !stop && i != this.types.length; ++i) {
                     Type at = Main.resolveType(tvs, generic, arrayNeeded && i >= np - 1?((ArrayType)params[np - 1]).elements:params[i]);
                     int level = at.compare(this.types[i]);
-                    if(level > maxLevel) {
-                        maxLevel = level;
-                    }
-
-                    if(level < 0) {
+                    if(level < 0 || this.types[i] == Type.nullType && at instanceof PrimType) {
                         stop = true;
                     }
                 }
 
                 MethodCall mc = new MethodCall(method, generic, tvs);
                 if(!stop) {
-                    if(varargs) {
-                        this.varmethods.add(mc);
-                    } else if(maxLevel == 0) {
-                        this.methods0.add(mc);
-                    } else {
-                        this.methods1.add(mc);
-                    }
+                    this.methods.add(mc);
                 }
             }
         }
@@ -77,7 +65,34 @@ public class MFilter extends AFilter {
     }
 
     public MethodCall getMethodCall() {
-        return this.methods0.size() == 0?(this.methods1.size() == 0?(this.varmethods.size() == 0?(MethodCall)null:(MethodCall)this.varmethods.get(0)):(MethodCall)this.methods1.get(0)):(MethodCall)this.methods0.get(0);
+        int n = this.methods.size();
+        if(n == 0) {
+            return null;
+        } else if(n == 1) {
+            return (MethodCall)this.methods.get(0);
+        } else {
+            MethodCall found = (MethodCall)null;
+
+            label38:
+            for(int i = 0; i < n; ++i) {
+                MethodCall a = (MethodCall)this.methods.get(i);
+
+                for(int j = 0; j < n; ++j) {
+                    MethodCall b = (MethodCall)this.methods.get(j);
+                    if(i != j && !a.moreSpecific(b)) {
+                        continue label38;
+                    }
+                }
+
+                if(found != null) {
+                    return null;
+                }
+
+                found = a;
+            }
+
+            return found;
+        }
     }
 
     public Method getMethod() {

@@ -2,9 +2,8 @@ package sjava.compiler.tokens;
 
 import org.apache.commons.lang3.math.NumberUtils;
 import sjava.compiler.tokens.LexedToken;
-import sjava.compiler.tokens.Transformed;
 
-public class NToken extends LexedToken implements Transformed {
+public class NToken extends LexedToken {
     public Number val;
 
     public NToken(int line, String sval) {

@@ -53,6 +53,7 @@ import sjava.compiler.tokens.IncludeToken;
 import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
 import sjava.compiler.tokens.LambdaToken;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.MacroCallToken;
 import sjava.compiler.tokens.NToken;
 import sjava.compiler.tokens.NumOpToken;
@@ -240,6 +241,10 @@ public class GenHandler extends Handler {
 
         ClassType var7 = (ClassType)t.getRawType();
         Field field = var7.getField(((VToken)((Token)tok.toks.get(1))).val, -1);
+        if(t == Type.getType("sjava.compiler.tokens.Token") && field.getName().equals("toks")) {
+            ;
+        }
+
         if(field.getStaticFlag()) {
             if(output) {
                 this.code.emitGetStatic(field);
@@ -274,88 +279,90 @@ public class GenHandler extends Handler {
             return needed;
         } else {
             Object var10000;
-            if(o instanceof Token) {
-                Token o1 = (Token)o;
+            if(o instanceof LexedParsedToken) {
+                LexedParsedToken o1 = (LexedParsedToken)o;
                 Type t = o1 instanceof UnquoteToken?this.compile((Token)o1.toks.get(0), mi, (CodeAttr)null, Main.unknownType):null;
-                if(o1 instanceof UnquoteToken && (t == Main.getCompilerType("tokens.Token") || t instanceof ArrayType && ((ArrayType)t).elements == Main.getCompilerType("tokens.Token") || t.getRawType().isSubtype(Type.getType("java.util.List")))) {
-                    var10000 = this.compile((Token)o1.toks.get(0), mi, this.code, Main.unknownType);
-                } else if(o1 instanceof UnquoteToken) {
-                    Token var7 = (Token)o1.toks.get(0);
-                    Type t1 = this.compile(var7, mi, (CodeAttr)null, Main.unknownType);
-                    ClassType type = Main.getCompilerType(((UnquoteToken)o1).var?"tokens.VToken":(t1 == Type.charType?"tokens.CToken":(t1 instanceof PrimType?"tokens.NToken":"tokens.SToken")));
-                    if(output) {
-                        this.code.emitNew(type);
-                    }
-
-                    if(output) {
-                        this.code.emitDup();
-                    }
-
-                    if(output) {
-                        this.code.emitInvoke(type.getDeclaredMethod("<init>", 0));
-                    }
-
-                    if(output) {
-                        this.code.emitDup();
-                    }
-
-                    this.compile(var7, mi, this.code, Type.objectType);
-                    if(output) {
-                        this.code.emitPutField(type.getField("val"));
-                    }
-
-                    var10000 = Main.getCompilerType("tokens.Token");
-                } else {
-                    ClassType type1 = (ClassType)Type.getType(o1.getClass().getName());
-                    if(output) {
-                        this.code.emitNew(type1);
-                    }
-
-                    if(output) {
-                        this.code.emitDup();
-                    }
-
-                    if(output) {
-                        this.code.emitInvoke(type1.getDeclaredMethod("<init>", 0));
-                    }
-
-                    for(ClassType superC = type1; superC != null; superC = superC.getSuperclass()) {
-                        for(Field field = superC.getFields(); field != null; field = field.getNext()) {
-                            if((field.getModifiers() & Access.PUBLIC) != 0 && (field.getModifiers() & Access.TRANSIENT) == 0 && (field.getModifiers() & Access.STATIC) == 0) {
-                                if(output) {
-                                    this.code.emitDup();
-                                }
-
-                                try {
-                                    this.compileQuasi(field.getReflectField().get(o1), mi, this.code, field.getType());
-                                } catch (NoSuchFieldException var23) {
-                                    throw new RuntimeException(var23);
-                                } catch (IllegalAccessException var24) {
-                                    throw new RuntimeException(var24);
-                                }
-
-                                if(output) {
-                                    this.code.emitPutField(field);
-                                }
-                            }
+                if(!(o1 instanceof UnquoteToken) || t != Main.getCompilerType("tokens.Token") && (!(t instanceof ArrayType) || ((ArrayType)t).elements != Main.getCompilerType("tokens.Token")) && !t.getRawType().isSubtype(Type.getType("java.util.List"))) {
+                    if(o1 instanceof UnquoteToken) {
+                        Token var7 = (Token)o1.toks.get(0);
+                        Type t1 = this.compile(var7, mi, (CodeAttr)null, Main.unknownType);
+                        ClassType type = Main.getCompilerType(((UnquoteToken)o1).var?"tokens.VToken":(t1 == Type.charType?"tokens.CToken":(t1 instanceof PrimType?"tokens.NToken":"tokens.SToken")));
+                        if(output) {
+                            this.code.emitNew(type);
                         }
-                    }
 
-                    if(type1 == Main.getCompilerType("tokens.VToken")) {
                         if(output) {
                             this.code.emitDup();
                         }
 
                         if(output) {
-                            this.code.emitLoad(this.code.getArg(2));
+                            this.code.emitInvoke(type.getDeclaredMethod("<init>", 0));
                         }
 
                         if(output) {
-                            this.code.emitPutField(type1.getField("macro"));
+                            this.code.emitDup();
                         }
-                    }
 
-                    var10000 = Main.getCompilerType("tokens.Token");
+                        this.compile(var7, mi, this.code, Type.objectType);
+                        if(output) {
+                            this.code.emitPutField(type.getField("val"));
+                        }
+
+                        var10000 = Main.getCompilerType("tokens.Token");
+                    } else {
+                        ClassType type1 = (ClassType)Type.getType(o1.getClass().getName());
+                        if(output) {
+                            this.code.emitNew(type1);
+                        }
+
+                        if(output) {
+                            this.code.emitDup();
+                        }
+
+                        if(output) {
+                            this.code.emitInvoke(type1.getDeclaredMethod("<init>", 0));
+                        }
+
+                        for(ClassType superC = type1; superC != null; superC = superC.getSuperclass()) {
+                            for(Field field = superC.getFields(); field != null; field = field.getNext()) {
+                                if((field.getModifiers() & Access.PUBLIC) != 0 && (field.getModifiers() & Access.TRANSIENT) == 0 && (field.getModifiers() & Access.STATIC) == 0) {
+                                    if(output) {
+                                        this.code.emitDup();
+                                    }
+
+                                    try {
+                                        this.compileQuasi(field.getReflectField().get(o1), mi, this.code, field.getType());
+                                    } catch (NoSuchFieldException var23) {
+                                        throw new RuntimeException(var23);
+                                    } catch (IllegalAccessException var24) {
+                                        throw new RuntimeException(var24);
+                                    }
+
+                                    if(output) {
+                                        this.code.emitPutField(field);
+                                    }
+                                }
+                            }
+                        }
+
+                        if(type1 == Main.getCompilerType("tokens.VToken")) {
+                            if(output) {
+                                this.code.emitDup();
+                            }
+
+                            if(output) {
+                                this.code.emitLoad(this.code.getArg(2));
+                            }
+
+                            if(output) {
+                                this.code.emitPutField(type1.getField("macro"));
+                            }
+                        }
+
+                        var10000 = Main.getCompilerType("tokens.Token");
+                    }
+                } else {
+                    var10000 = this.compile((Token)o1.toks.get(0), mi, this.code, Main.unknownType);
                 }
             } else if(o instanceof String) {
                 String o2 = (String)o;
@@ -683,13 +690,14 @@ public class GenHandler extends Handler {
             args.addAll((Collection)var10001);
 
             try {
-                tok.ret = Main.transformBlock((Token)ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray()), mi);
-            } catch (NoSuchMethodException var24) {
-                throw new RuntimeException(var24);
-            } catch (IllegalAccessException var25) {
+                Token ret = (Token)ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());
+                tok.ret = Main.transformBlock(ret, mi);
+            } catch (NoSuchMethodException var25) {
                 throw new RuntimeException(var25);
-            } catch (InvocationTargetException var26) {
+            } catch (IllegalAccessException var26) {
                 throw new RuntimeException(var26);
+            } catch (InvocationTargetException var27) {
+                throw new RuntimeException(var27);
             }
         }
 
@@ -1076,9 +1084,7 @@ public class GenHandler extends Handler {
 
     public Type compile(CallToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Token first = (Token)tok.toks.get(0);
-        String name = ((VToken)((Token)first.toks.get(1))).val;
-        boolean special = (Token)first.toks.get(0) instanceof VToken && ((VToken)((Token)first.toks.get(0))).val.equals("super");
+        boolean special = tok.target instanceof VToken && ((VToken)tok.target).val.equals("super");
         Type var10000;
         if(special) {
             if(output) {
@@ -1087,15 +1093,15 @@ public class GenHandler extends Handler {
 
             var10000 = mi.ci.c.getGenericSuperclass();
         } else {
-            var10000 = mi.getType((Token)first.toks.get(0));
+            var10000 = mi.getType(tok.target);
         }
 
         Type t = var10000;
         if(t == null) {
-            t = this.compile((Token)first.toks.get(0), mi, this.code, Main.unknownType);
+            t = this.compile(tok.target, mi, this.code, Main.unknownType);
         }
 
-        return Main.emitInvoke(this, name, t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, needed, special);
+        return Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special);
     }
 
     public Type compile(DefaultToken tok, AMethodInfo mi, Type needed) {

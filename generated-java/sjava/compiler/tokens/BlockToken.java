@@ -2,9 +2,10 @@ package sjava.compiler.tokens;
 
 import java.util.HashMap;
 import java.util.List;
+import sjava.compiler.tokens.ParsedToken;
 import sjava.compiler.tokens.Token;
 
-public class BlockToken extends Token {
+public class BlockToken extends ParsedToken {
     public transient HashMap labels = new HashMap();
 
     public BlockToken(int line, List<Token> toks) {

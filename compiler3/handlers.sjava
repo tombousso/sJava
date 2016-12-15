@@ -199,6 +199,10 @@
 		)
 		(define class ClassType (t:getRawType))
 		(define field Field (class:getField (as VToken (tok:toks:get 1)):val -1))
+		(if (&& (= t (Type:getType "sjava.compiler.tokens.Token")) ((field:getName):equals "toks"))
+			;(println tok:line "," mi)
+			()
+		)
 		(if (field:getStaticFlag)
 			(if output (this:code:emitGetStatic field))
 			(if output (this:code:emitGetField field))
@@ -226,7 +230,7 @@
 		)
 		(define result
 			(instanceCond o
-				(Token
+				(LexedParsedToken
 					(define t (if (instance? o UnquoteToken) (this:compile (o:toks:get 0) mi null Main:unknownType) null))
 					(if
 						(&&
@@ -445,7 +449,7 @@
 						(define generics (Type[] len:(+ (alen params) 1)))
 						(System:arraycopy params 0 generics 0 (alen params))
 						(define toks (tok:toks:subList 2 (tok:toks:size)))
-						(define fakemi (MethodInfo (ClassInfo null mi:ci:fs) toks null scope))
+						(define fakemi (MethodInfo (ClassInfo (as ClassType null) mi:ci:fs) toks null scope))
 						(define ret (Main:tryBox (captureH:compile fakemi:block fakemi null Main:unknownType)))
 						(aset generics (alen params) ret)
 						(define t (ParameterizedType (ClassType:make ("sjava.std.Function":concat (Integer:toString (alen params)))) generics))
@@ -608,10 +612,13 @@
 					)
 				)
 				(try
-					(set tok:ret
-						(Main:transformBlock
-							(as Token (((ci:getClazz):getMethod name classes):invoke null (args:toArray)))
-							mi
+					(begin
+						(define ret (as Token (((ci:getClazz):getMethod name classes):invoke null (args:toArray))))
+						(set tok:ret
+							(Main:transformBlock
+								ret
+								mi
+							)
 						)
 					)
 					(e NoSuchMethodException (throw (RuntimeException e)))
@@ -875,12 +882,10 @@
 	)
 	((compile tok CallToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(define first (tok:toks:get 0))
-		(define name (as VToken (first:toks:get 1)):val)
 		(define special
 			(&&
-				(instance? (first:toks:get 0) VToken)
-				((as VToken (first:toks:get 0)):val:equals "super")
+				(instance? tok:target VToken)
+				((as VToken tok:target):val:equals "super")
 			)
 		)
 		(define t
@@ -889,13 +894,13 @@
 					(if output (this:code:emitPushThis))
 					(mi:ci:c:getGenericSuperclass)
 				)
-				(mi:getType (first:toks:get 0))
+				(mi:getType tok:target)
 			)
 		)
 		(if (= t null)
-			(set t (this:compile (first:toks:get 0) mi this:code Main:unknownType))
+			(set t (this:compile tok:target mi this:code Main:unknownType))
 		)
-		(Main:emitInvoke this name t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed special)
+		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi this:code needed special)
 	)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))

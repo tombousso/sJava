@@ -183,8 +183,8 @@ public class FileScope {
 
     void compileMacros() {
         for(int i = 0; i != this.macros.size(); ++i) {
-            ClassInfo macros = (ClassInfo)this.macros.get(i);
-            ((AMethodInfo)macros.methods.get(0)).compileMethodBody();
+            ClassInfo macro = (ClassInfo)this.macros.get(i);
+            ((AMethodInfo)macro.methods.get(0)).compileMethodBody();
         }
 
     }

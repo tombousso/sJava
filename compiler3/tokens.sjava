@@ -43,7 +43,31 @@
 	)
 )
 
-(define-class LexedToken (Token) 'public
+(define-class LexedParsedToken (Token) 'public
+	((<init> line int) void 'public
+		(super:<init> line)
+	)
+	((<init> line int toks List{Token}) void 'public
+		(super:<init> line toks)
+	)
+	((<init>) void 'public
+		(super:<init>)
+	)
+)
+
+(define-class ParsedToken (LexedParsedToken) 'public
+	((<init> line int) void 'public
+		(super:<init> line)
+	)
+	((<init> line int toks List{Token}) void 'public
+		(super:<init> line toks)
+	)
+	((<init>) void 'public
+		(super:<init>)
+	)
+)
+
+(define-class LexedToken (LexedParsedToken) 'public
 	(prec int 'public)
 	(what String 'public)
 	((<init> line int) void 'public
@@ -63,9 +87,7 @@
 	)
 )
 
-(define-class Transformed () 'interface 'abstract 'public)
-
-(define-class CommentToken (LexedToken Transformed) 'public
+(define-class CommentToken (LexedToken) 'public
 	(val String 'public)
 	((<init> line int val String) void 'public
 		(super:<init> line)
@@ -73,7 +95,7 @@
 	)
 )
 
-(define-class ConstToken (LexedToken Transformed) 'public
+(define-class ConstToken (LexedToken) 'public
 	(val String 'public)
 	((<init> line int val String) void 'public
 		(super:<init> line)
@@ -87,7 +109,7 @@
 	)
 )
 
-(define-class SToken (LexedToken Transformed) 'public
+(define-class SToken (LexedToken) 'public
 	(val String 'public)
 	(tripleQuote bool 'public)
 	((<init> line int val String tripleQuote bool) void 'public
@@ -116,7 +138,7 @@
 	)
 )
 
-(define-class NToken (LexedToken Transformed) 'public
+(define-class NToken (LexedToken) 'public
 	(val Number 'public)
 	((<init> line int sval String) void 'public
 		(super:<init> line)
@@ -130,7 +152,7 @@
 	)
 )
 
-(define-class CToken (LexedToken Transformed) 'public
+(define-class CToken (LexedToken) 'public
 	(val Character 'public)
 	((<init> line int val Character) void 'public
 		(super:<init> line)
@@ -150,7 +172,7 @@
 	)
 )
 
-(define-class VToken (LexedToken Transformed) 'public
+(define-class VToken (LexedToken) 'public
 	(val String 'public)
 	(macro int 'public 'transient)
 	((<init> line int val String macro int) void
@@ -169,7 +191,7 @@
 	)
 )
 
-(define-class BlockToken (Token) 'public
+(define-class BlockToken (ParsedToken) 'public
 	(labels HashMap 'public 'transient)
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
@@ -196,7 +218,7 @@
 	)
 )
 
-(define-class GenericToken (Token) 'public
+(define-class GenericToken (ParsedToken) 'public
 	(tok Token 'public)
 	((<init> line int tok Token toks List{Token}) void 'public
 		(super:<init> line toks)
@@ -210,7 +232,7 @@
 	)
 )
 
-(define-class ColonToken (Token) 'public
+(define-class ColonToken (ParsedToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
@@ -225,7 +247,7 @@
 	)
 )
 
-(define-class SingleQuoteToken (Token) 'public
+(define-class SingleQuoteToken (ParsedToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
@@ -237,7 +259,7 @@
 	)
 )
 
-(define-class QuoteToken (Token) 'public
+(define-class QuoteToken (ParsedToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
@@ -249,7 +271,7 @@
 	)
 )
 
-(define-class UnquoteToken (Token) 'public
+(define-class UnquoteToken (ParsedToken) 'public
 	(var bool 'public)
 	((<init> line int toks List{Token} var bool) void 'public
 		(super:<init> line toks)
@@ -263,7 +285,7 @@
 	)
 )
 
-(define-class IncludeToken (Token Transformed) 'public
+(define-class IncludeToken (LexedParsedToken) 'public
 	(mi AMethodInfo 'public)
 	(ret Token 'public)
 	((<init> line int mi AMethodInfo) void 'public
@@ -272,7 +294,7 @@
 	)
 )
 
-(define-class ObjectToken (Token Transformed) 'public
+(define-class ObjectToken (Token) 'public
 	(ci ClassInfo 'public)
 	(captured AVar[] 'public)
 	(t Type 'public)
@@ -288,86 +310,86 @@
 	)
 )
 
-(define-class MacroCallToken (Token Transformed) 'public
+(define-class MacroCallToken (Token) 'public
 	(ret Token 'public)
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class BeginToken (BlockToken Transformed) 'public
+(define-class BeginToken (BlockToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class LabelToken (Token Transformed) 'public
+(define-class LabelToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class GotoToken (Token Transformed) 'public
+(define-class GotoToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class DefineToken (Token Transformed) 'public
+(define-class DefineToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class TryToken (Token Transformed) 'public
+(define-class TryToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class InstanceToken (Token Transformed) 'public
+(define-class InstanceToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class SetToken (Token Transformed) 'public
+(define-class SetToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class ASetToken (Token Transformed) 'public
+(define-class ASetToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class AGetToken (Token Transformed) 'public
+(define-class AGetToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class ALenToken (Token Transformed) 'public
+(define-class ALenToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class AsToken (Token Transformed) 'public
+(define-class AsToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class NumOpToken (Token Transformed) 'public
+(define-class NumOpToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class ShiftToken (Token Transformed) 'public
+(define-class ShiftToken (Token) 'public
 	(right bool 'public)
 	((<init> line int toks List{Token} right bool) void 'public
 		(super:<init> line toks)
@@ -375,67 +397,71 @@
 	)
 )
 
-(define-class IfToken (Token Transformed) 'public
+(define-class IfToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class WhileToken (BlockToken Transformed) 'public
+(define-class WhileToken (BlockToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class CompareToken (Token Transformed) 'public
+(define-class CompareToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class ThrowToken (Token Transformed) 'public
+(define-class ThrowToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class ClassToken (Token Transformed) 'public
+(define-class ClassToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class SynchronizedToken (BlockToken Transformed) 'public
+(define-class SynchronizedToken (BlockToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class TypeToken (Token Transformed) 'public
+(define-class TypeToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class ReturnToken (Token Transformed) 'public
+(define-class ReturnToken (Token) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class CallToken (Token Transformed) 'public
+(define-class CallToken (Token) 'public
+	(target Token 'public)
+	(method String 'public)
+	((<init> line int target Token method String toks List{Token}) void 'public
+		(super:<init> line toks)
+		(set this:target target)
+		(set this:method method)
+	)
+)
+
+(define-class DefaultToken (BlockToken) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
 	)
 )
 
-(define-class DefaultToken (BlockToken Transformed) 'public
-	((<init> line int toks List{Token}) void 'public
-		(super:<init> line toks)
-	)
-)
-
-(define-class EmptyToken (BlockToken Transformed) 'public
+(define-class EmptyToken (BlockToken) 'public
 	((<init> line int) void 'public
 		(super:<init> line Collections:EMPTY_LIST)
 	)

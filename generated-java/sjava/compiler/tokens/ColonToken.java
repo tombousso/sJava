@@ -1,9 +1,10 @@
 package sjava.compiler.tokens;
 
 import java.util.List;
+import sjava.compiler.tokens.ParsedToken;
 import sjava.compiler.tokens.Token;
 
-public class ColonToken extends Token {
+public class ColonToken extends ParsedToken {
     public ColonToken(int line, List<Token> toks) {
         super(line, toks);
     }

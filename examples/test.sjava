@@ -145,8 +145,6 @@
 				(remove 2)
 			)
 		)
-
-		;(System:out:println null)
 	)
 	((toggle1 x int) int 'static
 		(cond

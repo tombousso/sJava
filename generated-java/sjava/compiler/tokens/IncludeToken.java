@@ -1,10 +1,10 @@
 package sjava.compiler.tokens;
 
 import sjava.compiler.AMethodInfo;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.Token;
-import sjava.compiler.tokens.Transformed;
 
-public class IncludeToken extends Token implements Transformed {
+public class IncludeToken extends LexedParsedToken {
     public AMethodInfo mi;
     public Token ret;
 

@@ -1,8 +1,8 @@
 package sjava.compiler.tokens;
 
-import sjava.compiler.tokens.Token;
+import sjava.compiler.tokens.LexedParsedToken;
 
-public class LexedToken extends Token {
+public class LexedToken extends LexedParsedToken {
     public int prec;
     public String what;
 

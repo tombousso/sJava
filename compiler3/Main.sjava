@@ -200,21 +200,28 @@
 		(forEach name fileNames
 			(define code String null)
 			(try (set code (org.apache.commons.io.FileUtils:readFileToString (File name))) (e IOException (throw (RuntimeException e))))
-			(define formatted (Main:formatCode code))
-			(define l 1)
-			(for (define i 0) (< i (code:length)) (inc i)
-				(if (!= (code:charAt i) (formatted:charAt i))
-					(begin
-						(if (! (code:equals formatted)) (println "Warning: " name " isn't formatted (line " l ")"))
-						(goto break)
-					)
-				)
-				(if (= (code:charAt i) #\newline) (inc l))
+			(define line (Main:checkFormatted code))
+			(if (!= line -1)
+				(println "Warning: " name " isn't formatted (line " line ")")
 			)
-			(label break)
 			(files:put name (Main:parse code (Lexer) (Parser)))
 		)
 		(Main:compile files)
+	)
+	((checkFormatted code String) int 'public 'static
+		(define formatted (Main:formatCode code))
+		(define line 1)
+		(define len (Math:min (code:length) (formatted:length)))
+		(for (define i 0) (< i len) (inc i)
+			(if (!= (code:charAt i) (formatted:charAt i))
+				(return line)
+			)
+			(if (= (code:charAt i) #\newline) (inc line))
+		)
+		(if (!= (code:length) (formatted:length))
+			line
+			-1
+		)
 	)
 	((compile files HashMap{String ArrayList{Token}}) Map{String FileScope} 'public 'static
 		(define locals (HashMap))
@@ -507,53 +514,56 @@
 		null
 	)
 	((transformBlock block Token mi AMethodInfo transform bool) Token 'static
-		;check if transform is needed
-		;(if (&& (instance? block Transformed) (! (instance? block LexedToken))) (println mi ":" block:line))
-		(if (&& (!= block:toks null) (! (instance? block Transformed)))
-			(instanceCond block
-				(BlockToken
-					(cond
-						((= (block:toks:size) 0)
-							(if transform
-								(return (EmptyToken block:line))
-								(return (BlockToken block:line Collections:EMPTY_LIST))
+		(if (! (instance? block LexedParsedToken)) (throw (RuntimeException (block:toString))))
+		(instanceCond block
+			(BlockToken
+				(cond
+					((= (block:toks:size) 0)
+						(if transform
+							(return (EmptyToken block:line))
+							(return (BlockToken block:line Collections:EMPTY_LIST))
+						)
+					)
+					(true
+						(cond
+							((instance? (block:toks:get 0) VToken)
+								(define o (Main:transformForm block mi transform))
+								(if (!= o null) (return o))
+							)
+							((&& transform (instance? (block:toks:get 0) ColonToken))
+								(define first ColonToken (block:toks:get 0))
+								(define out
+									(CallToken
+										block:line
+										(Main:transformBlock (first:toks:get 0) mi true)
+										(as VToken (first:toks:get 1)):val
+										(ArrayList (block:toks:subList 1 (block:toks:size)))
+									)
+								)
+								(Main:transformBlockToks out mi true)
+								(return out)
 							)
 						)
-						(true
-							(cond
-								((instance? (block:toks:get 0) VToken)
-									(define o (Main:transformForm block mi transform))
-									(if (!= o null) (return o))
-								)
-								((&& transform (instance? (block:toks:get 0) ColonToken))
-									(define out (CallToken block:line (ArrayList block:toks)))
-									(Main:transformBlockTok (out:toks:get 0) mi true 0)
-									(Main:transformBlockToks out mi true 1)
-									(return out)
-								)
-							)
-							(if transform
-								(return (Main:transformBlockToks (DefaultToken block:line (ArrayList block:toks)) mi))
-								(return (Main:transformBlockToks (BlockToken block:line (ArrayList block:toks)) mi transform))
-							)
+						(if transform
+							(return (Main:transformBlockToks (DefaultToken block:line (ArrayList block:toks)) mi))
+							(return (Main:transformBlockToks (BlockToken block:line (ArrayList block:toks)) mi transform))
 						)
 					)
 				)
-				(ColonToken
-					(return (Main:transformBlockToks (ColonToken block:line (ArrayList block:toks)) mi transform))
-				)
-				(QuoteToken
-					(return (Main:transformBlockToks (QuoteToken block:line (ArrayList block:toks)) mi transform))
-				)
-				(UnquoteToken
-					(return (Main:transformBlockToks (UnquoteToken block:line (ArrayList block:toks) block:var) mi transform))
-				)
-				(GenericToken
-					(return (Main:transformBlockToks (GenericToken block:line block:tok (ArrayList block:toks)) mi transform))
-				)
+			)
+			(ColonToken
+				(return (Main:transformBlockToks (ColonToken block:line (ArrayList block:toks)) mi transform))
+			)
+			(QuoteToken
+				(return (Main:transformBlockToks (QuoteToken block:line (ArrayList block:toks)) mi transform))
+			)
+			(UnquoteToken
+				(return (Main:transformBlockToks (UnquoteToken block:line (ArrayList block:toks) block:var) mi transform))
+			)
+			(GenericToken
+				(return (Main:transformBlockToks (GenericToken block:line block:tok (ArrayList block:toks)) mi transform))
 			)
 		)
-		(if (! (instance? block Transformed)) (throw (RuntimeException (block:toString))))
 		block
 	)
 	((transformBlock block Token mi AMethodInfo) Token 'static 'public
@@ -1421,9 +1431,9 @@
 	((compileMacros) void
 		(define i 0)
 		(while (!= i (this:macros:size))
-			(define macros (this:macros:get i))
-			((macros:methods:get 0):compileMethodBody)
-			;(Files:write (Paths:get (("macros/":concat cname):concat ".class") (String[])) ba (OpenOption[]))
+			(define macro (this:macros:get i))
+			((macro:methods:get 0):compileMethodBody)
+			;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
 			(set i (+ i 1))
 		)
 	)

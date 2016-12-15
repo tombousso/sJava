@@ -63,6 +63,7 @@ import sjava.compiler.tokens.IfToken;
 import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
 import sjava.compiler.tokens.LambdaToken;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.MacroCallToken;
 import sjava.compiler.tokens.NumOpToken;
 import sjava.compiler.tokens.ObjectToken;
@@ -74,7 +75,6 @@ import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.SynchronizedToken;
 import sjava.compiler.tokens.ThrowToken;
 import sjava.compiler.tokens.Token;
-import sjava.compiler.tokens.Transformed;
 import sjava.compiler.tokens.TryToken;
 import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.UnquoteToken;
@@ -281,37 +281,44 @@ public class Main {
 
             try {
                 code = FileUtils.readFileToString(new File(name));
-            } catch (IOException var16) {
-                throw new RuntimeException(var16);
+            } catch (IOException var14) {
+                throw new RuntimeException(var14);
             }
 
-            String formatted = formatCode(code);
-            int l = 1;
-
-            for(int i = 0; i < code.length(); ++i) {
-                if(code.charAt(i) != formatted.charAt(i)) {
-                    if(!code.equals(formatted)) {
-                        PrintStream var10000 = System.out;
-                        StringBuilder sb1 = new StringBuilder();
-                        sb1.append("Warning: ");
-                        sb1.append(name);
-                        sb1.append(" isn\'t formatted (line ");
-                        sb1.append(l);
-                        sb1.append(")");
-                        var10000.println(sb1.toString());
-                    }
-                    break;
-                }
-
-                if(code.charAt(i) == 10) {
-                    ++l;
-                }
+            int line = checkFormatted(code);
+            if(line != -1) {
+                PrintStream var10000 = System.out;
+                StringBuilder sb1 = new StringBuilder();
+                sb1.append("Warning: ");
+                sb1.append(name);
+                sb1.append(" isn\'t formatted (line ");
+                sb1.append(line);
+                sb1.append(")");
+                var10000.println(sb1.toString());
             }
 
             files.put(name, parse(code, new Lexer(), new Parser()));
         }
 
         return compile((HashMap)files);
+    }
+
+    public static int checkFormatted(String code) {
+        String formatted = formatCode(code);
+        int line = 1;
+        int len = Math.min(code.length(), formatted.length());
+
+        for(int i = 0; i < len; ++i) {
+            if(code.charAt(i) != formatted.charAt(i)) {
+                return line;
+            }
+
+            if(code.charAt(i) == 10) {
+                ++line;
+            }
+        }
+
+        return code.length() != formatted.length()?line:-1;
     }
 
     public static Map<String, FileScope> compile(HashMap<String, ArrayList<Token>> files) {
@@ -640,59 +647,39 @@ public class Main {
     }
 
     static Token transformBlock(Token block, AMethodInfo mi, boolean transform) {
-        if(block.toks != null && !(block instanceof Transformed)) {
-            if(block instanceof BlockToken) {
-                BlockToken block1 = (BlockToken)block;
-                if(block1.toks.size() == 0) {
-                    if(transform) {
-                        return new EmptyToken(block1.line);
-                    }
-
-                    return new BlockToken(block1.line, Collections.EMPTY_LIST);
-                }
-
+        if(!(block instanceof LexedParsedToken)) {
+            throw new RuntimeException(block.toString());
+        } else if(block instanceof BlockToken) {
+            BlockToken block1 = (BlockToken)block;
+            if(block1.toks.size() == 0) {
+                return (Token)(transform?new EmptyToken(block1.line):new BlockToken(block1.line, Collections.EMPTY_LIST));
+            } else {
                 if((Token)block1.toks.get(0) instanceof VToken) {
                     Token o = transformForm(block1, mi, transform);
                     if(o != null) {
                         return o;
                     }
                 } else if(transform && (Token)block1.toks.get(0) instanceof ColonToken) {
-                    CallToken out = new CallToken(block1.line, new ArrayList(block1.toks));
-                    transformBlockTok((Token)out.toks.get(0), mi, true, 0);
-                    transformBlockToks(out, mi, true, 1);
+                    ColonToken first = (ColonToken)((Token)block1.toks.get(0));
+                    CallToken out = new CallToken(block1.line, transformBlock((Token)first.toks.get(0), mi, true), ((VToken)((Token)first.toks.get(1))).val, new ArrayList(block1.toks.subList(1, block1.toks.size())));
+                    transformBlockToks(out, mi, true);
                     return out;
                 }
 
-                if(transform) {
-                    return transformBlockToks(new DefaultToken(block1.line, new ArrayList(block1.toks)), mi);
-                }
-
-                return transformBlockToks(new BlockToken(block1.line, new ArrayList(block1.toks)), mi, transform);
+                return transform?transformBlockToks(new DefaultToken(block1.line, new ArrayList(block1.toks)), mi):transformBlockToks(new BlockToken(block1.line, new ArrayList(block1.toks)), mi, transform);
             }
-
-            if(block instanceof ColonToken) {
-                ColonToken block2 = (ColonToken)block;
-                return transformBlockToks(new ColonToken(block2.line, new ArrayList(block2.toks)), mi, transform);
-            }
-
-            if(block instanceof QuoteToken) {
-                QuoteToken block3 = (QuoteToken)block;
-                return transformBlockToks(new QuoteToken(block3.line, new ArrayList(block3.toks)), mi, transform);
-            }
-
-            if(block instanceof UnquoteToken) {
-                UnquoteToken block4 = (UnquoteToken)block;
-                return transformBlockToks(new UnquoteToken(block4.line, new ArrayList(block4.toks), block4.var), mi, transform);
-            }
-
-            if(block instanceof GenericToken) {
-                GenericToken block5 = (GenericToken)block;
-                return transformBlockToks(new GenericToken(block5.line, block5.tok, new ArrayList(block5.toks)), mi, transform);
-            }
-        }
-
-        if(!(block instanceof Transformed)) {
-            throw new RuntimeException(block.toString());
+        } else if(block instanceof ColonToken) {
+            ColonToken block2 = (ColonToken)block;
+            return transformBlockToks(new ColonToken(block2.line, new ArrayList(block2.toks)), mi, transform);
+        } else if(block instanceof QuoteToken) {
+            QuoteToken block3 = (QuoteToken)block;
+            return transformBlockToks(new QuoteToken(block3.line, new ArrayList(block3.toks)), mi, transform);
+        } else if(block instanceof UnquoteToken) {
+            UnquoteToken block4 = (UnquoteToken)block;
+            return transformBlockToks(new UnquoteToken(block4.line, new ArrayList(block4.toks), block4.var), mi, transform);
+        } else if(block instanceof GenericToken) {
+            GenericToken block5 = (GenericToken)block;
+            return transformBlockToks(new GenericToken(block5.line, block5.tok, new ArrayList(block5.toks)), mi, transform);
         } else {
             return block;
         }

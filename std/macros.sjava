@@ -71,7 +71,8 @@
 			`(collection:size)
 		)
 	)
-	(define o (type `(begin (define ,item ,$(itemT:getName)) (define ,i int) ,block)))
+	(define arrElement `(begin (define ,item ,$(itemT:getName)) (define ,i int) ,block))
+	(define o (type arrElement))
 	`(begin
 		(define collection ,collection)
 		(define out (,$((o:getName):concat "[]") len:,len))

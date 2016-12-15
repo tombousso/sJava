@@ -1,9 +1,10 @@
 package sjava.compiler.tokens;
 
 import java.util.List;
+import sjava.compiler.tokens.ParsedToken;
 import sjava.compiler.tokens.Token;
 
-public class SingleQuoteToken extends Token {
+public class SingleQuoteToken extends ParsedToken {
     public SingleQuoteToken(int line, List<Token> toks) {
         super(line, toks);
     }
