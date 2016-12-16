@@ -34,6 +34,7 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 * hygenic compile-time macros
 * lambdas
 * autoboxing/unboxing
+* type inference
 * if statements/conditionals (short circuit)
 * arrays
 * generics (full support except wildcards)
