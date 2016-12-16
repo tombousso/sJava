@@ -1,13 +1,13 @@
 package sjava.compiler.tokens;
 
 import java.util.List;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
-import sjava.compiler.tokens.Token;
 
 public class GenericToken extends ParsedToken {
-    public Token tok;
+    public LexedParsedToken tok;
 
-    public GenericToken(int line, Token tok, List<Token> toks) {
+    public GenericToken(int line, LexedParsedToken tok, List<LexedParsedToken> toks) {
         super(line, toks);
         this.tok = tok;
     }

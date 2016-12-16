@@ -19,25 +19,25 @@ import sjava.compiler.Var;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.mfilters.BridgeFilter;
 import sjava.compiler.tokens.BeginToken;
-import sjava.compiler.tokens.BlockToken;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 
 public class AMethodInfo {
     public ClassInfo ci;
-    public BlockToken block;
+    public BeginToken block;
     public Method method;
     public ArrayList<ArrayDeque<Map<String, AVar>>> scopes;
     Map<String, AVar> firstScope;
-    ArrayDeque<HashMap> labels;
+    ArrayDeque<Map> labels;
 
-    AMethodInfo(ClassInfo ci, List<Token> toks, Method method, Map<String, AVar> firstScope) {
+    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, Map<String, AVar> firstScope) {
         this.ci = ci;
         if(toks.size() != 0) {
             ArrayList btoks = new ArrayList();
-            btoks.add(new VToken(((Token)toks.get(0)).line, "begin"));
+            btoks.add(new VToken(((LexedParsedToken)toks.get(0)).line, "begin"));
             btoks.addAll(toks);
-            this.block = (BlockToken)Main.transformBlockToks(new BeginToken(((Token)toks.get(0)).line, btoks), this);
+            this.block = (BeginToken)Main.transformBlockToks(new BeginToken(((LexedParsedToken)toks.get(0)).line, btoks), this);
         }
 
         this.method = method;
@@ -48,7 +48,7 @@ public class AMethodInfo {
         this.labels = new ArrayDeque();
     }
 
-    public void pushScope(CodeAttr code, HashMap label) {
+    public void pushScope(CodeAttr code, Map label) {
         boolean output = code != null;
 
         for(int i = 0; i != this.scopes.size(); ++i) {

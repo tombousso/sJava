@@ -6,10 +6,12 @@ import sjava.compiler.tokens.Token;
 public class CallToken extends Token {
     public Token target;
     public String method;
+    public List<Token> toks;
 
     public CallToken(int line, Token target, String method, List<Token> toks) {
-        super(line, toks);
+        super(line);
         this.target = target;
         this.method = method;
+        this.toks = toks;
     }
 }

@@ -7,6 +7,7 @@ import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.ColonToken;
 import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.SingleQuoteToken;
@@ -36,11 +37,11 @@ public class Parser {
         return (LexedToken)this.toks.get(this.i + n);
     }
 
-    List<Token> subToks(String end) {
+    List<LexedParsedToken> subToks(String end) {
         ArrayList toks = new ArrayList();
 
         while(!this.peek(0).what.equals(end)) {
-            Token t = this.parse(0);
+            LexedParsedToken t = this.parse(0);
             if(t != null) {
                 toks.add(t);
             }
@@ -50,7 +51,7 @@ public class Parser {
         return toks;
     }
 
-    Token parse(int prec) {
+    LexedParsedToken parse(int prec) {
         LexedToken t = this.next();
         String w = t.what;
         Object var10000;
@@ -78,11 +79,11 @@ public class Parser {
             String w1 = this.peek(0).what;
             if(w1.equals(":")) {
                 this.next();
-                Token right = this.parse(1);
+                LexedParsedToken right = this.parse(1);
                 left = new ColonToken(t.line, new ArrayList(Arrays.asList(new Object[]{left, right})));
             } else if(w1.equals("{")) {
                 this.next();
-                left = new GenericToken(t.line, (Token)left, this.subToks("}"));
+                left = new GenericToken(t.line, (LexedParsedToken)left, this.subToks("}"));
             } else {
                 cont = false;
             }
@@ -92,20 +93,20 @@ public class Parser {
             }
         }
 
-        return (Token)left;
+        return (LexedParsedToken)left;
     }
 
     int prec() {
         return this.peek(0).prec;
     }
 
-    List<Token> parseAll(List<LexedToken> toks) {
+    List<LexedParsedToken> parseAll(List<LexedToken> toks) {
         this.i = 0;
         this.toks = toks;
         ArrayList out = new ArrayList();
 
         while(this.i != this.toks.size()) {
-            Token t = this.parse(0);
+            LexedParsedToken t = this.parse(0);
             if(t != null) {
                 out.add(t);
             }

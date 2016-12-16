@@ -11,7 +11,7 @@ import sjava.compiler.tokens.BeginToken;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
-import sjava.compiler.tokens.ColonToken;
+import sjava.compiler.tokens.ColonToken2;
 import sjava.compiler.tokens.CompareToken;
 import sjava.compiler.tokens.ConstToken;
 import sjava.compiler.tokens.DefaultToken;
@@ -26,7 +26,7 @@ import sjava.compiler.tokens.MacroCallToken;
 import sjava.compiler.tokens.NToken;
 import sjava.compiler.tokens.NumOpToken;
 import sjava.compiler.tokens.ObjectToken;
-import sjava.compiler.tokens.QuoteToken;
+import sjava.compiler.tokens.QuoteToken2;
 import sjava.compiler.tokens.ReturnToken;
 import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.SetToken;
@@ -59,9 +59,9 @@ public abstract class Handler {
 
     public abstract Type compile(NToken var1, AMethodInfo var2, Type var3);
 
-    public abstract Type compile(ColonToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ColonToken2 var1, AMethodInfo var2, Type var3);
 
-    public abstract Type compile(QuoteToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(QuoteToken2 var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(ConstToken var1, AMethodInfo var2, Type var3);
 
@@ -129,10 +129,10 @@ public abstract class Handler {
             var10000 = this.compile((CToken)tok, mi, needed);
         } else if(tok instanceof NToken) {
             var10000 = this.compile((NToken)tok, mi, needed);
-        } else if(tok instanceof ColonToken) {
-            var10000 = this.compile((ColonToken)tok, mi, needed);
-        } else if(tok instanceof QuoteToken) {
-            var10000 = this.compile((QuoteToken)tok, mi, needed);
+        } else if(tok instanceof ColonToken2) {
+            var10000 = this.compile((ColonToken2)tok, mi, needed);
+        } else if(tok instanceof QuoteToken2) {
+            var10000 = this.compile((QuoteToken2)tok, mi, needed);
         } else if(tok instanceof ConstToken) {
             var10000 = this.compile((ConstToken)tok, mi, needed);
         } else if(tok instanceof VToken) {

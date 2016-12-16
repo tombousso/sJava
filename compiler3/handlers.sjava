@@ -31,8 +31,8 @@
 	((compile tok SToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok CToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok NToken mi AMethodInfo needed Type) Type 'public 'abstract)
-	((compile tok ColonToken mi AMethodInfo needed Type) Type 'public 'abstract)
-	((compile tok QuoteToken mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok ColonToken2 mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok QuoteToken2 mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ConstToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok VToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok IncludeToken mi AMethodInfo needed Type) Type 'public 'abstract)
@@ -190,19 +190,14 @@
 			(true (throw (RuntimeException)))
 		)
 	)
-	((compile tok ColonToken mi AMethodInfo needed Type) Type 'public
+	((compile tok ColonToken2 mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(define first (tok:toks:get 0))
-		(define t (mi:getType first))
+		(define t (mi:getType tok:left))
 		(if (= t null)
-			(set t (this:compile first mi this:code Main:unknownType))
+			(set t (this:compile tok:left mi this:code Main:unknownType))
 		)
 		(define class ClassType (t:getRawType))
-		(define field Field (class:getField (as VToken (tok:toks:get 1)):val -1))
-		(if (&& (= t (Type:getType "sjava.compiler.tokens.Token")) ((field:getName):equals "toks"))
-			;(println tok:line "," mi)
-			()
-		)
+		(define field Field (class:getField (as VToken tok:right):val -1))
 		(if (field:getStaticFlag)
 			(if output (this:code:emitGetStatic field))
 			(if output (this:code:emitGetField field))
@@ -230,87 +225,82 @@
 		)
 		(define result
 			(instanceCond o
-				(LexedParsedToken
-					(define t (if (instance? o UnquoteToken) (this:compile (o:toks:get 0) mi null Main:unknownType) null))
+				(UnquoteToken2
+					(define t (this:compile o:tok mi null Main:unknownType) null)
 					(if
-						(&&
-							(instance? o UnquoteToken)
-							(||
-								(= t (Main:getCompilerType "tokens.Token"))
-								(&&
-									(instance? t ArrayType)
-									(= (as ArrayType t):elements (Main:getCompilerType "tokens.Token"))
-								)
-								((t:getRawType):isSubtype (Type:getType "java.util.List"))
-							)
+						(||
+							(= t (Main:getCompilerType "tokens.LexedParsedToken"))
+							;(&&
+							(instance? t ArrayType)
+							;	(= (as ArrayType t):elements (Main:getCompilerType "tokens.LexedParsedToken"))
+							;)
+							((t:getRawType):isSubtype (Type:getType "java.util.List"))
 						)
-						(this:compile (o:toks:get 0) mi this:code Main:unknownType)
-						(if (instance? o UnquoteToken)
-							(begin
-								(define const (o:toks:get 0))
-								(define t (this:compile const mi null Main:unknownType))
-								(define type ClassType
-									(Main:getCompilerType
-										(if (as UnquoteToken o):var
-											"tokens.VToken"
-											(if (= t Type:charType)
-												"tokens.CToken"
-												(if (instance? t PrimType)
-													"tokens.NToken"
-													"tokens.SToken"
-												)
+						(this:compile o:tok mi this:code Main:unknownType)
+						(begin
+							(define const (as UnquoteToken2 o):tok)
+							(define t (this:compile const mi null Main:unknownType))
+							(define type ClassType
+								(Main:getCompilerType
+									(if (as UnquoteToken2 o):var
+										"tokens.VToken"
+										(if (= t Type:charType)
+											"tokens.CToken"
+											(if (instance? t PrimType)
+												"tokens.NToken"
+												"tokens.SToken"
 											)
 										)
 									)
 								)
-								(if output (this:code:emitNew type))
-								(if output (this:code:emitDup))
-								(if output (this:code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
-								(if output (this:code:emitDup))
-								(this:compile const mi this:code Type:objectType)
-								(if output (this:code:emitPutField (type:getField "val")))
-								(Main:getCompilerType "tokens.Token")
 							)
-							(begin
-								(define type ClassType (Type:getType ((o:getClass):getName)))
-								(if output (this:code:emitNew type))
-								(if output (this:code:emitDup))
-								(if output (this:code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
-								(define superC type)
-								(while (!= superC null)
-									(define field (superC:getFields))
-									(while (!= field null)
-										(if
-											(&&
-												(!= (& (field:getModifiers) Access:PUBLIC) 0)
-												(= (& (field:getModifiers) Access:TRANSIENT) 0)
-												(= (& (field:getModifiers) Access:STATIC) 0)
-											)
-											(begin
-												(if output (this:code:emitDup))
-												(try
-													(this:compileQuasi ((field:getReflectField):get o) mi this:code (field:getType))
-													(e NoSuchFieldException (throw (RuntimeException e)))
-													(e IllegalAccessException (throw (RuntimeException e)))
-												)
-												(if output (this:code:emitPutField field))
-											)
-										)
-										(set field (field:getNext))
-									)
-									(set superC (superC:getSuperclass))
-								)
-								(if (= type (Main:getCompilerType "tokens.VToken"))
-									(begin
-										(if output (this:code:emitDup))
-										(if output (this:code:emitLoad (this:code:getArg 2)))
-										(if output (this:code:emitPutField (type:getField "macro")))
-									)
-								)
-								(Main:getCompilerType "tokens.Token")
-							)
+							(if output (this:code:emitNew type))
+							(if output (this:code:emitDup))
+							(if output (this:code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
+							(if output (this:code:emitDup))
+							(this:compile const mi this:code Type:objectType)
+							(if output (this:code:emitPutField (type:getField "val")))
+							(Main:getCompilerType "tokens.LexedParsedToken")
 						)
 					)
+				)
+				(LexedParsedToken
+					(define type ClassType (Type:getType ((o:getClass):getName)))
+					(if output (this:code:emitNew type))
+					(if output (this:code:emitDup))
+					(if output (this:code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
+					(define superC type)
+					(while (!= superC null)
+						(define field (superC:getFields))
+						(while (!= field null)
+							(if
+								(&&
+									(!= (& (field:getModifiers) Access:PUBLIC) 0)
+									(= (& (field:getModifiers) Access:TRANSIENT) 0)
+									(= (& (field:getModifiers) Access:STATIC) 0)
+								)
+								(begin
+									(if output (this:code:emitDup))
+									(try
+										(this:compileQuasi ((field:getReflectField):get o) mi this:code (field:getType))
+										(e NoSuchFieldException (throw (RuntimeException e)))
+										(e IllegalAccessException (throw (RuntimeException e)))
+									)
+									(if output (this:code:emitPutField field))
+								)
+							)
+							(set field (field:getNext))
+						)
+						(set superC (superC:getSuperclass))
+					)
+					(if (= type (Main:getCompilerType "tokens.VToken"))
+						(begin
+							(if output (this:code:emitDup))
+							(if output (this:code:emitLoad (this:code:getArg 2)))
+							(if output (this:code:emitPutField (type:getField "macro")))
+						)
+					)
+					(Main:getCompilerType "tokens.LexedParsedToken")
 				)
 				(String
 					(if output (this:code:emitPushString o))
@@ -332,7 +322,7 @@
 					(define i 0)
 					(while (!= i (o:size))
 						(define t (this:compileQuasi (o:get i) mi null Main:unknownType))
-						(if (= t (Main:getCompilerType "tokens.Token"))
+						(if (= t (Main:getCompilerType "tokens.LexedParsedToken"))
 							(begin
 								(if output (this:code:emitDup))
 								(this:compileQuasi (o:get i) mi this:code Main:unknownType)
@@ -359,15 +349,15 @@
 					al
 				)
 				(true
-					(throw (RuntimeException))
+					(throw (RuntimeException ((o:getClass):toString)))
 				)
 			)
 		)
 		(this:castMaybe result needed)
 	)
-	((compile tok QuoteToken mi AMethodInfo needed Type) Type 'public
+	((compile tok QuoteToken2 mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(this:compileQuasi (tok:toks:get 0) mi this:code (Main:getCompilerType "tokens.Token"))
+		(this:compileQuasi tok:tok mi this:code (Main:getCompilerType "tokens.LexedParsedToken"))
 	)
 	((compile tok ConstToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -395,27 +385,30 @@
 	((compile tok IncludeToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(if (= tok:ret null)
-			(try
-				(set tok:ret
-					(Main:transformBlock
-						(as Token
-							(
-								((mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
-									(Class[]
-										(class AMethodInfo)
-										(class gnu.bytecode.Type)
-										Integer:TYPE
-										(class GenHandler)
-									)
-								):invoke null (Object[] mi needed 0 this)
+			(begin
+				(mi:ci:fs:compileInclude tok)
+				(try
+					(set tok:ret
+						(Main:transformBlock
+							(as LexedParsedToken
+								(
+									((mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
+										(Class[]
+											(class AMethodInfo)
+											(class gnu.bytecode.Type)
+											Integer:TYPE
+											(class GenHandler)
+										)
+									):invoke null (Object[] mi needed 0 this)
+								)
 							)
+							mi
 						)
-						mi
 					)
+					(e NoSuchMethodException (throw (RuntimeException e)))
+					(e IllegalAccessException (throw (RuntimeException e)))
+					(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
 				)
-				(e NoSuchMethodException (throw (RuntimeException e)))
-				(e IllegalAccessException (throw (RuntimeException e)))
-				(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
 			)
 		)
 		(this:compile tok:ret mi this:code needed)
@@ -577,7 +570,7 @@
 				(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.GenHandler")))
 				(define j 0)
 				(while (!= j l)
-					(aset types (+ o j) (Main:getCompilerType "tokens.Token"))
+					(aset types (+ o j) (Main:getCompilerType "tokens.LexedParsedToken"))
 					(set j (+ j 1))
 				)
 				(define method Method null)
@@ -603,7 +596,7 @@
 						(begin
 							(define var (- (alen params) o))
 							(define al (ArrayList (tok:toks:subList 1 var)))
-							(define out (Token[] len:(- (tok:toks:size) var)))
+							(define out (LexedParsedToken[] len:(- (tok:toks:size) var)))
 							((tok:toks:subList var (tok:toks:size)):toArray out)
 							(al:add out)
 							al
@@ -613,7 +606,7 @@
 				)
 				(try
 					(begin
-						(define ret (as Token (((ci:getClazz):getMethod name classes):invoke null (args:toArray))))
+						(define ret (as LexedParsedToken (((ci:getClazz):getMethod name classes):invoke null (args:toArray))))
 						(set tok:ret
 							(Main:transformBlock
 								ret
@@ -669,14 +662,14 @@
 	((compile tok TryToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define type (this:compile (tok:toks:get 1) mi null needed))
-		(define last (tok:toks:get (- (tok:toks:size) 1)))
+		(define last DefaultToken (tok:toks:get (- (tok:toks:size) 1)))
 		(define hasFinally ((as VToken (last:toks:get 0)):val:equals "finally"))
 		(if output (this:code:emitTryStart hasFinally type))
 		(this:compile (tok:toks:get 1) mi this:code needed)
 		(define e (- (tok:toks:size) (if hasFinally 1 0)))
 		(for (define i 2) (!= i e) (inc i)
-			(define catch (tok:toks:get i))
-			(mi:pushScope this:code (as BlockToken catch):labels)
+			(define catch DefaultToken (tok:toks:get i))
+			(mi:pushScope this:code (Collections:emptyMap)) ;catch:labels
 			(define var (mi:newVar this:code (as VToken (catch:toks:get 0)) (mi:getType (catch:toks:get 1))))
 			(if output (this:code:emitCatchStart var))
 			(this:compileAll catch:toks 2 (catch:toks:size) mi this:code type)
@@ -703,22 +696,21 @@
 		(define output (!= this:code null))
 		(define first (tok:toks:get 0))
 		(define out (tok:toks:get 1))
-		(if (instance? out ColonToken)
-			(begin
-				(define first (out:toks:get 0))
-				(define t (mi:getType first))
+		(instanceCond out
+			(ColonToken2
+				(define t (mi:getType out:left))
 				(if (= t null)
-					(set t (this:compile first mi this:code Main:unknownType))
+					(set t (this:compile out:left mi this:code Main:unknownType))
 				)
 				(define class ClassType (t:getRawType))
-				(define field Field (class:getField (as VToken (out:toks:get 1)):val -1))
+				(define field Field (class:getField (as VToken out:right):val -1))
 				(this:compile (tok:toks:get 2) mi this:code (Main:resolveType t (field:getType)))
 				(if (field:getStaticFlag)
 					(if output (this:code:emitPutStatic field))
 					(if output (this:code:emitPutField field))
 				)
 			)
-			(begin
+			(true
 				(define var (mi:getVar (as VToken (tok:toks:get 1))))
 				(this:compile (tok:toks:get 2) mi this:code var:type)
 				(var:store this:code)
@@ -795,21 +787,21 @@
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(Main:emitIf this false tok 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
+		(Main:emitIf this false tok:toks 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
 	)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(mi:pushScope this:code tok:labels)
 		(define start Label (Label))
 		(if output (start:define this:code))
-		(define t (Main:emitIf this false tok 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi this:code needed))
+		(define t (Main:emitIf this false tok:toks 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi this:code needed))
 		(mi:popScope this:code)
 		t
 	)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define first (tok:toks:get 0))
-		(Main:emitIf_ this false tok 1 (tok:toks:size) (as VToken first):val (ConstToken tok:line "true") (ConstToken tok:line "false") mi this:code Type:booleanType)
+		(Main:emitIf_ this false tok:toks 1 (tok:toks:size) (as VToken first):val (ConstToken tok:line "true") (ConstToken tok:line "false") mi this:code Type:booleanType)
 	)
 	((compile tok ThrowToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -929,8 +921,8 @@
 					(define array ArrayType type)
 					(define len Token (if (> (tok:toks:size) 1) (tok:toks:get 1) null))
 					(define i0
-						(if (&& (!= len null) (instance? len ColonToken) ((as VToken (len:toks:get 0)):val:equals "len"))
-							(begin (this:compile (len:toks:get 1) mi this:code Main:unknownType) 2)
+						(if (&& (!= len null) (instance? len ColonToken2) ((as VToken (as ColonToken2 len):left):val:equals "len"))
+							(begin (this:compile (as ColonToken2 len):right mi this:code Main:unknownType) 2)
 							(begin (if output (this:code:emitPushInt (- (tok:toks:size) 1))) 1)
 						)
 					)

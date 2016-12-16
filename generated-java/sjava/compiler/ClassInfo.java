@@ -24,6 +24,7 @@ import sjava.compiler.MethodInfo;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
@@ -31,7 +32,7 @@ import sjava.compiler.tokens.VToken;
 public class ClassInfo {
     public ClassType c;
     public FileScope fs;
-    List<Token> toks;
+    List<LexedParsedToken> toks;
     public List<AMethodInfo> methods;
     public List<ClassInfo> anonClasses;
     Class rc;
@@ -199,7 +200,7 @@ public class ClassInfo {
             Type[] tparams = new Type[params.size()];
 
             for(int i = 0; i != params.size(); ++i) {
-                tparams[i] = this.getType((Token)params.get(i));
+                tparams[i] = this.getType((Token)((LexedParsedToken)params.get(i)));
             }
 
             var10000 = new ParameterizedType(c, tparams);
@@ -210,9 +211,9 @@ public class ClassInfo {
         return (Type)var10000;
     }
 
-    public void compileDef(Token tok) {
+    public void compileDef(LexedParsedToken tok) {
         if(tok instanceof BlockToken) {
-            Token first = (Token)tok.toks.get(0);
+            LexedParsedToken first = (LexedParsedToken)tok.toks.get(0);
             if(first instanceof BlockToken) {
                 LinkedHashMap scope = new LinkedHashMap();
                 int mods = 0;
@@ -220,9 +221,9 @@ public class ClassInfo {
                 int i = 2;
 
                 while(!end && i != tok.toks.size()) {
-                    Token mod = (Token)tok.toks.get(i);
+                    LexedParsedToken mod = (LexedParsedToken)tok.toks.get(i);
                     if(mod instanceof SingleQuoteToken) {
-                        mods |= ((Short)Main.accessModifiers.get(((VToken)((Token)mod.toks.get(0))).val)).shortValue();
+                        mods |= ((Short)Main.accessModifiers.get(((VToken)((LexedParsedToken)mod.toks.get(0))).val)).shortValue();
                         ++i;
                     } else {
                         end = true;
@@ -236,23 +237,23 @@ public class ClassInfo {
                 }
 
                 Type[] types = Main.getParams(this, first, scope, 1, n);
-                Method m = this.c.addMethod(((VToken)((Token)first.toks.get(0))).val, types, this.getType((Token)tok.toks.get(1)), mods);
+                Method m = this.c.addMethod(((VToken)((LexedParsedToken)first.toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)tok.toks.get(1))), mods);
                 this.methods.add(new MethodInfo(this, tok.toks.subList(i, tok.toks.size()), m, scope));
             } else {
                 int mods1 = 0;
                 boolean end1 = false;
 
                 for(int i1 = 2; i1 != tok.toks.size() && !end1; ++i1) {
-                    Token mod1 = (Token)tok.toks.get(i1);
+                    LexedParsedToken mod1 = (LexedParsedToken)tok.toks.get(i1);
                     if(mod1 instanceof SingleQuoteToken) {
-                        Short nmod = (Short)Main.accessModifiers.get(((VToken)((Token)mod1.toks.get(0))).val);
+                        Short nmod = (Short)Main.accessModifiers.get(((VToken)((LexedParsedToken)mod1.toks.get(0))).val);
                         mods1 |= nmod.shortValue();
                     } else {
                         end1 = true;
                     }
                 }
 
-                Type t = this.getType((Token)tok.toks.get(1));
+                Type t = this.getType((Token)((LexedParsedToken)tok.toks.get(1)));
                 this.c.addField(((VToken)first).val, t, mods1);
             }
         }
@@ -261,11 +262,11 @@ public class ClassInfo {
 
     void compileDefs() {
         ClassType c = this.c;
-        List supers = ((Token)this.toks.get(2)).toks;
+        List supers = ((LexedParsedToken)this.toks.get(2)).toks;
 
         int i;
         for(i = 0; i != supers.size(); ++i) {
-            Type related = this.getType((Token)supers.get(i));
+            Type related = this.getType((Token)((LexedParsedToken)supers.get(i)));
             if(related.isInterface()) {
                 c.addInterface(related);
             } else {
@@ -274,7 +275,7 @@ public class ClassInfo {
         }
 
         for(i = 3; i != this.toks.size(); ++i) {
-            this.compileDef((Token)this.toks.get(i));
+            this.compileDef((LexedParsedToken)this.toks.get(i));
         }
 
     }

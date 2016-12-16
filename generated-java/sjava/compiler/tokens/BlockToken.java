@@ -1,14 +1,11 @@
 package sjava.compiler.tokens;
 
-import java.util.HashMap;
 import java.util.List;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
-import sjava.compiler.tokens.Token;
 
 public class BlockToken extends ParsedToken {
-    public transient HashMap labels = new HashMap();
-
-    public BlockToken(int line, List<Token> toks) {
+    public BlockToken(int line, List<LexedParsedToken> toks) {
         super(line, toks);
     }
 
@@ -21,11 +18,11 @@ public class BlockToken extends ParsedToken {
     }
 
     public int firstLine() {
-        return super.toks.size() == 0?super.line:((Token)super.toks.get(0)).firstLine();
+        return super.toks.size() == 0?super.line:((LexedParsedToken)super.toks.get(0)).firstLine();
     }
 
     public int lastLine() {
-        return super.toks.size() == 0?super.line:((Token)super.toks.get(super.toks.size() - 1)).lastLine();
+        return super.toks.size() == 0?super.line:((LexedParsedToken)super.toks.get(super.toks.size() - 1)).lastLine();
     }
 
     public BlockToken() {
