@@ -1,4 +1,4 @@
-# sJava - A simple self hosting compiler for a Java dialect using S-expressions, bootstrapped on Kawa
+# sJava - A simple self hosting compiler for a Java dialect using S-expressions
 For comparison, here's a hello world program in sJava (examples/helloworld.sjava):
 
 	(define-class Main () 'public
