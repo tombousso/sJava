@@ -1,13 +1,15 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
+import gnu.bytecode.Type;
 import sjava.compiler.tokens.Token;
 
 public class InstanceToken extends Token {
-    public List<Token> toks;
+    public Token tok;
+    public Type type;
 
-    public InstanceToken(int line, List<Token> toks) {
+    public InstanceToken(int line, Token tok, Type type) {
         super(line);
-        this.toks = toks;
+        this.tok = tok;
+        this.type = type;
     }
 }

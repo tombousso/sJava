@@ -57,8 +57,8 @@
 					(App:gc:strokeLine 0 App:cell App:wh App:cell)
 					(App:gc:strokeLine 0 (* 2 App:cell) App:wh (* 2 App:cell))
 
-					(for (define x 0) (< x 3) (inc x)
-						(for (define y 0) (< y 3) (inc y)
+					(for ((x 0)) (< x 3) (inc x)
+						(for ((y 0)) (< y 3) (inc y)
 							(App:draw x y (aget (aget App:board x) y))
 						)
 					)
@@ -143,8 +143,8 @@
 		o
 	)
 	((print) void 'static
-		(for (define y 0) (< y 3) (inc y)
-			(for (define x 0) (< x 3) (inc x)
+		(for ((y 0)) (< y 3) (inc y)
+			(for ((x 0)) (< x 3) (inc x)
 				(begin
 					(define n (aget (aget App:board x) y))
 					(print (if (= n 0) " " (if (= n 1) "X" "O")))
@@ -165,8 +165,8 @@
 					(if max
 						(begin
 							(define best -9999)
-							(for (define x 0) (< x 3) (inc x)
-								(for (define y 0) (< y 3) (inc y)
+							(for ((x 0)) (< x 3) (inc x)
+								(for ((y 0)) (< y 3) (inc y)
 									(if (= (aget (aget App:board x) y) 0)
 										(begin
 											(aset (aget App:board x) y player)
@@ -181,8 +181,8 @@
 						)
 						(begin
 							(define best 9999)
-							(for (define x 0) (< x 3) (inc x)
-								(for (define y 0) (< y 3) (inc y)
+							(for ((x 0)) (< x 3) (inc x)
+								(for ((y 0)) (< y 3) (inc y)
 									(if (= (aget (aget App:board x) y) 0)
 										(begin
 											(aset (aget App:board x) y player)
@@ -204,8 +204,8 @@
 		(define best -9999)
 		(define bx 0)
 		(define by 0)
-		(for (define x 0) (< x 3) (inc x)
-			(for (define y 0) (< y 3) (inc y)
+		(for ((x 0)) (< x 3) (inc x)
+			(for ((y 0)) (< y 3) (inc y)
 				(if (= (aget App:board x y) 0)
 					(begin
 						(aset (aget App:board x) y App:turn)

@@ -1,13 +1,13 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
+import gnu.bytecode.Type;
 import sjava.compiler.tokens.Token;
 
 public class ClassToken extends Token {
-    public List<Token> toks;
+    public Type type;
 
-    public ClassToken(int line, List<Token> toks) {
+    public ClassToken(int line, Type type) {
         super(line);
-        this.toks = toks;
+        this.type = type;
     }
 }

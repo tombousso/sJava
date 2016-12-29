@@ -9,7 +9,6 @@
 
 (define-class Token (Emitter) 'public
 	(line int 'public)
-	(endLine int 'public)
 	((<init> line int) void
 		(this:<init>)
 		(set this:line line)
@@ -24,6 +23,8 @@
 
 (define-class LexedParsedToken (Token) 'public
 	(toks List{LexedParsedToken} 'public)
+	(endLine int 'public)
+	(transformed Token 'public 'transient)
 	((<init> line int) void 'public
 		(super:<init> line)
 	)
@@ -31,15 +32,18 @@
 		(super:<init> line)
 		(set this:toks toks)
 	)
-	((toksString) String 'public
+	((toksString l List{LexedParsedToken}) String
 		(define s (StringBuffer))
-		(forEachI tok this:toks i
+		(forEachI tok l i
 			(s:append tok)
-			(if (!= i (- (this:toks:size) 1))
+			(if (!= i (- (l:size) 1))
 				(s:append " ")
 			)
 		)
 		(s:toString)
+	)
+	((toksString) String
+		(this:toksString this:toks)
 	)
 	((firstLine) int 'public
 		this:line
@@ -137,12 +141,17 @@
 
 (define-class NToken (LexedToken) 'public
 	(val Number 'public)
+	(sval String 'public)
 	((<init> line int sval String) void 'public
 		(super:<init> line)
+		(set this:sval sval)
+		(if (&& (sval:contains ".") (! (Character:isLetter (sval:charAt (- (sval:length) 1)))))
+			(set sval (concat sval "d"))
+		)
 		(set this:val (org.apache.commons.lang3.math.NumberUtils:createNumber sval))
 	)
 	((toString) String 'public
-		(this:val:toString)
+		this:sval
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -223,13 +232,23 @@
 )
 
 (define-class GenericToken (ParsedToken) 'public
-	(tok LexedParsedToken 'public)
-	((<init> line int tok LexedParsedToken toks List{LexedParsedToken}) void 'public
+	((<init> line int toks List{LexedParsedToken}) void 'public
 		(super:<init> line toks)
-		(set this:tok tok)
 	)
 	((toString) String 'public
-		(concat this:tok "{" (this:toksString) "}")
+		(concat (this:toks:get 0) "{" (this:toksString (this:toks:subList 1 (this:toks:size))) "}")
+	)
+	((<init>) void 'public
+		(super:<init>)
+	)
+)
+
+(define-class ArrayToken (ParsedToken) 'public
+	((<init> line int toks List{LexedParsedToken}) void 'public
+		(super:<init> line toks)
+	)
+	((toString) String 'public
+		(concat (this:toks:get 0) "[" (this:toksString (this:toks:subList 1 (this:toks:size))) "]")
 	)
 	((<init>) void 'public
 		(super:<init>)
@@ -251,10 +270,10 @@
 	)
 )
 
-(define-class ColonToken2 (Token) 'public
+(define-class FieldToken (Token) 'public
 	(left Token 'public)
-	(right Token 'public)
-	((<init> line int left Token right Token) void 'public
+	(right String 'public)
+	((<init> line int left Token right String) void 'public
 		(super:<init> line)
 		(set this:left left)
 		(set this:right right)
@@ -307,21 +326,13 @@
 	)
 )
 
-(define-class UnquoteToken2 (Token) 'public
-	(tok Token 'public)
-	(var bool 'public)
-	((<init> line int tok Token var bool) void 'public
-		(super:<init> line)
-		(set this:tok tok)
-		(set this:var var)
-	)
-)
-
-(define-class IncludeToken (LexedParsedToken) 'public
+(define-class IncludeToken (Token) 'public
 	(mi AMethodInfo 'public)
 	(ret Token 'public)
+	(toks List{LexedParsedToken} 'public)
 	((<init> line int toks List{LexedParsedToken}) void 'public
-		(super:<init> line toks)
+		(super:<init> line)
+		(set this:toks toks)
 	)
 )
 
@@ -345,9 +356,11 @@
 
 (define-class MacroCallToken (Token) 'public
 	(ret Token 'public)
+	(name String 'public)
 	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	((<init> line int name String toks List{Token}) void 'public
 		(super:<init> line)
+		(set this:name name)
 		(set this:toks toks)
 	)
 )
@@ -359,26 +372,30 @@
 )
 
 (define-class LabelToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(label String 'public)
+	((<init> line int label String) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:label label)
 	)
 )
 
 (define-class GotoToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(label String 'public)
+	((<init> line int label String) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:label label)
 	)
 )
 
 (define-class DefineToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(name VToken 'public)
+	(type Type 'public)
+	(tok Token 'public)
+	((<init> line int name VToken type Type tok Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:name name)
+		(set this:type type)
+		(set this:tok tok)
 	)
 )
 
@@ -391,10 +408,12 @@
 )
 
 (define-class InstanceToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(tok Token 'public)
+	(type Type 'public)
+	((<init> line int tok Token type Type) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:tok tok)
+		(set this:type type)
 	)
 )
 
@@ -423,36 +442,42 @@
 )
 
 (define-class ALenToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(tok Token 'public)
+	((<init> line int tok Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:tok tok)
 	)
 )
 
 (define-class AsToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(type Type 'public)
+	(tok Token 'public)
+	((<init> line int type Type tok Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:type type)
+		(set this:tok tok)
 	)
 )
 
 (define-class NumOpToken (Token) 'public
+	(op String 'public)
 	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	((<init> line int op String toks List{Token}) void 'public
 		(super:<init> line)
+		(set this:op op)
 		(set this:toks toks)
 	)
 )
 
 (define-class ShiftToken (Token) 'public
 	(right bool 'public)
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token} right bool) void 'public
+	(tok Token 'public)
+	(amt Token 'public)
+	((<init> line int tok Token amt Token right bool) void 'public
 		(super:<init> line)
+		(set this:tok tok)
+		(set this:amt amt)
 		(set this:right right)
-		(set this:toks toks)
 	)
 )
 
@@ -471,26 +496,28 @@
 )
 
 (define-class CompareToken (Token) 'public
+	(compare String 'public)
 	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	((<init> line int compare String toks List{Token}) void 'public
 		(super:<init> line)
+		(set this:compare compare)
 		(set this:toks toks)
 	)
 )
 
 (define-class ThrowToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(tok Token 'public)
+	((<init> line int tok Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:tok tok)
 	)
 )
 
 (define-class ClassToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(type Type 'public)
+	((<init> line int type Type) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:type type)
 	)
 )
 
@@ -501,18 +528,18 @@
 )
 
 (define-class TypeToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(tok Token 'public)
+	((<init> line int tok Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:tok tok)
 	)
 )
 
 (define-class ReturnToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(tok Token 'public)
+	((<init> line int tok Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:tok tok)
 	)
 )
 
@@ -532,6 +559,28 @@
 	(toks List{Token} 'public)
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line)
+		(set this:toks toks)
+	)
+)
+
+(define-class ConstructorToken (Token) 'public
+	(type Type 'public)
+	(toks List{Token} 'public)
+	((<init> line int type Type toks List{Token}) void 'public
+		(super:<init> line)
+		(set this:type type)
+		(set this:toks toks)
+	)
+)
+
+(define-class ArrayConstructorToken (Token) 'public
+	(type Type 'public)
+	(len Token 'public)
+	(toks List{Token} 'public)
+	((<init> line int type Type len Token toks List{Token}) void 'public
+		(super:<init> line)
+		(set this:type type)
+		(set this:len len)
 		(set this:toks toks)
 	)
 )

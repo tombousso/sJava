@@ -2,11 +2,11 @@ package sjava.compiler.tokens;
 
 import sjava.compiler.tokens.Token;
 
-public class ColonToken2 extends Token {
+public class FieldToken extends Token {
     public Token left;
-    public Token right;
+    public String right;
 
-    public ColonToken2(int line, Token left, Token right) {
+    public FieldToken(int line, Token left, String right) {
         super(line);
         this.left = left;
         this.right = right;

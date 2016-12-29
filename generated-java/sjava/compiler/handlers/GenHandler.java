@@ -23,8 +23,10 @@ import sjava.compiler.AMethodInfo;
 import sjava.compiler.AVar;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
+import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
+import sjava.compiler.MethodMacroInfo;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.emitters.Emitters;
 import sjava.compiler.emitters.Goto;
@@ -36,18 +38,20 @@ import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.tokens.AGetToken;
 import sjava.compiler.tokens.ALenToken;
 import sjava.compiler.tokens.ASetToken;
+import sjava.compiler.tokens.ArrayConstructorToken;
 import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
-import sjava.compiler.tokens.ColonToken2;
 import sjava.compiler.tokens.CompareToken;
 import sjava.compiler.tokens.ConstToken;
+import sjava.compiler.tokens.ConstructorToken;
 import sjava.compiler.tokens.DefaultToken;
 import sjava.compiler.tokens.DefineToken;
 import sjava.compiler.tokens.EmptyToken;
+import sjava.compiler.tokens.FieldToken;
 import sjava.compiler.tokens.GotoToken;
 import sjava.compiler.tokens.IfToken;
 import sjava.compiler.tokens.IncludeToken;
@@ -69,7 +73,7 @@ import sjava.compiler.tokens.ThrowToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.TryToken;
 import sjava.compiler.tokens.TypeToken;
-import sjava.compiler.tokens.UnquoteToken2;
+import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
 import sjava.compiler.tokens.WhileToken;
 
@@ -232,7 +236,7 @@ public class GenHandler extends Handler {
         return (Type)var10000;
     }
 
-    public Type compile(ColonToken2 tok, AMethodInfo mi, Type needed) {
+    public Type compile(FieldToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         Type t = mi.getType(tok.left);
         if(t == null) {
@@ -240,7 +244,7 @@ public class GenHandler extends Handler {
         }
 
         ClassType var6 = (ClassType)t.getRawType();
-        Field field = var6.getField(((VToken)tok.right).val, -1);
+        Field field = var6.getField(tok.right, -1);
         if(field.getStaticFlag()) {
             if(output) {
                 this.code.emitGetStatic(field);
@@ -275,12 +279,19 @@ public class GenHandler extends Handler {
             return needed;
         } else {
             Object var10000;
-            if(o instanceof UnquoteToken2) {
-                UnquoteToken2 o1 = (UnquoteToken2)o;
-                Type t = this.compile(o1.tok, mi, (CodeAttr)null, Main.unknownType);
-                if(t != Main.getCompilerType("tokens.LexedParsedToken") && !(t instanceof ArrayType) && !t.getRawType().isSubtype(Type.getType("java.util.List"))) {
-                    Token var7 = o1.tok;
-                    Type t1 = this.compile(var7, mi, (CodeAttr)null, Main.unknownType);
+            if(o instanceof UnquoteToken) {
+                UnquoteToken o1 = (UnquoteToken)o;
+                Token tok = Main.transformBlock((LexedParsedToken)o1.toks.get(0), mi);
+                Type t = this.compile(tok, mi, (CodeAttr)null, Main.unknownType);
+                if(t == Type.getType("gnu.bytecode.Type")) {
+                    this.compile(tok, mi, this.code, Main.unknownType);
+                    if(output) {
+                        this.code.emitInvoke(Main.getCompilerType("Main").getDeclaredMethod("typeToTok", 1));
+                    }
+
+                    var10000 = Main.getCompilerType("tokens.LexedParsedToken");
+                } else if(t != Main.getCompilerType("tokens.LexedParsedToken") && !(t instanceof ArrayType) && !t.getRawType().isSubtype(Type.getType("java.util.List"))) {
+                    Type t1 = this.compile(tok, mi, (CodeAttr)null, Main.unknownType);
                     ClassType type = Main.getCompilerType(o1.var?"tokens.VToken":(t1 == Type.charType?"tokens.CToken":(t1 instanceof PrimType?"tokens.NToken":"tokens.SToken")));
                     if(output) {
                         this.code.emitNew(type);
@@ -298,14 +309,14 @@ public class GenHandler extends Handler {
                         this.code.emitDup();
                     }
 
-                    this.compile(var7, mi, this.code, Type.objectType);
+                    this.compile(tok, mi, this.code, Type.objectType);
                     if(output) {
                         this.code.emitPutField(type.getField("val"));
                     }
 
                     var10000 = Main.getCompilerType("tokens.LexedParsedToken");
                 } else {
-                    var10000 = this.compile(o1.tok, mi, this.code, Main.unknownType);
+                    var10000 = this.compile(tok, mi, this.code, Main.unknownType);
                 }
             } else if(o instanceof LexedParsedToken) {
                 LexedParsedToken o2 = (LexedParsedToken)o;
@@ -331,10 +342,10 @@ public class GenHandler extends Handler {
 
                             try {
                                 this.compileQuasi(field.getReflectField().get(o2), mi, this.code, field.getType());
-                            } catch (NoSuchFieldException var24) {
-                                throw new RuntimeException(var24);
-                            } catch (IllegalAccessException var25) {
-                                throw new RuntimeException(var25);
+                            } catch (NoSuchFieldException var27) {
+                                throw new RuntimeException(var27);
+                            } catch (IllegalAccessException var28) {
+                                throw new RuntimeException(var28);
                             }
 
                             if(output) {
@@ -349,7 +360,11 @@ public class GenHandler extends Handler {
                         this.code.emitDup();
                     }
 
-                    if(output) {
+                    if(mi.ci instanceof MethodMacroInfo) {
+                        if(output) {
+                            this.code.emitPushInt(0);
+                        }
+                    } else if(mi.ci instanceof MacroInfo && output) {
                         this.code.emitLoad(this.code.getArg(2));
                     }
 
@@ -373,10 +388,31 @@ public class GenHandler extends Handler {
                 }
 
                 var10000 = Type.intType;
-            } else if(o instanceof Boolean) {
-                Boolean o5 = (Boolean)o;
+            } else if(o instanceof Long) {
+                Long o5 = (Long)o;
                 if(output) {
-                    this.code.emitPushInt(o5.booleanValue()?1:0);
+                    this.code.emitPushLong(o5.longValue());
+                }
+
+                var10000 = Type.longType;
+            } else if(o instanceof Double) {
+                Double o6 = (Double)o;
+                if(output) {
+                    this.code.emitPushDouble(o6.doubleValue());
+                }
+
+                var10000 = Type.doubleType;
+            } else if(o instanceof Float) {
+                Float o7 = (Float)o;
+                if(output) {
+                    this.code.emitPushFloat(o7.floatValue());
+                }
+
+                var10000 = Type.floatType;
+            } else if(o instanceof Boolean) {
+                Boolean o8 = (Boolean)o;
+                if(output) {
+                    this.code.emitPushInt(o8.booleanValue()?1:0);
                 }
 
                 var10000 = Type.booleanType;
@@ -385,7 +421,7 @@ public class GenHandler extends Handler {
                     throw new RuntimeException(o.getClass().toString());
                 }
 
-                List o6 = (List)o;
+                List o9 = (List)o;
                 ClassType al = (ClassType)Type.getType("java.util.ArrayList");
                 if(output) {
                     this.code.emitNew(al);
@@ -399,14 +435,14 @@ public class GenHandler extends Handler {
                     this.code.emitInvoke(al.getMethod("<init>", new Type[0]));
                 }
 
-                for(int i = 0; i != o6.size(); ++i) {
-                    Type t2 = this.compileQuasi(o6.get(i), mi, (CodeAttr)null, Main.unknownType);
+                for(int i = 0; i != o9.size(); ++i) {
+                    Type t2 = this.compileQuasi(o9.get(i), mi, (CodeAttr)null, Main.unknownType);
                     if(t2 == Main.getCompilerType("tokens.LexedParsedToken")) {
                         if(output) {
                             this.code.emitDup();
                         }
 
-                        this.compileQuasi(o6.get(i), mi, this.code, Main.unknownType);
+                        this.compileQuasi(o9.get(i), mi, this.code, Main.unknownType);
                         if(output) {
                             this.code.emitInvoke(al.getMethod("add", new Type[]{Type.objectType}));
                         }
@@ -419,7 +455,7 @@ public class GenHandler extends Handler {
                             this.code.emitDup();
                         }
 
-                        this.compileQuasi(o6.get(i), mi, this.code, Main.unknownType);
+                        this.compileQuasi(o9.get(i), mi, this.code, Main.unknownType);
                         if(output) {
                             this.code.emitInvoke(((ClassType)Type.getType("java.util.Collections")).getDeclaredMethod("addAll", 2));
                         }
@@ -432,7 +468,7 @@ public class GenHandler extends Handler {
                             this.code.emitDup();
                         }
 
-                        this.compileQuasi(o6.get(i), mi, this.code, Main.unknownType);
+                        this.compileQuasi(o9.get(i), mi, this.code, Main.unknownType);
                         if(output) {
                             this.code.emitInvoke(((ClassType)Type.getType("java.util.List")).getDeclaredMethod("addAll", 1));
                         }
@@ -483,8 +519,24 @@ public class GenHandler extends Handler {
     }
 
     public Type compile(VToken tok, AMethodInfo mi, Type needed) {
-        AVar found = mi.getVar(tok);
-        return found.load(this.code);
+        boolean output = this.code != null;
+        Object var10000;
+        if(tok.val.equals("this")) {
+            if((mi.method.getModifiers() & Access.STATIC) != 0) {
+                throw new RuntimeException();
+            }
+
+            if(output) {
+                this.code.emitPushThis();
+            }
+
+            var10000 = mi.ci.c;
+        } else {
+            AVar found = mi.getVar(tok);
+            var10000 = found.load(this.code);
+        }
+
+        return (Type)var10000;
     }
 
     public Type compile(IncludeToken tok, AMethodInfo mi, Type needed) {
@@ -523,19 +575,19 @@ public class GenHandler extends Handler {
 
             if(FunctionN) {
                 LinkedHashMap scope = new LinkedHashMap();
-                Type[] params = Main.getParams(mi.ci, superT, scope, 0, 1);
-                Type[] generics = new Type[params.length + 1];
-                System.arraycopy(params, 0, generics, 0, params.length);
+                List params = Main.getParams(mi.ci, superT, scope, 0, 1);
+                ArrayList generics = new ArrayList(params);
                 List toks = tok.toks.subList(2, tok.toks.size());
                 MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, mi.ci.fs), toks, (Method)null, scope);
                 Type ret = Main.tryBox(captureH.compile(fakemi.block, fakemi, (CodeAttr)null, Main.unknownType));
-                generics[params.length] = ret;
-                ParameterizedType t = new ParameterizedType(ClassType.make("sjava.std.Function".concat(Integer.toString(params.length))), generics);
+                generics.add(ret);
+                Type[] agenerics = new Type[generics.size()];
+                generics.toArray(agenerics);
+                ParameterizedType t = new ParameterizedType(ClassType.make("sjava.std.Function".concat(Integer.toString(params.size()))), agenerics);
                 tok.t = t;
                 if(output) {
-                    Method m = ci.c.addMethod("apply", params, ret, Access.PUBLIC);
                     ci.c.addInterface(t);
-                    ci.methods.add(new MethodInfo(ci, toks, m, scope));
+                    ci.addMethod("apply", params, ret, Access.PUBLIC, toks, scope);
                     ci.compileMethods(captureH);
                 }
             } else if(lambda) {
@@ -547,17 +599,16 @@ public class GenHandler extends Handler {
                     LexedParsedToken args = (LexedParsedToken)tok.toks.get(2);
                     int i = 0;
 
-                    Type[] params1;
-                    for(params1 = new Type[args.toks.size()]; i != args.toks.size(); ++i) {
+                    ArrayList params1;
+                    for(params1 = new ArrayList(args.toks.size()); i != args.toks.size(); ++i) {
                         VToken arg = (VToken)((LexedParsedToken)args.toks.get(i));
                         Type param = Main.resolveType(t1, sam.getGenericParameterTypes()[i]);
                         scope1.put(arg.val, new Arg(i + 1, param));
-                        params1[i] = param;
+                        params1.add(param);
                     }
 
                     ci.c.addInterface(t1);
-                    Method m1 = ci.c.addMethod(sam.getName(), params1, Main.resolveType(t1, sam.getReturnType()), Access.PUBLIC);
-                    ci.methods.add(new MethodInfo(ci, tok.toks.subList(3, tok.toks.size()), m1, scope1));
+                    ci.addMethod(sam.getName(), params1, Main.resolveType(t1, sam.getReturnType()), Access.PUBLIC, tok.toks.subList(3, tok.toks.size()), scope1);
                     ci.compileMethods(captureH);
                 }
             } else {
@@ -639,9 +690,8 @@ public class GenHandler extends Handler {
     public Type compile(MacroCallToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         if(tok.ret == null) {
-            String name = ((VToken)((Token)tok.toks.get(0))).val;
             byte o = 4;
-            int l = tok.toks.size() - 1;
+            int l = tok.toks.size();
             Type[] var10000 = new Type[o + l];
             var10000[0] = Main.getCompilerType("AMethodInfo");
             var10000[1] = Type.getType("gnu.bytecode.Type");
@@ -658,12 +708,13 @@ public class GenHandler extends Handler {
             ClassInfo ci = (ClassInfo)null;
 
             for(int i = 0; method == null; ++i) {
-                ci = (ClassInfo)((List)mi.ci.fs.macroNames.get(name)).get(i);
-                MFilter filter = new MFilter(name, types, ci.c);
+                ci = (ClassInfo)((List)mi.ci.fs.macroNames.get(tok.name)).get(i);
+                MFilter filter = new MFilter(tok.name, types, ci.c);
                 filter.searchDeclared();
                 method = filter.getMethod();
             }
 
+            ci.compileMethods(inst);
             Type[] params = method.getGenericParameterTypes();
             Class[] classes = new Class[params.length];
 
@@ -674,27 +725,27 @@ public class GenHandler extends Handler {
             ArrayList args = new ArrayList(Arrays.asList(new Object[]{mi, needed, Integer.valueOf(mi.scopes.size()), this}));
             Object var10001;
             if(params.length > 0 && params[params.length - 1] instanceof ArrayType) {
-                int var = params.length - o;
-                ArrayList al = new ArrayList(tok.toks.subList(1, var));
+                int var = params.length - o - 1;
+                ArrayList al = new ArrayList(tok.toks.subList(0, var));
                 LexedParsedToken[] out = new LexedParsedToken[tok.toks.size() - var];
                 tok.toks.subList(var, tok.toks.size()).toArray(out);
                 al.add(out);
                 var10001 = al;
             } else {
-                var10001 = tok.toks.subList(1, tok.toks.size());
+                var10001 = tok.toks;
             }
 
             args.addAll((Collection)var10001);
 
             try {
-                LexedParsedToken ret = (LexedParsedToken)ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());
+                LexedParsedToken ret = (LexedParsedToken)ci.getClazz().getMethod(tok.name, classes).invoke((Object)null, args.toArray());
                 tok.ret = Main.transformBlock(ret, mi);
-            } catch (NoSuchMethodException var25) {
+            } catch (NoSuchMethodException var24) {
+                throw new RuntimeException(var24);
+            } catch (IllegalAccessException var25) {
                 throw new RuntimeException(var25);
-            } catch (IllegalAccessException var26) {
+            } catch (InvocationTargetException var26) {
                 throw new RuntimeException(var26);
-            } catch (InvocationTargetException var27) {
-                throw new RuntimeException(var27);
             }
         }
 
@@ -707,7 +758,7 @@ public class GenHandler extends Handler {
     public Type compile(BeginToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         mi.pushScope(this.code, tok.labels);
-        this.compileAll(tok.toks, 1, tok.toks.size() - 1, mi, this.code, Type.voidType);
+        this.compileAll(tok.toks, 0, tok.toks.size() - 1, mi, this.code, Type.voidType);
         Type type = this.compile((Token)tok.toks.get(tok.toks.size() - 1), mi, this.code, needed);
         mi.popScope(this.code);
         return type;
@@ -715,7 +766,7 @@ public class GenHandler extends Handler {
 
     public Type compile(LabelToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Label label = mi.getLabel(((VToken)((Token)tok.toks.get(1))).val);
+        Label label = mi.getLabel(tok.label);
         if(output) {
             label.define(this.code);
         }
@@ -725,9 +776,8 @@ public class GenHandler extends Handler {
 
     public Type compile(GotoToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Label label = mi.getLabel(((VToken)((Token)tok.toks.get(1))).val);
         if(output) {
-            this.code.emitGoto(label);
+            this.code.emitGoto(mi.getLabel(tok.label));
         }
 
         return Type.voidType;
@@ -735,16 +785,19 @@ public class GenHandler extends Handler {
 
     public Type compile(DefineToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Type type = mi.getType((Token)tok.toks.get(2));
-        if(type == null) {
-            type = this.compile((Token)tok.toks.get(2), mi, this.code, Main.unknownType);
-        } else if(tok.toks.size() == 4) {
-            this.compile((Token)tok.toks.get(3), mi, this.code, type);
-        } else if(output) {
-            this.code.emitPushDefaultValue(type);
+        Type var10000;
+        if(tok.tok == null) {
+            if(output) {
+                this.code.emitPushDefaultValue(tok.type);
+            }
+
+            var10000 = tok.type;
+        } else {
+            var10000 = this.compile(tok.tok, mi, this.code, tok.type);
         }
 
-        Variable var = mi.newVar(this.code, (VToken)((Token)tok.toks.get(1)), type);
+        Type type = var10000;
+        Variable var = mi.newVar(this.code, tok.name, type);
         if(output) {
             this.code.emitStore(var);
         }
@@ -800,9 +853,9 @@ public class GenHandler extends Handler {
 
     public Type compile(InstanceToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        this.compile((Token)tok.toks.get(1), mi, this.code, Main.unknownType);
+        this.compile(tok.tok, mi, this.code, Main.unknownType);
         if(output) {
-            this.code.emitInstanceof(mi.getType((Token)tok.toks.get(2)));
+            this.code.emitInstanceof(tok.type);
         }
 
         return Type.booleanType;
@@ -812,15 +865,15 @@ public class GenHandler extends Handler {
         boolean output = this.code != null;
         Token first = (Token)tok.toks.get(0);
         Token out = (Token)tok.toks.get(1);
-        if(out instanceof ColonToken2) {
-            ColonToken2 out1 = (ColonToken2)out;
+        if(out instanceof FieldToken) {
+            FieldToken out1 = (FieldToken)out;
             Type t = mi.getType(out1.left);
             if(t == null) {
                 t = this.compile(out1.left, mi, this.code, Main.unknownType);
             }
 
             ClassType var9 = (ClassType)t.getRawType();
-            Field field = var9.getField(((VToken)out1.right).val, -1);
+            Field field = var9.getField(out1.right, -1);
             this.compile((Token)tok.toks.get(2), mi, this.code, Main.resolveType(t, field.getType()));
             if(field.getStaticFlag()) {
                 if(output) {
@@ -870,7 +923,7 @@ public class GenHandler extends Handler {
 
     public Type compile(ALenToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        this.compile((Token)tok.toks.get(1), mi, this.code, Main.unknownType);
+        this.compile(tok.tok, mi, this.code, Main.unknownType);
         if(output) {
             this.code.emitArrayLength();
         }
@@ -880,24 +933,22 @@ public class GenHandler extends Handler {
 
     public Type compile(AsToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Type cast = mi.getType((Token)tok.toks.get(1));
-        return this.compile((Token)tok.toks.get(2), mi, this.code, cast);
+        return this.compile(tok.tok, mi, this.code, tok.type);
     }
 
     public Type compile(NumOpToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        VToken first = (VToken)((Token)tok.toks.get(0));
-        Type otype = Main.numericOpType(this.compileAll(tok.toks, 1, tok.toks.size(), mi, (CodeAttr)null, Main.unknownType));
-        this.compile((Token)tok.toks.get(1), mi, this.code, otype);
-        if(first.val.equals("-") && tok.toks.size() == 2) {
+        Type otype = Main.numericOpType(this.compileAll(tok.toks, 0, tok.toks.size(), mi, (CodeAttr)null, Main.unknownType));
+        this.compile((Token)tok.toks.get(0), mi, this.code, otype);
+        if(tok.op.equals("-") && tok.toks.size() == 1) {
             if(output) {
                 this.code.emitPrimop(otype == Type.longType?117:(otype == Type.floatType?118:(otype == Type.doubleType?119:116)), 1, otype);
             }
         } else {
-            for(int i = 2; i != tok.toks.size(); ++i) {
+            for(int i = 1; i != tok.toks.size(); ++i) {
                 this.compile((Token)tok.toks.get(i), mi, this.code, otype);
                 if(output) {
-                    this.code.emitBinop(((Integer)Main.binOps.get(first.val)).intValue(), otype);
+                    this.code.emitBinop(((Integer)Main.binOps.get(tok.op)).intValue(), otype);
                 }
             }
         }
@@ -907,9 +958,9 @@ public class GenHandler extends Handler {
 
     public Type compile(ShiftToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        PrimType otype = PrimType.unboxedType(this.compile((Token)tok.toks.get(1), mi, (CodeAttr)null, Main.unknownType));
-        this.compile((Token)tok.toks.get(1), mi, this.code, otype);
-        this.compile((Token)tok.toks.get(2), mi, this.code, Type.intType);
+        PrimType otype = PrimType.unboxedType(this.compile(tok.tok, mi, (CodeAttr)null, Main.unknownType));
+        this.compile(tok.tok, mi, this.code, otype);
+        this.compile(tok.amt, mi, this.code, Type.intType);
         if(output) {
             if(tok.right) {
                 this.code.emitShr();
@@ -942,13 +993,12 @@ public class GenHandler extends Handler {
 
     public Type compile(CompareToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Token first = (Token)tok.toks.get(0);
-        return Main.emitIf_(this, false, tok.toks, 1, tok.toks.size(), ((VToken)first).val, new ConstToken(tok.line, "true"), new ConstToken(tok.line, "false"), mi, this.code, Type.booleanType);
+        return Main.emitIf_(this, false, tok.toks, 0, tok.toks.size(), tok.compare, new ConstToken(tok.line, "true"), new ConstToken(tok.line, "false"), mi, this.code, Type.booleanType);
     }
 
     public Type compile(ThrowToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        this.compile((Token)tok.toks.get(1), mi, this.code, Main.unknownType);
+        this.compile(tok.tok, mi, this.code, Main.unknownType);
         if(output) {
             this.code.emitThrow();
         }
@@ -959,7 +1009,7 @@ public class GenHandler extends Handler {
     public Type compile(ClassToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         if(output) {
-            this.code.emitPushClass((ObjectType)mi.getType((Token)tok.toks.get(1)));
+            this.code.emitPushClass((ObjectType)tok.type.getRawType());
         }
 
         return Type.javalangClassType;
@@ -1030,7 +1080,7 @@ public class GenHandler extends Handler {
             this.code.emitLoad(this.code.getArg(3));
         }
 
-        this.compile((Token)tok.toks.get(1), mi, this.code, Main.unknownType);
+        this.compile(tok.tok, mi, this.code, Main.unknownType);
         if(output) {
             this.code.emitLoad(this.code.getArg(0));
         }
@@ -1068,8 +1118,8 @@ public class GenHandler extends Handler {
 
     public Type compile(ReturnToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        if(tok.toks.size() == 2) {
-            this.compile((Token)tok.toks.get(1), mi, this.code, Main.unknownType);
+        if(tok.tok != null) {
+            this.compile(tok.tok, mi, this.code, Main.unknownType);
         }
 
         if(output) {
@@ -1104,77 +1154,69 @@ public class GenHandler extends Handler {
     public Type compile(DefaultToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         Token first = (Token)tok.toks.get(0);
-        Type type = mi.getType(first);
-        Type var10000;
-        if(type == null) {
-            Type t = this.compile(first, mi, this.code, Main.unknownType);
-            ClassType c = (ClassType)t.getRawType();
-            Method method = c.getDeclaredMethods();
-            boolean i = false;
+        Type t = this.compile(first, mi, this.code, Main.unknownType);
+        ClassType c = (ClassType)t.getRawType();
+        Method method = c.getDeclaredMethods();
+        boolean i = false;
 
-            Method tocall;
-            for(tocall = (Method)null; method != null; method = method.getNext()) {
-                if(!method.getName().equals("<init>") && 0 == (Access.SYNTHETIC & method.getModifiers())) {
-                    if(tocall != null) {
-                        throw new RuntimeException();
-                    }
-
-                    tocall = method;
-                }
-            }
-
-            var10000 = Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, Main.unknownType);
-        } else if(type instanceof ArrayType) {
-            ArrayType array = (ArrayType)type;
-            Token len = tok.toks.size() > 1?(Token)tok.toks.get(1):(Token)null;
-            byte var17;
-            if(len != null && len instanceof ColonToken2 && ((VToken)((ColonToken2)len).left).val.equals("len")) {
-                this.compile(((ColonToken2)len).right, mi, this.code, Main.unknownType);
-                var17 = 2;
-            } else {
-                if(output) {
-                    this.code.emitPushInt(tok.toks.size() - 1);
+        Method tocall;
+        for(tocall = (Method)null; method != null; method = method.getNext()) {
+            if(!method.getName().equals("<init>") && 0 == (Access.SYNTHETIC & method.getModifiers())) {
+                if(tocall != null) {
+                    throw new RuntimeException();
                 }
 
-                var17 = 1;
+                tocall = method;
             }
+        }
 
-            byte i0 = var17;
-            if(output) {
-                this.code.emitNewArray(array.elements.getRawType());
-            }
+        return Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, Main.unknownType);
+    }
 
-            for(int i1 = i0; i1 != tok.toks.size(); ++i1) {
-                if(output) {
-                    this.code.emitDup();
-                }
+    public Type compile(ConstructorToken tok, AMethodInfo mi, Type needed) {
+        boolean output = this.code != null;
+        ClassType var5 = (ClassType)tok.type.getRawType();
+        if(output) {
+            this.code.emitNew(var5);
+        }
 
-                if(output) {
-                    this.code.emitPushInt(i1 - i0);
-                }
+        if(output) {
+            this.code.emitDup();
+        }
 
-                this.compile((Token)tok.toks.get(i1), mi, this.code, array.elements);
-                if(output) {
-                    this.code.emitArrayStore();
-                }
-            }
+        Main.emitInvoke(this, "<init>", tok.type, Main.toEmitters(tok.toks), mi, this.code, Main.unknownType);
+        return tok.type;
+    }
 
-            var10000 = type;
-        } else {
-            ClassType var16 = (ClassType)type.getRawType();
-            if(output) {
-                this.code.emitNew(var16);
-            }
+    public Type compile(ArrayConstructorToken tok, AMethodInfo mi, Type needed) {
+        boolean output = this.code != null;
+        ArrayType array = (ArrayType)tok.type;
+        if(tok.len != null) {
+            this.compile(tok.len, mi, this.code, Main.unknownType);
+        } else if(output) {
+            this.code.emitPushInt(tok.toks.size());
+        }
 
+        if(output) {
+            this.code.emitNewArray(array.elements.getRawType());
+        }
+
+        for(int i = 0; i != tok.toks.size(); ++i) {
             if(output) {
                 this.code.emitDup();
             }
 
-            Main.emitInvoke(this, "<init>", type, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, Main.unknownType);
-            var10000 = type;
+            if(output) {
+                this.code.emitPushInt(i);
+            }
+
+            this.compile((Token)tok.toks.get(i), mi, this.code, array.elements);
+            if(output) {
+                this.code.emitArrayStore();
+            }
         }
 
-        return var10000;
+        return tok.type;
     }
 
     public Type compile(Token tok, AMethodInfo mi, Type needed) {

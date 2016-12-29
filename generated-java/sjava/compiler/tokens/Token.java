@@ -8,7 +8,6 @@ import sjava.compiler.handlers.GenHandler;
 
 public class Token extends Emitter {
     public int line;
-    public int endLine;
 
     Token(int line) {
         this();

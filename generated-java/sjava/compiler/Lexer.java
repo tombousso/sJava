@@ -7,10 +7,10 @@ import sjava.compiler.Main;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.ConstToken;
+import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.NToken;
 import sjava.compiler.tokens.SToken;
-import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 
 public class Lexer {
@@ -87,7 +87,7 @@ public class Lexer {
                 } else {
                     this.nextTok();
                     String s = this.code.substring(oi, this.i);
-                    var10000 = s.equals("")?(Token)null:(!s.equals("null") && !s.equals("true") && !s.equals("false")?new VToken(this.line, s):new ConstToken(this.line, s));
+                    var10000 = s.equals("")?(LexedToken)null:(!s.equals("null") && !s.equals("true") && !s.equals("false")?new VToken(this.line, s):new ConstToken(this.line, s));
                 }
             } else {
                 while(this.peek() != 32 && this.peek() != 41) {
@@ -161,7 +161,7 @@ public class Lexer {
 
         Object out = var10000;
         if(out != null) {
-            ((Token)out).endLine = this.line;
+            ((LexedParsedToken)out).endLine = this.line;
         }
 
         return (LexedToken)out;

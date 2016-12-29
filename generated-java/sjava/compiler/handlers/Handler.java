@@ -6,17 +6,19 @@ import sjava.compiler.AMethodInfo;
 import sjava.compiler.tokens.AGetToken;
 import sjava.compiler.tokens.ALenToken;
 import sjava.compiler.tokens.ASetToken;
+import sjava.compiler.tokens.ArrayConstructorToken;
 import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
-import sjava.compiler.tokens.ColonToken2;
 import sjava.compiler.tokens.CompareToken;
 import sjava.compiler.tokens.ConstToken;
+import sjava.compiler.tokens.ConstructorToken;
 import sjava.compiler.tokens.DefaultToken;
 import sjava.compiler.tokens.DefineToken;
 import sjava.compiler.tokens.EmptyToken;
+import sjava.compiler.tokens.FieldToken;
 import sjava.compiler.tokens.GotoToken;
 import sjava.compiler.tokens.IfToken;
 import sjava.compiler.tokens.IncludeToken;
@@ -59,7 +61,7 @@ public abstract class Handler {
 
     public abstract Type compile(NToken var1, AMethodInfo var2, Type var3);
 
-    public abstract Type compile(ColonToken2 var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(FieldToken var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(QuoteToken2 var1, AMethodInfo var2, Type var3);
 
@@ -119,6 +121,10 @@ public abstract class Handler {
 
     public abstract Type compile(DefaultToken var1, AMethodInfo var2, Type var3);
 
+    public abstract Type compile(ConstructorToken var1, AMethodInfo var2, Type var3);
+
+    public abstract Type compile(ArrayConstructorToken var1, AMethodInfo var2, Type var3);
+
     public Type compile(Token tok, AMethodInfo mi, Type needed) {
         Type var10000;
         if(tok instanceof EmptyToken) {
@@ -129,8 +135,8 @@ public abstract class Handler {
             var10000 = this.compile((CToken)tok, mi, needed);
         } else if(tok instanceof NToken) {
             var10000 = this.compile((NToken)tok, mi, needed);
-        } else if(tok instanceof ColonToken2) {
-            var10000 = this.compile((ColonToken2)tok, mi, needed);
+        } else if(tok instanceof FieldToken) {
+            var10000 = this.compile((FieldToken)tok, mi, needed);
         } else if(tok instanceof QuoteToken2) {
             var10000 = this.compile((QuoteToken2)tok, mi, needed);
         } else if(tok instanceof ConstToken) {
@@ -187,15 +193,19 @@ public abstract class Handler {
             var10000 = this.compile((ReturnToken)tok, mi, needed);
         } else if(tok instanceof CallToken) {
             var10000 = this.compile((CallToken)tok, mi, needed);
+        } else if(tok instanceof DefaultToken) {
+            var10000 = this.compile((DefaultToken)tok, mi, needed);
+        } else if(tok instanceof ConstructorToken) {
+            var10000 = this.compile((ConstructorToken)tok, mi, needed);
         } else {
-            if(!(tok instanceof DefaultToken)) {
+            if(!(tok instanceof ArrayConstructorToken)) {
                 StringBuilder sb = new StringBuilder();
                 sb.append("Double dispatch with ");
                 sb.append(tok);
                 throw new RuntimeException(sb.toString());
             }
 
-            var10000 = this.compile((DefaultToken)tok, mi, needed);
+            var10000 = this.compile((ArrayConstructorToken)tok, mi, needed);
         }
 
         return var10000;

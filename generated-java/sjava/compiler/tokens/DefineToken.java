@@ -1,13 +1,18 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
+import gnu.bytecode.Type;
 import sjava.compiler.tokens.Token;
+import sjava.compiler.tokens.VToken;
 
 public class DefineToken extends Token {
-    public List<Token> toks;
+    public VToken name;
+    public Type type;
+    public Token tok;
 
-    public DefineToken(int line, List<Token> toks) {
+    public DefineToken(int line, VToken name, Type type, Token tok) {
         super(line);
-        this.toks = toks;
+        this.name = name;
+        this.type = type;
+        this.tok = tok;
     }
 }

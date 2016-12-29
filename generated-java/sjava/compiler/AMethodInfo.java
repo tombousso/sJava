@@ -1,5 +1,6 @@
 package sjava.compiler;
 
+import gnu.bytecode.Access;
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Label;
 import gnu.bytecode.Method;
@@ -9,6 +10,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,14 +32,12 @@ public class AMethodInfo {
     public ArrayList<ArrayDeque<Map<String, AVar>>> scopes;
     Map<String, AVar> firstScope;
     ArrayDeque<Map> labels;
+    boolean compiled;
 
-    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, Map<String, AVar> firstScope) {
+    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, AVar> firstScope) {
         this.ci = ci;
         if(toks.size() != 0) {
-            ArrayList btoks = new ArrayList();
-            btoks.add(new VToken(((LexedParsedToken)toks.get(0)).line, "begin"));
-            btoks.addAll(toks);
-            this.block = (BeginToken)Main.transformBlockToks(new BeginToken(((LexedParsedToken)toks.get(0)).line, btoks), this);
+            this.block = (BeginToken)Main.transformBlockToks(new BeginToken(((LexedParsedToken)toks.get(0)).line, new ArrayList(toks)), this);
         }
 
         this.method = method;
@@ -46,6 +46,7 @@ public class AMethodInfo {
         this.scopes.add(h);
         this.firstScope = firstScope;
         this.labels = new ArrayDeque();
+        this.compiled = false;
     }
 
     public void pushScope(CodeAttr code, Map label) {
@@ -118,19 +119,18 @@ public class AMethodInfo {
     }
 
     public void compileMethodBody(GenHandler h) {
-        if(!this.method.isAbstract()) {
+        if(!this.compiled && !this.method.isAbstract()) {
             h.compile(this.block, this, (CodeAttr)null, this.method.getReturnType());
             BridgeFilter filter = new BridgeFilter(this.method);
             filter.searchAll();
             CodeAttr code = this.method.startCode();
             Set paramNames = this.firstScope.keySet();
+            int o = (this.method.getModifiers() & Access.STATIC) == 0?1:0;
             Iterator it = paramNames.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {
                 String paramName = (String)it.next();
-                if(!paramName.equals("this")) {
-                    code.getArg(i).setName(paramName);
-                }
+                code.getArg(o + i).setName(paramName);
             }
 
             h.compile(this.block, this, code, this.method.getReturnType());
@@ -138,6 +138,8 @@ public class AMethodInfo {
             if(code.reachableHere()) {
                 code.emitReturn();
             }
+
+            this.compiled = true;
         }
 
     }

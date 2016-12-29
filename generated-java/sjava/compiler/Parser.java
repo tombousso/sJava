@@ -3,6 +3,7 @@ package sjava.compiler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.ColonToken;
 import sjava.compiler.tokens.CommentToken;
@@ -11,7 +12,6 @@ import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.SingleQuoteToken;
-import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.UnquoteToken;
 
 public class Parser {
@@ -37,7 +37,7 @@ public class Parser {
         return (LexedToken)this.toks.get(this.i + n);
     }
 
-    List<LexedParsedToken> subToks(String end) {
+    ArrayList<LexedParsedToken> subToks(String end) {
         ArrayList toks = new ArrayList();
 
         while(!this.peek(0).what.equals(end)) {
@@ -56,7 +56,8 @@ public class Parser {
         String w = t.what;
         Object var10000;
         if(w.equals("(")) {
-            var10000 = new BlockToken(t.line, this.subToks(")"));
+            ArrayList toks = this.subToks(")");
+            var10000 = new BlockToken(t.line, toks);
         } else if(!w.equals("\'") && !w.equals("`") && !w.equals(",$") && !w.equals(",")) {
             if(this.ignoreComments && t instanceof CommentToken) {
                 return null;
@@ -64,13 +65,13 @@ public class Parser {
 
             var10000 = t;
         } else {
-            ArrayList al = new ArrayList(Arrays.asList(new Object[]{this.parse(0)}));
+            List al = Arrays.asList(new Object[]{this.parse(2)});
             var10000 = !w.equals(",") && !w.equals(",$")?(w.equals("\'")?new SingleQuoteToken(t.line, al):new QuoteToken(t.line, al)):new UnquoteToken(t.line, al, w.equals(",$"));
         }
 
         Object left = var10000;
-        if(((Token)left).endLine == 0) {
-            ((Token)left).endLine = this.peek(-1).line;
+        if(((LexedParsedToken)left).endLine == 0) {
+            ((LexedParsedToken)left).endLine = this.peek(-1).line;
         }
 
         boolean cont = true;
@@ -79,17 +80,24 @@ public class Parser {
             String w1 = this.peek(0).what;
             if(w1.equals(":")) {
                 this.next();
-                LexedParsedToken right = this.parse(1);
+                LexedParsedToken right = this.parse(2);
                 left = new ColonToken(t.line, new ArrayList(Arrays.asList(new Object[]{left, right})));
             } else if(w1.equals("{")) {
                 this.next();
-                left = new GenericToken(t.line, (LexedParsedToken)left, this.subToks("}"));
+                ArrayList toks1 = this.subToks("}");
+                toks1.add(0, left);
+                left = new GenericToken(t.line, toks1);
+            } else if(w1.equals("[")) {
+                this.next();
+                ArrayList toks2 = this.subToks("]");
+                toks2.add(0, left);
+                left = new ArrayToken(t.line, toks2);
             } else {
                 cont = false;
             }
 
             if(cont) {
-                ((Token)left).endLine = this.peek(-1).line;
+                ((LexedParsedToken)left).endLine = this.peek(-1).line;
             }
         }
 

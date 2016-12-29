@@ -1,13 +1,12 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
 import sjava.compiler.tokens.Token;
 
 public class ThrowToken extends Token {
-    public List<Token> toks;
+    public Token tok;
 
-    public ThrowToken(int line, List<Token> toks) {
+    public ThrowToken(int line, Token tok) {
         super(line);
-        this.toks = toks;
+        this.tok = tok;
     }
 }

@@ -43,28 +43,28 @@ def STD_MACROS = files("std/macros.sjava").collect { it.getCanonicalPath() }
 
 task compiler1_2(type: JavaExec) {
 	onlyIf { !file("bin/1-2").exists() }
-	inputs.files("compiler1.scm", "compiler2.sjava")
+	inputs.files("compiler1.scm", "compiler2/compiler2.sjava")
 	outputs.dir("bin/1-2")
 	main = "kawa.repl"
 	classpath = JARS
-	args = [file("compiler1.scm"), file("compiler2.sjava")]
+	args = [file("compiler1.scm"), file("compiler2/compiler2.sjava")]
 }
 
 task compiler2_2(type: JavaExec, dependsOn: [compiler1_2]) {
-	inputs.files("compiler2.sjava")
+	inputs.files("compiler2/compiler2.sjava")
 	outputs.dir("bin/2-2")
 	main = "compiler2.Main"
 	classpath = JARS + files("bin/1-2")
-	args = [file("compiler2.sjava"), "-d", "${projectDir}/bin/2-2/"]
+	args = [file("compiler2/compiler2.sjava"), "-d", "${projectDir}/bin/2-2/"]
 }
 
 task compiler2_3(type: JavaExec, dependsOn: [compiler2_2]) {
-	inputs.files(STD_MACROS)
+	inputs.files(files("compiler2/macros.sjava"))
 	inputs.dir("compiler3")
 	outputs.dir("bin/2-3")
 	main = "compiler2.Main"
 	classpath = JARS + files("bin/2-2")
-	args = STD_MACROS + fileTree("compiler3").files + ["-d", "${projectDir}/bin/2-3/"]
+	args = ["compiler2/macros.sjava"] + fileTree("compiler3").files + ["-d", "${projectDir}/bin/2-3/"]
 }
 
 task compiler(type: SJavaCompile, dependsOn: [compiler2_3]) {

@@ -6,6 +6,8 @@ import sjava.compiler.tokens.Token;
 
 public class LexedParsedToken extends Token {
     public List<LexedParsedToken> toks;
+    public int endLine;
+    public transient Token transformed;
 
     public LexedParsedToken(int line) {
         super(line);
@@ -16,15 +18,14 @@ public class LexedParsedToken extends Token {
         this.toks = toks;
     }
 
-    public String toksString() {
+    String toksString(List<LexedParsedToken> l) {
         StringBuffer s = new StringBuffer();
-        List iterable = this.toks;
-        Iterator it = iterable.iterator();
+        Iterator it = l.iterator();
 
         for(int i = 0; it.hasNext(); ++i) {
             LexedParsedToken tok = (LexedParsedToken)it.next();
             s.append(tok);
-            if(i != this.toks.size() - 1) {
+            if(i != l.size() - 1) {
                 s.append(" ");
             }
         }
@@ -32,12 +33,16 @@ public class LexedParsedToken extends Token {
         return s.toString();
     }
 
+    String toksString() {
+        return this.toksString(this.toks);
+    }
+
     public int firstLine() {
         return super.line;
     }
 
     public int lastLine() {
-        return super.endLine;
+        return this.endLine;
     }
 
     public LexedParsedToken() {
