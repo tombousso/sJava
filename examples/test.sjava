@@ -15,22 +15,25 @@
 
 (define-class Ref{E} ()
 	(val E)
-	((<init>) void
+	;((<init> a int val E c String) void
+	;	(super:<init>)
+	;	(set this:val val)
+	;)
+	(ctor! (a int 'val c String)
 		(super:<init>)
 	)
-	((get) E
-		this:val
-	)
-	((set val E) void
-		(set this:val val)
-	)
+	;((getVal) E
+	;	this:val
+	;)
+	(get! val)
+	;((setVal val E) void
+	;	(set this:val val)
+	;)
+	(set! val)
 )
 
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
-		(define n (Ref{Integer}))
-		(n:set 5)
-		(System:out:println (* 3 (n:get)))
 		(define l (AlString))
 		(l:add "ABC")
 		(l:add "DEF")
@@ -38,6 +41,13 @@
 		(forEach s l (System:out:println s))
 		(forEach s (l:toArray) (System:out:println s))
 		(forEachI s l i (println i ":" s))
+
+		(define n (Ref{Integer} 0 4000 ""))
+		(define i (Integer 4000))
+		(System:out:println (= i (n:getVal)))
+		(n:setVal 5)
+		(System:out:println (* 3 (n:getVal)))
+
 		(define x 1)
 		(inc x 5)
 		(inc x)

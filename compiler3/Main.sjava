@@ -1042,6 +1042,17 @@
 			)
 		)
 	)
+	((extractModifiers toks List{LexedParsedToken} i int) Tuple2{Integer Integer} 'public 'static
+		(define mods 0)
+		(for () (< i (toks:size)) (inc i)
+			(define tok (toks:get i))
+			(if (instance? tok SingleQuoteToken)
+				(set mods (| mods (Main:accessModifiers:get (as VToken (tok:toks:get 0)):val)))
+				(return (Tuple2 mods i))
+			)
+		)
+		(Tuple2 mods i)
+	)
 )
 
 (define-class Tester () 'public
@@ -1736,7 +1747,7 @@
 			)
 		)
 	)
-	((getType tok Token) Type
+	((getType tok Token) Type 'public
 		(instanceCond tok
 			(GenericToken
 				(define c ClassType ((this:getType (as VToken (tok:toks:get 0)):val):getRawType))
@@ -1765,19 +1776,9 @@
 				(if (instance? first BlockToken) ;method definition
 					(begin
 						(define scope (LinkedHashMap))
-						(define mods 0)
-						(define end false)
-						(define i 2)
-						(while (! (|| end (= i (tok:toks:size))))
-							(define mod (tok:toks:get i))
-							(if (instance? mod SingleQuoteToken)
-								(begin
-									(set mods (| mods (Main:accessModifiers:get (as VToken (mod:toks:get 0)):val)))
-									(set i (+ i 1))
-								)
-								(set end true)
-							)
-						)
+						(define tup (Main:extractModifiers tok:toks 2))
+						(define mods tup:_1)
+						(define i tup:_2)
 						(define n
 							(if (= (& mods Access:STATIC) 0)
 								1
@@ -1791,20 +1792,9 @@
 						(define name (as VToken first):val)
 						(if (! (name:endsWith "!"))
 							(begin ;field definition
-								(define mods 0)
-								(define end false)
-								(define i 2)
-								(while (! (|| (= i (tok:toks:size)) end))
-									(define mod (tok:toks:get i))
-									(if (instance? mod SingleQuoteToken)
-										(begin
-											(define nmod (Main:accessModifiers:get (as VToken (mod:toks:get 0)):val))
-											(set mods (| mods nmod))
-										)
-										(set end true)
-									)
-									(set i (+ i 1))
-								)
+								(define tup (Main:extractModifiers tok:toks 2))
+								(define mods tup:_1)
+								(define i tup:_2)
 								(define t (this:getType (tok:toks:get 1)))
 								(this:c:addField name t mods)
 							)

@@ -1,4 +1,3 @@
-15
 ABCa
 ABC
 DEF
@@ -6,6 +5,8 @@ ABC
 DEF
 0:ABC
 1:DEF
+true
+15
 3 == 3
 AA
 3 == 3

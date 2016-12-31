@@ -40,9 +40,11 @@ class SJavaCompile extends AbstractCompile {
 }
 
 def STD_MACROS = files("std/macros.sjava").collect { it.getCanonicalPath() }
+def STD_LIB = files("std/FunctionN.sjava", "std/TupleN.sjava").collect { it.getCanonicalPath() }
 
 task compiler1_2(type: JavaExec) {
 	onlyIf { !file("bin/1-2").exists() }
+	doFirst { file("bin/1-2").deleteDir() }
 	inputs.files("compiler1.scm", "compiler2/compiler2.sjava")
 	outputs.dir("bin/1-2")
 	main = "kawa.repl"
@@ -51,6 +53,7 @@ task compiler1_2(type: JavaExec) {
 }
 
 task compiler2_2(type: JavaExec, dependsOn: [compiler1_2]) {
+	doFirst { file("bin/2-2").deleteDir() }
 	inputs.files("compiler2/compiler2.sjava")
 	outputs.dir("bin/2-2")
 	main = "compiler2.Main"
@@ -59,15 +62,18 @@ task compiler2_2(type: JavaExec, dependsOn: [compiler1_2]) {
 }
 
 task compiler2_3(type: JavaExec, dependsOn: [compiler2_2]) {
-	inputs.files(files("compiler2/macros.sjava"))
+	doFirst { file("bin/2-3").deleteDir() }
+	inputs.files("compiler2/macros.sjava")
+	inputs.files(STD_LIB)
 	inputs.dir("compiler3")
 	outputs.dir("bin/2-3")
 	main = "compiler2.Main"
 	classpath = JARS + files("bin/2-2")
-	args = ["compiler2/macros.sjava"] + fileTree("compiler3").files + ["-d", "${projectDir}/bin/2-3/"]
+	args = ["${projectDir}/compiler2/macros.sjava"] + STD_LIB + fileTree("compiler3").files + ["-d", "${projectDir}/bin/2-3/"]
 }
 
 task compiler(type: SJavaCompile, dependsOn: [compiler2_3]) {
+	doFirst { file("bin/main").deleteDir() }
 	inputs.files(STD_MACROS)
 	source = fileTree("compiler3") + fileTree("std")
 	destinationDir = file("bin/main")
@@ -75,13 +81,16 @@ task compiler(type: SJavaCompile, dependsOn: [compiler2_3]) {
 }
 
 task compiler3_3(type: SJavaCompile, dependsOn: [compiler]) {
+	doFirst { file("bin/3-3").deleteDir() }
 	source = fileTree("compiler3")
 	destinationDir = file("bin/3-3")
 }
 
-task diff(dependsOn: [compiler2_2, compiler3_3]) << {
-	println("diff2_2: "+(same(file("bin/1-2"), file("bin/2-2")) ? "good" : "bad"))
-	println("diff3_3: "+(same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler")) ? "good" : "bad"))
+task diff(dependsOn: [compiler2_2, compiler3_3]) {
+	doLast {
+		println("diff2_2: "+(same(file("bin/1-2"), file("bin/2-2")) ? "good" : "bad"))
+		println("diff3_3: "+(same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler")) ? "good" : "bad"))
+	}
 }
 
 task jar(type: Zip, dependsOn: [compiler]) {
@@ -93,15 +102,17 @@ task jar(type: Zip, dependsOn: [compiler]) {
 
 task java_sources(type: JavaExec, dependsOn: [compiler]) {
 	doFirst {
+		file("generated-java").deleteDir()
 		file("generated-java/sjava/compiler").mkdirs()
+		file("generated-java/sjava/sjava").mkdirs()
 	}
 	main = "-jar"
 	args = [
 		file("fernflower.jar"),
 		"-ind=    ",
 		"-dgs=1",
-		file("bin/main/sjava/compiler"),
-		file("generated-java/sjava/compiler")
+		file("bin/main/sjava/"),
+		file("generated-java/sjava/")
 	]
 }
 
@@ -114,13 +125,14 @@ task java_compile(type: JavaCompile, dependsOn: [compiler3_3]) {
 	targetCompatibility = "1.8"
 	dependencyCacheDir = file("${buildDir}/tmp/dependency-cache")
 	doLast {
+		file("bin/java-3-3").deleteDir()
 		task java_compile_test(type: SJavaCompile) {
 			compilerClasspath = files("generated-java")
-			source = fileTree("compiler3")
+			source = fileTree("compiler3") + STD_LIB
 			destinationDir = file("bin/java-3-3")
 		}
 		java_compile_test.execute()
-		println("java version works: "+same(file("bin/main/sjava/compiler"), file("bin/java-3-3/sjava/compiler")))
+		println("java version works: "+same(file("bin/main/sjava"), file("bin/java-3-3/sjava")))
 	}
 }
 
