@@ -17,11 +17,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.AVar;
-import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
@@ -41,7 +41,7 @@ import sjava.compiler.tokens.ASetToken;
 import sjava.compiler.tokens.ArrayConstructorToken;
 import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
-import sjava.compiler.tokens.BlockToken;
+import sjava.compiler.tokens.BlockToken2;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
@@ -57,6 +57,7 @@ import sjava.compiler.tokens.IfToken;
 import sjava.compiler.tokens.IncludeToken;
 import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
+import sjava.compiler.tokens.LambdaFnToken;
 import sjava.compiler.tokens.LambdaToken;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.MacroCallToken;
@@ -558,13 +559,46 @@ public class GenHandler extends Handler {
         return this.compile(tok.ret, mi, this.code, needed);
     }
 
+    void createCtor(ClassType c, Type[] types, Collection<Field> fields) {
+        ClassType superC = c.getSuperclass();
+        MFilter filter = new MFilter("<init>", types, superC);
+        filter.searchDeclared();
+        Method superCons = filter.getMethod();
+        int n = superCons.getGenericParameterTypes().length;
+        Type[] params = new Type[n + fields.size()];
+        System.arraycopy(superCons.getGenericParameterTypes(), 0, params, 0, n);
+        Iterator it = fields.iterator();
+
+        for(int i = 0; it.hasNext(); ++i) {
+            Field field = (Field)it.next();
+            params[n + i] = field.getType();
+        }
+
+        Method cons = c.addMethod("<init>", params, Type.voidType, 0);
+        CodeAttr ncode = cons.startCode();
+        ncode.emitLoad(ncode.getArg(0));
+
+        for(int i1 = 0; i1 != n; ++i1) {
+            ncode.emitLoad(ncode.getArg(i1 + 1));
+        }
+
+        ncode.emitInvoke(superCons);
+        Iterator it1 = fields.iterator();
+
+        for(int i2 = 0; it1.hasNext(); ++i2) {
+            Field field1 = (Field)it1.next();
+            ncode.emitPushThis();
+            ncode.emitLoad(ncode.getArg(n + i2 + 1));
+            ncode.emitPutField(field1);
+        }
+
+        ncode.emitReturn();
+    }
+
     public Type compile(ObjectToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        boolean lambda = tok instanceof LambdaToken;
         ClassInfo ci = tok.ci;
-        LexedParsedToken superT = (LexedParsedToken)tok.toks.get(1);
-        boolean FunctionN = lambda && superT instanceof BlockToken;
-        Object emitters = !lambda && superT instanceof BlockToken?superT.toks.subList(1, superT.toks.size()):new ArrayList();
+        ArrayList emitters = new ArrayList(tok.superArgs);
         if(ci == null) {
             CaptureVHandler captureH = new CaptureVHandler(mi);
             if(output) {
@@ -573,115 +607,73 @@ public class GenHandler extends Handler {
                 mi.ci.anonClasses.add(ci);
             }
 
-            if(FunctionN) {
-                LinkedHashMap scope = new LinkedHashMap();
-                List params = Main.getParams(mi.ci, superT, scope, 0, 1);
+            if(tok instanceof LambdaFnToken) {
+                LambdaFnToken tok1 = (LambdaFnToken)tok;
+                LinkedHashMap scope = tok1.scope;
+                List params = tok1.params;
                 ArrayList generics = new ArrayList(params);
-                List toks = tok.toks.subList(2, tok.toks.size());
-                MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, mi.ci.fs), toks, (Method)null, scope);
-                Type ret = Main.tryBox(captureH.compile(fakemi.block, fakemi, (CodeAttr)null, Main.unknownType));
-                generics.add(ret);
-                Type[] agenerics = new Type[generics.size()];
-                generics.toArray(agenerics);
-                ParameterizedType t = new ParameterizedType(ClassType.make("sjava.std.Function".concat(Integer.toString(params.size()))), agenerics);
-                tok.t = t;
+                ArrayList toks = new ArrayList(tok1.toks);
+                if(tok1.t == null) {
+                    MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, mi.ci.fs), (List)null, (Method)null, scope);
+                    BlockToken2 beginTok = Main.transformBlockToks(new BeginToken(0, toks), mi);
+                    tok1.ret = Main.tryBox(captureH.compile(beginTok, fakemi, (CodeAttr)null, Main.unknownType));
+                    generics.add(tok1.ret);
+                    Type[] agenerics = new Type[generics.size()];
+                    generics.toArray(agenerics);
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("sjava.std.Function");
+                    sb.append(params.size());
+                    tok1.t = new ParameterizedType(ClassType.make(sb.toString()), agenerics);
+                }
+
                 if(output) {
-                    ci.c.addInterface(t);
-                    ci.addMethod("apply", params, ret, Access.PUBLIC, toks, scope);
+                    ci.c.addInterface(tok1.t);
+                    ci.addMethod("apply", params, tok1.ret, Access.PUBLIC, tok1.toks, scope);
                     ci.compileMethods(captureH);
                 }
-            } else if(lambda) {
-                Type t1 = mi.getType(superT);
-                tok.t = t1;
+            } else if(tok instanceof LambdaToken) {
+                LambdaToken tok2 = (LambdaToken)tok;
                 if(output) {
-                    Method sam = ((ClassType)t1.getRawType()).checkSingleAbstractMethod();
-                    LinkedHashMap scope1 = new LinkedHashMap();
-                    LexedParsedToken args = (LexedParsedToken)tok.toks.get(2);
-                    int i = 0;
-
-                    ArrayList params1;
-                    for(params1 = new ArrayList(args.toks.size()); i != args.toks.size(); ++i) {
-                        VToken arg = (VToken)((LexedParsedToken)args.toks.get(i));
-                        Type param = Main.resolveType(t1, sam.getGenericParameterTypes()[i]);
-                        scope1.put(arg.val, new Arg(i + 1, param));
-                        params1.add(param);
-                    }
-
-                    ci.c.addInterface(t1);
-                    ci.addMethod(sam.getName(), params1, Main.resolveType(t1, sam.getReturnType()), Access.PUBLIC, tok.toks.subList(3, tok.toks.size()), scope1);
+                    ci.c.addInterface(tok2.t);
+                    ci.addMethod(tok2.sam.getName(), tok2.params, Main.resolveType(tok2.t, tok2.sam.getReturnType()), Access.PUBLIC, tok2.toks, tok2.scope);
                     ci.compileMethods(captureH);
                 }
-            } else {
-                Type t2 = superT instanceof BlockToken?mi.getType((LexedParsedToken)superT.toks.get(0)):mi.getType(superT);
-                tok.t = t2;
-                if(output) {
-                    if(((ClassType)t2.getRawType()).isInterface()) {
-                        ci.c.addInterface(t2);
-                    } else {
-                        ci.c.setSuper(t2);
-                    }
-
-                    for(int i1 = 2; i1 != tok.toks.size(); ++i1) {
-                        ci.compileDef((LexedParsedToken)tok.toks.get(i1));
-                    }
-
-                    ci.compileMethods(captureH);
+            } else if(output) {
+                if(((ClassType)tok.t.getRawType()).isInterface()) {
+                    ci.c.addInterface(tok.t);
+                } else {
+                    ci.c.setSuper(tok.t);
                 }
+
+                List iterable = tok.toks;
+                Iterator it = iterable.iterator();
+
+                for(int notused = 0; it.hasNext(); ++notused) {
+                    LexedParsedToken tok3 = (LexedParsedToken)it.next();
+                    ci.compileDef(tok3);
+                }
+
+                ci.compileMethods(captureH);
             }
 
             if(output) {
-                ClassType superC = ci.c.getSuperclass();
-                Type[] types = Emitter.emitAll((List)emitters, captureH, mi, (CodeAttr)null, Main.unknownType);
-                MFilter filter = new MFilter("<init>", types, superC);
-                filter.searchDeclared();
-                Method superCons = filter.getMethod();
-                tok.captured = new AVar[captureH.captured.size()];
-                captureH.captured.keySet().toArray(tok.captured);
-                Field[] fields = new Field[captureH.captured.size()];
-                captureH.captured.values().toArray(fields);
-                int n = superCons.getGenericParameterTypes().length;
-                Type[] params2 = new Type[n + fields.length];
-                System.arraycopy(superCons.getGenericParameterTypes(), 0, params2, 0, n);
-
-                int i2;
-                for(i2 = 0; i2 != fields.length; ++i2) {
-                    params2[n + i2] = fields[i2].getType();
-                }
-
-                Method cons = ci.c.addMethod("<init>", params2, Type.voidType, 0);
-                CodeAttr ncode = cons.startCode();
-                ncode.emitLoad(ncode.getArg(0));
-
-                for(i2 = 0; i2 != n; ++i2) {
-                    ncode.emitLoad(ncode.getArg(i2 + 1));
-                }
-
-                ncode.emitInvoke(superCons);
-
-                for(i2 = 0; i2 != fields.length; ++i2) {
-                    ncode.emitPushThis();
-                    ncode.emitLoad(ncode.getArg(n + i2 + 1));
-                    ncode.emitPutField(fields[i2]);
-                }
-
-                ncode.emitReturn();
+                tok.captured = captureH.captured.keySet();
+                this.createCtor(ci.c, Emitter.emitAll(emitters, captureH, mi, (CodeAttr)null, Main.unknownType), captureH.captured.values());
             }
         }
 
         if(output) {
             this.code.emitNew(ci.c);
-        }
-
-        if(output) {
             this.code.emitDup();
-        }
+            Collection iterable1 = tok.captured;
+            Iterator it1 = iterable1.iterator();
 
-        if(output) {
-            for(int i3 = 0; i3 != tok.captured.length; ++i3) {
-                ((List)emitters).add(new LoadAVar(tok.captured[i3]));
+            for(int notused1 = 0; it1.hasNext(); ++notused1) {
+                AVar v = (AVar)it1.next();
+                emitters.add(new LoadAVar(v));
             }
 
-            Main.emitInvoke(this, "<init>", ci.c, (List)emitters, mi, this.code, Main.unknownType);
+            Main.emitInvoke(this, "<init>", ci.c, emitters, mi, this.code, Main.unknownType);
         }
 
         return tok.t;
@@ -699,8 +691,7 @@ public class GenHandler extends Handler {
             var10000[3] = Main.getCompilerType("handlers.GenHandler");
             Type[] types = var10000;
 
-            int j;
-            for(j = 0; j != l; ++j) {
+            for(int j = 0; j != l; ++j) {
                 types[o + j] = Main.getCompilerType("tokens.LexedParsedToken");
             }
 
@@ -716,20 +707,23 @@ public class GenHandler extends Handler {
 
             ci.compileMethods(inst);
             Type[] params = method.getGenericParameterTypes();
-            Class[] classes = new Class[params.length];
+            Class[] out = new Class[params.length];
+            Type[] array = params;
 
-            for(j = 0; j != params.length; ++j) {
-                classes[j] = params[j].getReflectClass();
+            for(int i1 = 0; i1 != array.length; ++i1) {
+                Type t = array[i1];
+                out[i1] = t.getReflectClass();
             }
 
+            Class[] classes = out;
             ArrayList args = new ArrayList(Arrays.asList(new Object[]{mi, needed, Integer.valueOf(mi.scopes.size()), this}));
             Object var10001;
-            if(params.length > 0 && params[params.length - 1] instanceof ArrayType) {
+            if((method.getModifiers() & Access.TRANSIENT) != 0) {
                 int var = params.length - o - 1;
                 ArrayList al = new ArrayList(tok.toks.subList(0, var));
-                LexedParsedToken[] out = new LexedParsedToken[tok.toks.size() - var];
-                tok.toks.subList(var, tok.toks.size()).toArray(out);
-                al.add(out);
+                LexedParsedToken[] out1 = new LexedParsedToken[tok.toks.size() - var];
+                tok.toks.subList(var, tok.toks.size()).toArray(out1);
+                al.add(out1);
                 var10001 = al;
             } else {
                 var10001 = tok.toks;
@@ -740,19 +734,19 @@ public class GenHandler extends Handler {
             try {
                 LexedParsedToken ret = (LexedParsedToken)ci.getClazz().getMethod(tok.name, classes).invoke((Object)null, args.toArray());
                 tok.ret = Main.transformBlock(ret, mi);
-            } catch (NoSuchMethodException var24) {
-                throw new RuntimeException(var24);
-            } catch (IllegalAccessException var25) {
-                throw new RuntimeException(var25);
-            } catch (InvocationTargetException var26) {
-                throw new RuntimeException(var26);
+            } catch (NoSuchMethodException var29) {
+                throw new RuntimeException(var29);
+            } catch (IllegalAccessException var30) {
+                throw new RuntimeException(var30);
+            } catch (InvocationTargetException var31) {
+                throw new RuntimeException(var31);
             }
         }
 
         mi.pushLevel();
-        Type out1 = this.compile(tok.ret, mi, this.code, needed);
+        Type out2 = this.compile(tok.ret, mi, this.code, needed);
         mi.popLevel();
-        return out1;
+        return out2;
     }
 
     public Type compile(BeginToken tok, AMethodInfo mi, Type needed) {

@@ -68,6 +68,7 @@ import sjava.compiler.tokens.IfToken;
 import sjava.compiler.tokens.IncludeToken;
 import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
+import sjava.compiler.tokens.LambdaFnToken;
 import sjava.compiler.tokens.LambdaToken;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.MacroCallToken;
@@ -87,6 +88,7 @@ import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
 import sjava.compiler.tokens.WhileToken;
+import sjava.std.Tuple2;
 
 public class Main {
     static int ML;
@@ -518,9 +520,16 @@ public class Main {
     }
 
     public static BlockToken2 transformBlockToks(BlockToken2 block, AMethodInfo mi, boolean transform, int i) {
-        while(i != block.toks.size()) {
-            transformBlockTok(block, mi, transform, i);
-            ++i;
+        if(!block.isTransformed) {
+            while(true) {
+                if(i == block.toks.size()) {
+                    block.isTransformed = true;
+                    break;
+                }
+
+                transformBlockTok(block, mi, transform, i);
+                ++i;
+            }
         }
 
         return block;
@@ -566,11 +575,33 @@ public class Main {
                 }
 
                 if(val.equals("object")) {
-                    return new ObjectToken(block.line, new ArrayList(block.toks));
+                    LexedParsedToken superTok = (LexedParsedToken)rest.get(0);
+                    return new ObjectToken(block.line, mi.getType((LexedParsedToken)superTok.toks.get(0)), superTok.toks.subList(1, superTok.toks.size()), rest.subList(1, rest.size()));
                 }
 
                 if(val.equals("lambda")) {
-                    return new LambdaToken(block.line, new ArrayList(block.toks));
+                    LinkedHashMap scope = new LinkedHashMap();
+                    boolean FunctionN = (LexedParsedToken)rest.get(0) instanceof BlockToken;
+                    if(FunctionN) {
+                        List params = getParams(mi.ci, (LexedParsedToken)rest.get(0), scope, 0, 1);
+                        return new LambdaFnToken(block.line, (Type)null, scope, params, rest.subList(1, rest.size()));
+                    }
+
+                    Type t = mi.getType((LexedParsedToken)rest.get(0));
+                    Method sam = ((ClassType)t.getRawType()).checkSingleAbstractMethod();
+                    LexedParsedToken args = (LexedParsedToken)rest.get(1);
+                    ArrayList params1 = new ArrayList(args.toks.size());
+                    List iterable = args.toks;
+                    Iterator it = iterable.iterator();
+
+                    for(int i = 0; it.hasNext(); ++i) {
+                        LexedParsedToken arg = (LexedParsedToken)it.next();
+                        Type param = resolveType(t, sam.getGenericParameterTypes()[i]);
+                        scope.put(((VToken)arg).val, new Arg(i + 1, param));
+                        params1.add(param);
+                    }
+
+                    return new LambdaToken(block.line, mi.getType((LexedParsedToken)rest.get(0)), scope, params1, rest.subList(2, rest.size()), sam);
                 }
 
                 if(mi.ci.fs.macroNames.containsKey(val)) {
@@ -1201,5 +1232,19 @@ public class Main {
         }
 
         return (LexedParsedToken)var10000;
+    }
+
+    public static Tuple2<Integer, Integer> extractModifiers(List<LexedParsedToken> toks, int i) {
+        int mods;
+        for(mods = 0; i < toks.size(); ++i) {
+            LexedParsedToken tok = (LexedParsedToken)toks.get(i);
+            if(!(tok instanceof SingleQuoteToken)) {
+                return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
+            }
+
+            mods |= ((Short)accessModifiers.get(((VToken)((LexedParsedToken)tok.toks.get(0))).val)).shortValue();
+        }
+
+        return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
     }
 }

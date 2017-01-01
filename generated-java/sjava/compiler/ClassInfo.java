@@ -30,9 +30,9 @@ import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.LexedParsedToken;
-import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
+import sjava.std.Tuple2;
 
 public class ClassInfo {
     public ClassType c;
@@ -180,7 +180,7 @@ public class ClassInfo {
         return (Type)var10000;
     }
 
-    Type getType(Token tok) {
+    public Type getType(Token tok) {
         Object var10000;
         if(tok instanceof GenericToken) {
             GenericToken tok1 = (GenericToken)tok;
@@ -211,41 +211,20 @@ public class ClassInfo {
             LexedParsedToken first = (LexedParsedToken)tok.toks.get(0);
             if(first instanceof BlockToken) {
                 LinkedHashMap scope = new LinkedHashMap();
-                int mods = 0;
-                boolean end = false;
-                int i = 2;
-
-                while(!end && i != tok.toks.size()) {
-                    LexedParsedToken mod = (LexedParsedToken)tok.toks.get(i);
-                    if(mod instanceof SingleQuoteToken) {
-                        mods |= ((Short)Main.accessModifiers.get(((VToken)((LexedParsedToken)mod.toks.get(0))).val)).shortValue();
-                        ++i;
-                    } else {
-                        end = true;
-                    }
-                }
-
-                int n = (mods & Access.STATIC) == 0?1:0;
+                Tuple2 tup = Main.extractModifiers(tok.toks, 2);
+                Integer mods = (Integer)tup._1;
+                Integer i = (Integer)tup._2;
+                int n = (mods.intValue() & Access.STATIC) == 0?1:0;
                 List types = Main.getParams(this, first, scope, 1, n);
-                this.addMethod(((VToken)((LexedParsedToken)first.toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)tok.toks.get(1))), mods, tok.toks.subList(i, tok.toks.size()), scope);
+                this.addMethod(((VToken)((LexedParsedToken)first.toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)tok.toks.get(1))), mods.intValue(), tok.toks.subList(i.intValue(), tok.toks.size()), scope);
             } else {
                 String name = ((VToken)first).val;
                 if(!name.endsWith("!")) {
-                    int mods1 = 0;
-                    boolean end1 = false;
-
-                    for(int i1 = 2; i1 != tok.toks.size() && !end1; ++i1) {
-                        LexedParsedToken mod1 = (LexedParsedToken)tok.toks.get(i1);
-                        if(mod1 instanceof SingleQuoteToken) {
-                            Short nmod = (Short)Main.accessModifiers.get(((VToken)((LexedParsedToken)mod1.toks.get(0))).val);
-                            mods1 |= nmod.shortValue();
-                        } else {
-                            end1 = true;
-                        }
-                    }
-
+                    Tuple2 tup1 = Main.extractModifiers(tok.toks, 2);
+                    Integer mods1 = (Integer)tup1._1;
+                    Integer i1 = (Integer)tup1._2;
                     Type t = this.getType((Token)((LexedParsedToken)tok.toks.get(1)));
-                    this.c.addField(name, t, mods1);
+                    this.c.addField(name, t, mods1.intValue());
                 }
             }
         }
@@ -300,8 +279,7 @@ public class ClassInfo {
         var10000[0] = Main.getCompilerType("ClassInfo");
         Type[] types = var10000;
 
-        int j;
-        for(j = 0; j != l; ++j) {
+        for(int j = 0; j != l; ++j) {
             types[o + j] = Main.getCompilerType("tokens.LexedParsedToken");
         }
 
@@ -317,20 +295,23 @@ public class ClassInfo {
 
         ci.compileMethods(GenHandler.inst);
         Type[] params = method.getGenericParameterTypes();
-        Class[] classes = new Class[params.length];
+        Class[] out = new Class[params.length];
+        Type[] array = params;
 
-        for(j = 0; j != params.length; ++j) {
-            classes[j] = params[j].getReflectClass();
+        for(int i1 = 0; i1 != array.length; ++i1) {
+            Type t = array[i1];
+            out[i1] = t.getReflectClass();
         }
 
+        Class[] classes = out;
         ArrayList args = new ArrayList(Arrays.asList(new Object[]{this}));
         Object var10001;
-        if(params.length > 0 && params[params.length - 1] instanceof ArrayType) {
+        if((method.getModifiers() & Access.TRANSIENT) != 0) {
             int var = params.length - o;
             ArrayList al = new ArrayList(tok.toks.subList(1, var));
-            LexedParsedToken[] out = new LexedParsedToken[tok.toks.size() - var];
-            tok.toks.subList(var, tok.toks.size()).toArray(out);
-            al.add(out);
+            LexedParsedToken[] out1 = new LexedParsedToken[tok.toks.size() - var];
+            tok.toks.subList(var, tok.toks.size()).toArray(out1);
+            al.add(out1);
             var10001 = al;
         } else {
             var10001 = tok.toks.subList(1, tok.toks.size());
@@ -340,12 +321,12 @@ public class ClassInfo {
 
         try {
             ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());
-        } catch (NoSuchMethodException var20) {
-            throw new RuntimeException(var20);
-        } catch (IllegalAccessException var21) {
-            throw new RuntimeException(var21);
-        } catch (InvocationTargetException var22) {
-            throw new RuntimeException(var22);
+        } catch (NoSuchMethodException var25) {
+            throw new RuntimeException(var25);
+        } catch (IllegalAccessException var26) {
+            throw new RuntimeException(var26);
+        } catch (InvocationTargetException var27) {
+            throw new RuntimeException(var27);
         }
     }
 

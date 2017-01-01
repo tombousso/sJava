@@ -224,6 +224,7 @@
 (define-class BlockToken2 (Token) 'public
 	(labels HashMap 'public)
 	(toks List{Token} 'public)
+	(isTransformed bool 'public)
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line)
 		(set this:toks toks)
@@ -338,19 +339,38 @@
 
 (define-class ObjectToken (Token) 'public
 	(ci ClassInfo 'public)
-	(captured AVar[] 'public)
+	(captured Collection{AVar} 'public)
 	(t Type 'public)
-	(params Type[])
 	(toks List{LexedParsedToken} 'public)
-	((<init> line int toks List{LexedParsedToken}) void 'public
+	(superArgs List{LexedParsedToken} 'public)
+	((<init> line int t Type superArgs List{LexedParsedToken} toks List{LexedParsedToken}) void 'public
 		(super:<init> line)
+		(set this:t t)
+		(set this:superArgs superArgs)
 		(set this:toks toks)
 	)
 )
 
 (define-class LambdaToken (ObjectToken) 'public
-	((<init> line int toks List{LexedParsedToken}) void 'public
-		(super:<init> line toks)
+	(sam Method 'public)
+	(scope LinkedHashMap 'public)
+	(params List{Type} 'public)
+	((<init> line int t Type scope LinkedHashMap params List{Type} toks List{LexedParsedToken} sam Method) void 'public
+		(super:<init> line t Collections:EMPTY_LIST toks)
+		(set this:scope scope)
+		(set this:params params)
+		(set this:sam sam)
+	)
+)
+
+(define-class LambdaFnToken (ObjectToken) 'public
+	(ret Type 'public)
+	(scope LinkedHashMap 'public)
+	(params List{Type} 'public)
+	((<init> line int t Type scope LinkedHashMap params List{Type} toks List{LexedParsedToken}) void 'public
+		(super:<init> line t Collections:EMPTY_LIST toks)
+		(set this:scope scope)
+		(set this:params params)
 	)
 )
 

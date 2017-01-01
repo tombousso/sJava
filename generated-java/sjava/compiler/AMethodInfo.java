@@ -36,8 +36,8 @@ public class AMethodInfo {
 
     AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, AVar> firstScope) {
         this.ci = ci;
-        if(toks.size() != 0) {
-            this.block = (BeginToken)Main.transformBlockToks(new BeginToken(((LexedParsedToken)toks.get(0)).line, new ArrayList(toks)), this);
+        if(toks != null && toks.size() != 0) {
+            this.block = new BeginToken(((LexedParsedToken)toks.get(0)).line, new ArrayList(toks));
         }
 
         this.method = method;
@@ -120,6 +120,7 @@ public class AMethodInfo {
 
     public void compileMethodBody(GenHandler h) {
         if(!this.compiled && !this.method.isAbstract()) {
+            Main.transformBlockToks(this.block, this);
             h.compile(this.block, this, (CodeAttr)null, this.method.getReturnType());
             BridgeFilter filter = new BridgeFilter(this.method);
             filter.searchAll();
