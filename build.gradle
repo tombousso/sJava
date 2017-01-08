@@ -109,6 +109,7 @@ task java_sources(type: JavaExec, dependsOn: [compiler]) {
 	main = "-jar"
 	args = [
 		file("fernflower.jar"),
+		"-nls=1",
 		"-ind=    ",
 		"-dgs=1",
 		file("bin/main/sjava/"),

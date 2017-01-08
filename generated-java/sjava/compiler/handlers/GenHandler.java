@@ -521,23 +521,8 @@ public class GenHandler extends Handler {
 
     public Type compile(VToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Object var10000;
-        if(tok.val.equals("this")) {
-            if((mi.method.getModifiers() & Access.STATIC) != 0) {
-                throw new RuntimeException();
-            }
-
-            if(output) {
-                this.code.emitPushThis();
-            }
-
-            var10000 = mi.ci.c;
-        } else {
-            AVar found = mi.getVar(tok);
-            var10000 = found.load(this.code);
-        }
-
-        return (Type)var10000;
+        AVar found = mi.getVar(tok);
+        return found.load(this.code);
     }
 
     public Type compile(IncludeToken tok, AMethodInfo mi, Type needed) {
@@ -628,15 +613,13 @@ public class GenHandler extends Handler {
 
                 if(output) {
                     ci.c.addInterface(tok1.t);
-                    ci.addMethod("apply", params, tok1.ret, Access.PUBLIC, tok1.toks, scope);
-                    ci.compileMethods(captureH);
+                    ci.addMethod("apply", params, tok1.ret, Access.PUBLIC, tok1.toks, scope, false);
                 }
             } else if(tok instanceof LambdaToken) {
                 LambdaToken tok2 = (LambdaToken)tok;
                 if(output) {
                     ci.c.addInterface(tok2.t);
-                    ci.addMethod(tok2.sam.getName(), tok2.params, Main.resolveType(tok2.t, tok2.sam.getReturnType()), Access.PUBLIC, tok2.toks, tok2.scope);
-                    ci.compileMethods(captureH);
+                    ci.addMethod(tok2.sam.getName(), tok2.params, Main.resolveType(tok2.t, tok2.sam.getReturnType()), Access.PUBLIC, tok2.toks, tok2.scope, false);
                 }
             } else if(output) {
                 if(((ClassType)tok.t.getRawType()).isInterface()) {
@@ -652,11 +635,21 @@ public class GenHandler extends Handler {
                     LexedParsedToken tok3 = (LexedParsedToken)it.next();
                     ci.compileDef(tok3);
                 }
-
-                ci.compileMethods(captureH);
             }
 
             if(output) {
+                List iterable1 = ci.methods;
+                Iterator it1 = iterable1.iterator();
+
+                for(int notused1 = 0; it1.hasNext(); ++notused1) {
+                    AMethodInfo omi = (AMethodInfo)it1.next();
+
+                    while(omi.scopes.size() != mi.scopes.size()) {
+                        omi.pushLevel();
+                    }
+                }
+
+                ci.compileMethods(captureH);
                 tok.captured = captureH.captured.keySet();
                 this.createCtor(ci.c, Emitter.emitAll(emitters, captureH, mi, (CodeAttr)null, Main.unknownType), captureH.captured.values());
             }
@@ -665,11 +658,11 @@ public class GenHandler extends Handler {
         if(output) {
             this.code.emitNew(ci.c);
             this.code.emitDup();
-            Collection iterable1 = tok.captured;
-            Iterator it1 = iterable1.iterator();
+            Collection iterable2 = tok.captured;
+            Iterator it2 = iterable2.iterator();
 
-            for(int notused1 = 0; it1.hasNext(); ++notused1) {
-                AVar v = (AVar)it1.next();
+            for(int notused2 = 0; it2.hasNext(); ++notused2) {
+                AVar v = (AVar)it2.next();
                 emitters.add(new LoadAVar(v));
             }
 

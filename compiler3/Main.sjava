@@ -111,8 +111,7 @@
 		(set Main:precs
 			(String[][]
 				(String[] "\"\"\"" "\"" ")" "}" "]" ";")
-				(String[] "'" "," ",$" "`")
-				(String[] ":" "(" "{" "[")
+				(String[] "'" "," ",$" "`" ":" "(" "{" "[")
 			)
 		)
 
@@ -628,7 +627,10 @@
 							)
 						)
 						(if transform
-							(return (DefaultToken block:line (Main:transformToks block:toks mi)))
+							(begin
+								;(println block)
+								(return (DefaultToken block:line (Main:transformToks block:toks mi)))
+							)
 							(return (BlockToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi false))))
 						)
 					)
@@ -1071,7 +1073,7 @@
 		(define mods 0)
 		(for () (< i (toks:size)) (inc i)
 			(define tok (toks:get i))
-			(if (instance? tok SingleQuoteToken)
+			(if (&& (instance? tok SingleQuoteToken) (instance? (tok:toks:get 0) VToken))
 				(set mods (| mods (Main:accessModifiers:get (as VToken (tok:toks:get 0)):val)))
 				(return (Tuple2 mods i))
 			)
@@ -1315,7 +1317,7 @@
 					(BlockToken t:line toks)
 				)
 				((|| (w:equals "'") (w:equals "`") (w:equals ",$") (w:equals ","))
-					(define al (Arrays:asList (this:parse 2)))
+					(define al (Arrays:asList (this:parse 0)))
 					(if (|| (w:equals ",") (w:equals ",$"))
 						(UnquoteToken t:line al (w:equals ",$"))
 						(if (w:equals "'")
@@ -1339,7 +1341,7 @@
 			(cond
 				((w:equals ":")
 					(this:next)
-					(define right (this:parse 2))
+					(define right (this:parse 1))
 					(set left (ColonToken t:line (ArrayList (Arrays:asList left right))))
 				)
 				((w:equals "{")
@@ -1810,8 +1812,33 @@
 								0
 							)
 						)
+						(define exceptions ClassType[] null)
+						(define annotations (ArrayList{AnnotationEntry}))
+						(while
+							(&&
+								(!= i (tok:toks:size))
+								(instance? (tok:toks:get i) SingleQuoteToken)
+							)
+							(begin
+								(define toks ((tok:toks:get i):toks:get 0):toks)
+								(define first VToken (toks:get 0))
+								(if (first:val:equals "throws")
+									(set exceptions
+										(mapA tok (toks:subList 1 (toks:size))
+											(as ClassType (this:getType tok))
+										)
+									)
+									(annotations:add (AnnotationEntry (as ClassType (this:getType first))))
+								)
+								(inc i)
+							)
+						)
 						(define types (Main:getParams this first scope 1 n))
-						(this:addMethod (as VToken (first:toks:get 0)):val types (this:getType (tok:toks:get 1)) mods (tok:toks:subList i (tok:toks:size)) scope)
+						(define mi (this:addMethod (as VToken (first:toks:get 0)):val types (this:getType (tok:toks:get 1)) mods (tok:toks:subList i (tok:toks:size)) scope))
+						(if (!= exceptions null) (mi:method:setExceptions exceptions))
+						(forEach annotation annotations
+							(RuntimeAnnotationsAttr:maybeAddAnnotation mi:method annotation)
+						)
 					)
 					(begin
 						(define name (as VToken first):val)
@@ -1909,13 +1936,19 @@
 			(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
 		)
 	)
-	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap) AMethodInfo 'public
+	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap addThis bool) AMethodInfo 'public
+		(if (&& addThis (= (& mods Access:STATIC) 0))
+			(scope:put "this" (Arg 0 this:c))
+		)
 		(define atypes (Type[] len:(params:size)))
 		(params:toArray atypes)
 		(define method (this:c:addMethod name atypes ret mods))
 		(define out (MethodInfo this toks method scope))
 		(this:methods:add out)
 		out
+	)
+	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap) AMethodInfo 'public
+		(this:addMethod name params ret mods toks scope true)
 	)
 	((addMethod name String ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap{String Arg}) AMethodInfo 'public
 		(define params (ArrayList{Type}))
@@ -1949,10 +1982,10 @@
 	(block BeginToken 'public)
 	(method Method 'public)
 	(scopes ArrayList{ArrayDeque{Map{String AVar}}} 'public)
-	(firstScope Map{String AVar})
+	(firstScope Map{String Arg})
 	(labels ArrayDeque{Map})
 	(compiled bool)
-	((<init> ci ClassInfo toks List{LexedParsedToken} method Method firstScope LinkedHashMap{String AVar}) void
+	((<init> ci ClassInfo toks List{LexedParsedToken} method Method firstScope LinkedHashMap{String Arg}) void
 		(super:<init>)
 		(set this:ci ci)
 		(if (&& (!= toks null) (!= (toks:size) 0))
@@ -1979,9 +2012,8 @@
 	((popScope code CodeAttr) void 'public
 		(define output (!= code null))
 		(define i 0)
-		(while (!= i (this:scopes:size))
-			((this:scopes:get i):pop)
-			(set i (+ i 1))
+		(forEach scope this:scopes
+			(scope:pop)
 		)
 		(this:labels:pop)
 		;(if output (code:popScope))
@@ -2035,10 +2067,9 @@
 				(filter:searchAll)
 
 				(define code (this:method:startCode))
-				(define paramNames (this:firstScope:keySet))
-				(define o (if (= (& (this:method:getModifiers) Access:STATIC) 0) 1 0))
-				(forEachI paramName paramNames i
-					((code:getArg (+ o i)):setName paramName)
+				(forEach entry (this:firstScope:entrySet)
+					(define arg (entry:getValue))
+					((code:getArg arg:n):setName (entry:getKey))
 				)
 				(define ret (h:compile this:block this code (this:method:getReturnType)))
 				(code:popScope)

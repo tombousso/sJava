@@ -1,13 +1,19 @@
 class SJavaCompile extends AbstractCompile {
 	String targetCompatibility = "1.8"
 	String sourceCompatibility = "1.8"
+	@InputFiles
 	def compilerClasspath = project.files("../sjava.jar")
+	@InputFiles
+	def compilerLibs = project.files()
+	@OutputDirectory
+	File destinationDir
+	@InputFiles
 	FileCollection classpath = project.files()
 	@TaskAction
 	void compile() {
 		def classpath_ = classpath
 		project.javaexec {
-			classpath = compilerClasspath + classpath_
+			classpath = compilerClasspath + compilerLibs + classpath_
 			main = "sjava.compiler.Main"
 			args = ["build"] + source + ["-d", destinationDir]
 		}
@@ -15,7 +21,8 @@ class SJavaCompile extends AbstractCompile {
 }
 
 configurations {
-	classpath
+	compile
+	quasar
 }
 
 repositories {
@@ -23,22 +30,25 @@ repositories {
 }
 
 dependencies {
-	classpath "io.vertx:vertx-web:3.3.2"
-	classpath "io.vertx:vertx-mysql-postgresql-client:3.3.2"
-	classpath "io.vertx:vertx-web-templ-pebble:3.3.2"
-	classpath "org.slf4j:slf4j-api:1.7.21"
-	classpath "org.slf4j:slf4j-simple:1.7.21"
-	classpath "de.svenkubiak:jBCrypt:0.4.1"
+	compile "io.vertx:vertx-web:3.3.2"
+	compile "io.vertx:vertx-sync:3.3.2"
+	compile "io.vertx:vertx-mysql-postgresql-client:3.3.2"
+	compile "org.slf4j:slf4j-api:1.7.21"
+	compile "org.slf4j:slf4j-simple:1.7.21"
+	compile "de.svenkubiak:jBCrypt:0.4.1"
+	quasar "co.paralleluniverse:quasar-core:0.7.7:jdk8@jar"
 }
 
 task compile(type: SJavaCompile) {
 	source = file("Main.sjava")
 	destinationDir = file("bin")
-	classpath = configurations.classpath
+	classpath = configurations.compile
 }
 
 task run(type: JavaExec, dependsOn: [compile]) {
-	classpath = files("bin") + configurations.classpath
+	classpath = files("bin") + configurations.compile
 	main = "Main"
 	standardInput = System.in
+	systemProperty 'co.paralleluniverse.fibers.verifyInstrumentation', 'true'
+	jvmArgs "-javaagent:${configurations.quasar.iterator().next()}"
 }

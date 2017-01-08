@@ -75,7 +75,7 @@
 	(define o (type arrElement))
 	`(begin
 		(define collection ,collection)
-		(define out (,o[] len:,len))
+		(define out ((unquote o)[] len:,len))
 		(forEachI ,item collection ,i (aset out ,i (begin ,block)))
 		out
 	)
@@ -101,7 +101,7 @@
 (define-macro (let inits @block)
 	(define defines
 		(mapA init inits:toks
-			`(define (unquote init:toks))
+			`(define ,init:toks)
 		)
 	)
 	`(begin
@@ -209,7 +209,7 @@
 			)
 			(begin
 				(define t (aget (omi:method:getParameterTypes) (- special 1)))
-				(define ncall `((unquote call:toks)))
+				(define ncall `(,call:toks))
 				(ncall:toks:set special `(as ,$(t:getName) ,arg))
 				(conds:add
 					`((instance? ,arg ,$(t:getName))
@@ -239,7 +239,7 @@
 (define-macro (chain obj @calls)
 	(define out obj)
 	(forEach call calls
-		(set out `(,out:,(call:toks:get 0) ,(call:toks:subList 1 (call:toks:size))))
+		(set out `((unquote out):(unquote (call:toks:get 0)) ,(call:toks:subList 1 (call:toks:size))))
 	)
 	out
 )
@@ -288,4 +288,96 @@
 	(toks:addAll sets)
 	(toks:addAll (body:subList 1 (body:size)))
 	(ci:addMethod "<init>" Type:voidType tup:_1 toks scope)
+)
+(define-macro (tokString tok)
+	(if (instance? tok UnquoteToken)
+		(tok:toks:get 0)
+		`,(tok:toStringParsed)
+	)
+)
+(define-macro (xml @rest)
+	(define out (ArrayList{Token}))
+	(forEach tag rest
+		(cond
+			(
+				(&&
+					(instance? tag BlockToken)
+					(instance? (tag:toks:get 0) VToken)
+					((as VToken (tag:toks:get 0)):val:equals "if")
+				)
+				(out:add
+					`(if ,(tag:toks:get 1)
+						,(mapA tok (tag:toks:subList 2 (tag:toks:size))
+							`(sb:append (xml ,tok))
+						)
+					)
+				)
+			)
+			((instance? tag BlockToken)
+				(define last (tag:toks:get (- (tag:toks:size) 1)))
+				(define selfClose
+					(&&
+						(instance? last VToken)
+						((as VToken last):val:equals "!")
+					)
+				)
+				(define size (tag:toks:size))
+				(if selfClose (dec size))
+				(define props (ArrayList{Token}))
+				(define i 1)
+				(for () (&& (< i size) (instance? (tag:toks:get i) ArrayToken)) (inc i)
+					(define tok (tag:toks:get i))
+					(props:add
+						(if (= (tok:toks:size) 1)
+							`(begin
+								(sb:append " ")
+								(sb:append (tokString ,(tok:toks:get 0)))
+							)
+							`(begin
+								(sb:append " ")
+								(sb:append (tokString ,(tok:toks:get 0)))
+								(sb:append "=\"")
+								(sb:append (tokString ,(tok:toks:get 1)))
+								(sb:append "\"")
+							)
+						)
+					)
+				)
+				(define children (ArrayList{Token}))
+				(forEach tok (tag:toks:subList i size)
+					(if (instance? tok BlockToken)
+						(children:add `(sb:append (xml ,tok)))
+						(children:add `(sb:append (tokString ,tok)))
+					)
+				)
+				(if (&& selfClose (!= (children:size) 0)) (throw (RuntimeException)))
+				(out:add
+					`(begin
+						(sb:append "<")
+						(sb:append (tokString ,(tag:toks:get 0)))
+						,props
+						(sb:append ">")
+						,children
+						,(if selfClose
+							`()
+							`(begin
+								(sb:append "</")
+								(sb:append (tokString ,(tag:toks:get 0)))
+								(sb:append ">")
+							)
+						)
+						sb
+					)
+				)
+			)
+			(true
+				(out:add `(sb:append (tokString ,tag)))
+			)
+		)
+	)
+	`(begin
+		(define sb (StringBuffer))
+		,out
+		sb
+	)
 )

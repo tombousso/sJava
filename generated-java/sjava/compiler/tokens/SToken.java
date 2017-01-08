@@ -46,6 +46,10 @@ public class SToken extends LexedToken {
         return var10000;
     }
 
+    public String toStringParsed() {
+        return this.val;
+    }
+
     public SToken() {
     }
 }

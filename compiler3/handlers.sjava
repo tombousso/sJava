@@ -408,17 +408,8 @@
 	)
 	((compile tok VToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(if (tok:val:equals "this")
-			(begin
-				(if (!= (& (mi:method:getModifiers) Access:STATIC) 0) (throw (RuntimeException)))
-				(if output (this:code:emitPushThis))
-				mi:ci:c
-			)
-			(begin
-				(define found (mi:getVar tok))
-				(found:load this:code)
-			)
-		)
+		(define found (mi:getVar tok))
+		(found:load this:code)
 	)
 	((compile tok IncludeToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -513,8 +504,7 @@
 						(if output
 							(begin
 								(ci:c:addInterface tok:t)
-								(ci:addMethod "apply" params tok:ret Access:PUBLIC tok:toks scope)
-								(ci:compileMethods captureH)
+								(ci:addMethod "apply" params tok:ret Access:PUBLIC tok:toks scope false)
 							)
 						)
 					)
@@ -522,8 +512,7 @@
 						(if output
 							(begin
 								(ci:c:addInterface tok:t)
-								(ci:addMethod (tok:sam:getName) tok:params (Main:resolveType tok:t (tok:sam:getReturnType)) Access:PUBLIC tok:toks tok:scope)
-								(ci:compileMethods captureH)
+								(ci:addMethod (tok:sam:getName) tok:params (Main:resolveType tok:t (tok:sam:getReturnType)) Access:PUBLIC tok:toks tok:scope false)
 							)
 						)
 					)
@@ -537,13 +526,18 @@
 								(forEach tok tok:toks
 									(ci:compileDef tok)
 								)
-								(ci:compileMethods captureH)
 							)
 						)
 					)
 				)
 				(if output
 					(begin
+						(forEach omi ci:methods
+							(while (!= (omi:scopes:size) (mi:scopes:size))
+								(omi:pushLevel)
+							)
+						)
+						(ci:compileMethods captureH)
 						(set tok:captured (captureH:captured:keySet))
 						(this:createCtor ci:c (Emitter:emitAll emitters captureH mi null Main:unknownType) (captureH:captured:values))
 					)
@@ -975,7 +969,7 @@
 		(if (= found null)
 			(begin
 				(define outer (this:enc:getVar tok))
-				(if (= outer null) (throw (RuntimeException)))
+				(if (= outer null) (throw (RuntimeException (tok:toString))))
 				(define vcaptured (VCaptured outer null))
 				(this:assignField vcaptured mi this:code)
 				(((mi:scopes:get tok:macro):getLast):put tok:val vcaptured)

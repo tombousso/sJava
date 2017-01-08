@@ -1,11 +1,13 @@
 package sjava.compiler;
 
 import gnu.bytecode.Access;
+import gnu.bytecode.AnnotationEntry;
 import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
 import gnu.bytecode.ParameterizedType;
+import gnu.bytecode.RuntimeAnnotationsAttr;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import java.io.File;
@@ -30,6 +32,7 @@ import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.LexedParsedToken;
+import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 import sjava.std.Tuple2;
@@ -215,14 +218,46 @@ public class ClassInfo {
                 Integer mods = (Integer)tup._1;
                 Integer i = (Integer)tup._2;
                 int n = (mods.intValue() & Access.STATIC) == 0?1:0;
+                ClassType[] exceptions = (ClassType[])null;
+
+                ArrayList annotations;
+                for(annotations = new ArrayList(); i.intValue() != tok.toks.size() && (LexedParsedToken)tok.toks.get(i.intValue()) instanceof SingleQuoteToken; i = Integer.valueOf(i.intValue() + 1)) {
+                    List toks = ((LexedParsedToken)((LexedParsedToken)tok.toks.get(i.intValue())).toks.get(0)).toks;
+                    VToken first1 = (VToken)((LexedParsedToken)toks.get(0));
+                    if(!first1.val.equals("throws")) {
+                        annotations.add(new AnnotationEntry((ClassType)this.getType((Token)first1)));
+                    } else {
+                        List collection = toks.subList(1, toks.size());
+                        ClassType[] out = new ClassType[collection.size()];
+                        Iterator it = collection.iterator();
+
+                        for(int i1 = 0; it.hasNext(); ++i1) {
+                            LexedParsedToken tok1 = (LexedParsedToken)it.next();
+                            out[i1] = (ClassType)this.getType((Token)tok1);
+                        }
+
+                        exceptions = out;
+                    }
+                }
+
                 List types = Main.getParams(this, first, scope, 1, n);
-                this.addMethod(((VToken)((LexedParsedToken)first.toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)tok.toks.get(1))), mods.intValue(), tok.toks.subList(i.intValue(), tok.toks.size()), scope);
+                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)first.toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)tok.toks.get(1))), mods.intValue(), tok.toks.subList(i.intValue(), tok.toks.size()), scope);
+                if(exceptions != null) {
+                    mi.method.setExceptions(exceptions);
+                }
+
+                Iterator it1 = annotations.iterator();
+
+                for(int notused = 0; it1.hasNext(); ++notused) {
+                    AnnotationEntry annotation = (AnnotationEntry)it1.next();
+                    RuntimeAnnotationsAttr.maybeAddAnnotation(mi.method, annotation);
+                }
             } else {
                 String name = ((VToken)first).val;
                 if(!name.endsWith("!")) {
                     Tuple2 tup1 = Main.extractModifiers(tok.toks, 2);
                     Integer mods1 = (Integer)tup1._1;
-                    Integer i1 = (Integer)tup1._2;
+                    Integer i2 = (Integer)tup1._2;
                     Type t = this.getType((Token)((LexedParsedToken)tok.toks.get(1)));
                     this.c.addField(name, t, mods1.intValue());
                 }
@@ -330,13 +365,21 @@ public class ClassInfo {
         }
     }
 
-    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope) {
+    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope, boolean addThis) {
+        if(addThis && (mods & Access.STATIC) == 0) {
+            scope.put("this", new Arg(0, this.c));
+        }
+
         Type[] atypes = new Type[params.size()];
         params.toArray(atypes);
         Method method = this.c.addMethod(name, atypes, ret, mods);
         MethodInfo out = new MethodInfo(this, toks, method, scope);
         this.methods.add(out);
         return out;
+    }
+
+    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope) {
+        return this.addMethod(name, params, ret, mods, toks, scope, true);
     }
 
     public AMethodInfo addMethod(String name, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap<String, Arg> scope) {

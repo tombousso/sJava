@@ -45,6 +45,10 @@ public class LexedParsedToken extends Token {
         return this.endLine;
     }
 
+    public String toStringParsed() {
+        return this.toString();
+    }
+
     public LexedParsedToken() {
     }
 }

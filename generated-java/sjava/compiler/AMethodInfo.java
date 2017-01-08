@@ -1,6 +1,5 @@
 package sjava.compiler;
 
-import gnu.bytecode.Access;
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Label;
 import gnu.bytecode.Method;
@@ -14,7 +13,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 import sjava.compiler.AVar;
+import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.Main;
 import sjava.compiler.Var;
@@ -30,11 +31,11 @@ public class AMethodInfo {
     public BeginToken block;
     public Method method;
     public ArrayList<ArrayDeque<Map<String, AVar>>> scopes;
-    Map<String, AVar> firstScope;
+    Map<String, Arg> firstScope;
     ArrayDeque<Map> labels;
     boolean compiled;
 
-    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, AVar> firstScope) {
+    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, Arg> firstScope) {
         this.ci = ci;
         if(toks != null && toks.size() != 0) {
             this.block = new BeginToken(((LexedParsedToken)toks.get(0)).line, new ArrayList(toks));
@@ -61,9 +62,13 @@ public class AMethodInfo {
 
     public void popScope(CodeAttr code) {
         boolean output = code != null;
+        boolean i = false;
+        ArrayList iterable = this.scopes;
+        Iterator it = iterable.iterator();
 
-        for(int i = 0; i != this.scopes.size(); ++i) {
-            ((ArrayDeque)this.scopes.get(i)).pop();
+        for(int notused = 0; it.hasNext(); ++notused) {
+            ArrayDeque scope = (ArrayDeque)it.next();
+            scope.pop();
         }
 
         this.labels.pop();
@@ -89,7 +94,7 @@ public class AMethodInfo {
             }
         }
 
-        return found == null?(AVar)this.firstScope.get(tok.val):found;
+        return (AVar)(found == null?(Arg)this.firstScope.get(tok.val):found);
     }
 
     public Label getLabel(String name) {
@@ -125,13 +130,13 @@ public class AMethodInfo {
             BridgeFilter filter = new BridgeFilter(this.method);
             filter.searchAll();
             CodeAttr code = this.method.startCode();
-            Set paramNames = this.firstScope.keySet();
-            int o = (this.method.getModifiers() & Access.STATIC) == 0?1:0;
-            Iterator it = paramNames.iterator();
+            Set iterable = this.firstScope.entrySet();
+            Iterator it = iterable.iterator();
 
-            for(int i = 0; it.hasNext(); ++i) {
-                String paramName = (String)it.next();
-                code.getArg(o + i).setName(paramName);
+            for(int notused = 0; it.hasNext(); ++notused) {
+                Entry entry = (Entry)it.next();
+                Arg arg = (Arg)entry.getValue();
+                code.getArg(arg.n).setName((String)entry.getKey());
             }
 
             h.compile(this.block, this, code, this.method.getReturnType());

@@ -51,6 +51,9 @@
 	((lastLine) int 'public
 		this:endLine
 	)
+	((toStringParsed) String 'public
+		(this:toString)
+	)
 	((<init>) void 'public
 		(super:<init>)
 	)
@@ -133,6 +136,9 @@
 			)
 			(concat "\"" (org.apache.commons.lang3.StringEscapeUtils:escapeJava this:val) "\"")
 		)
+	)
+	((toStringParsed) String 'public
+		this:val
 	)
 	((<init>) void 'public
 		(super:<init>)

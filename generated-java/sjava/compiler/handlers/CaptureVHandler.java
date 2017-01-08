@@ -45,7 +45,7 @@ class CaptureVHandler extends GenHandler {
         if(found == null) {
             AVar outer = this.enc.getVar(tok);
             if(outer == null) {
-                throw new RuntimeException();
+                throw new RuntimeException(tok.toString());
             }
 
             VCaptured vcaptured = new VCaptured(outer, (Field)null);

@@ -1,21 +1,44 @@
 (import java.util.*)
 
 (import io.vertx.core.*)
-(import io.vertx.core.buffer.Buffer)
 (import io.vertx.core.http.*)
+(import io.vertx.core.buffer.Buffer)
+(import io.vertx.core.json.*)
 (import io.vertx.ext.web.*)
 (import io.vertx.ext.web.handler.*)
-(import io.vertx.ext.asyncsql.PostgreSQLClient)
 (import io.vertx.ext.sql.*)
-(import io.vertx.core.json.*)
-(import io.netty.handler.codec.http.QueryStringEncoder)
-(import org.mindrot.jbcrypt.BCrypt)
-(import io.vertx.ext.web.templ.PebbleTemplateEngine)
+(import io.vertx.ext.asyncsql.PostgreSQLClient)
+(import io.vertx.ext.sync.*)
 
-(define-class Main (AbstractVerticle) 'public
+(import io.netty.handler.codec.http.QueryStringEncoder)
+
+(import org.mindrot.jbcrypt.BCrypt)
+
+(import co.paralleluniverse.fibers.Suspendable)
+
+(import java.util.function.Consumer)
+
+(define-macro (fiberHandler @rest)
+	`(Sync:fiberHandler
+		(object (Handler{RoutingContext})
+			((handle rc RoutingContext) void '(Suspendable)
+				(try
+					(begin
+						,rest
+					)
+					(e Throwable
+						(rc:fail e)
+					)
+				)
+			)
+		)
+	)
+)
+
+(define-class Main (SyncVerticle) 'public
 	((main args String[]) void 'public 'static
 		(define vertx (Vertx:vertx))
-		(vertx:deployVerticle "Main" ((DeploymentOptions):setInstances 5))
+		(vertx:deployVerticle "Main" ((DeploymentOptions):setInstances 1))
 		(println "Serving at localhost:8080")
 		(println "Press enter to stop")
 		(System:in:read)
@@ -24,179 +47,158 @@
 
 	(httpClient HttpClient)
 	(conn SQLConnection)
-	(engine PebbleTemplateEngine)
 	((<init>) void 'public
 		(super:<init>)
 	)
-	((start fut Future{Void}) void 'public
-		(define onTableCreate
-			(lambda Handler{AsyncResult{Void}} (ar)
-				(if (ar:succeeded)
-					(this:setupRoutes fut)
-					(fut:fail (ar:cause))
-				)
-			)
-		)
-		(define onConnect
-			(lambda Handler{AsyncResult{SQLConnection}} (ar)
-				(if (ar:succeeded)
-					(begin
-						(set this:conn (ar:result))
-						(this:conn:execute
-							"""CREATE TABLE IF NOT EXISTS users
-							(
-								id serial PRIMARY KEY,
-								name text UNIQUE,
-								pass text
-							)
-							WITH (
-								OIDS = FALSE
-							)"""
-							onTableCreate
-						)
-					)
-					(fut:fail (ar:cause))
-				)
-			)
-		)
+	((start) void 'public '(Suspendable)
 		(define conf (JsonObject))
 		(conf:put "host" "localhost")
 		(conf:put "database" "postgres")
 		(conf:put "username" "postgres")
 		(conf:put "password" "root")
 		(define client (PostgreSQLClient:createShared this:vertx conf))
-		(client:getConnection onConnect)
-	)
-	((stop fut Future{Void}) void 'public
-		(this:conn:close (fut:completer))
-	)
-	((render path String rc RoutingContext) void
-		(this:engine:render rc path
-			(lambda Handler{AsyncResult{Buffer}} (ar)
-				(if (ar:succeeded)
-					((rc:response):end (ar:result))
-					(rc:fail (ar:cause))
+		(set this:conn
+			(Sync:awaitResult
+				(lambda Consumer{Handler{AsyncResult{SQLConnection}}} (h)
+					(client:getConnection h)
 				)
 			)
 		)
+		(Sync:awaitResult
+			(lambda Consumer{Handler{AsyncResult{SQLConnection}}} (h)
+				(this:conn:execute
+					"""CREATE TABLE IF NOT EXISTS users (
+						id serial PRIMARY KEY,
+						name text UNIQUE,
+						pass text
+					)
+					WITH (
+						OIDS = FALSE
+					)"""
+					h
+				)
+			)
+		)
+		(this:setupRoutes)
 	)
-	((setupRoutes fut Future{Void}) void
+	((stop fut Future{Void}) void 'public
+		(if (= this:conn null)
+			(fut:complete)
+			(this:conn:close (fut:completer))
+		)
+	)
+	((setupRoutes) void
 		(define options (HttpClientOptions))
 		(options:setSsl true)
 		(set this:httpClient (this:vertx:createHttpClient options))
-
-		(set this:engine (PebbleTemplateEngine:create this:vertx))
 
 		(define router (Router:router this:vertx))
 
 		((router:route):handler (BodyHandler:create))
 
+		(define outer this)
+
 		((router:route "/login"):handler
-			(lambda Handler{RoutingContext} (rc)
-				(define templ "templates/login")
+			(fiberHandler
+				(define this outer)
 				(define req (rc:request))
 				(define name (req:getParam "name"))
 				(define pass (req:getParam "pass"))
+				(define invalid false)
 				(if (&& (= (req:method) HttpMethod:POST) (!= name null) (!= pass null))
-					(this:conn:queryWithParams
-						"SELECT (pass) FROM users WHERE name=? LIMIT 1"
-						((JsonArray):add name)
-						(lambda Handler{AsyncResult{ResultSet}} (ar)
-							(define rs (ar:result))
-							(define valid
-								(&&
-									(!= (rs:getNumRows) 0)
-									(BCrypt:checkpw pass (((rs:getResults):get 0):getString 0))
-								)
-							)
-							(if valid
-								((rc:response):end "Success")
-								(begin
-									(rc:put "invalid" true)
-									(this:render templ rc)
+					(begin
+						(define rs
+							(Sync:awaitResult
+								(lambda Consumer{Handler{AsyncResult{ResultSet}}} (h)
+									(this:conn:queryWithParams
+										"SELECT (pass) FROM users WHERE name=? LIMIT 1"
+										((JsonArray):add name)
+										h
+									)
 								)
 							)
 						)
+						(define valid
+							(&&
+								(!= (rs:getNumRows) 0)
+								(BCrypt:checkpw pass (((rs:getResults):get 0):getString 0))
+							)
+						)
+						(if valid
+							(begin
+								((rc:response):end "Success")
+								(return)
+							)
+							(set invalid true)
+						)
 					)
-					(this:render templ rc)
 				)
+				((rc:response):end ((LoginPage:build invalid false):toString))
 			)
 		)
 
 		((router:route "/register"):handler
-			(lambda Handler{RoutingContext} (rc)
-				(define templ "templates/register")
+			(fiberHandler
+				(define this outer)
 				(define req (rc:request))
 				(define name (req:getParam "name"))
-				(rc:put "name" name)
 				(define pass (req:getParam "pass"))
 				(define g-recaptcha (req:getParam "g-recaptcha-response"))
+				(define taken false)
+				(define recaptchaError false)
 				(if
-					(||
-						(!= (req:method) HttpMethod:POST) (= name null) (= pass null) (= g-recaptcha null)
-						(begin
-							(define invalidName (! (name:matches "[a-zA-Z0-9]{1,100}")))
-							(rc:put "invalidName" invalidName)
-							invalidName
-						)
-						(begin
-							(define invalidPass (! (pass:matches "[a-zA-Z0-9]{5,100}")))
-							(rc:put "invalidPass" invalidPass)
-							invalidPass
-						)
+					(&&
+						(= (req:method) HttpMethod:POST) (!= name null) (!= pass null) (!= g-recaptcha null)
+						(name:matches "[a-zA-Z0-9]{1,100}") (pass:matches "[a-zA-Z0-9]{5,100}")
 					)
-					(this:render templ rc)
 					(begin
-						(define userRes (rc:response))
-						this
-						(define onUpdated
-							(lambda Handler{AsyncResult{UpdateResult}} (ar)
-								(if (ar:succeeded)
-									(userRes:end "Success")
-									(begin
-										(rc:put "taken" true)
-										(this:render templ rc)
-									)
-								)
-							)
-						)
-						(define onBody
-							(lambda Handler{Buffer} (buf)
-								(try
-									(if ((JsonObject (buf:toString)):getBoolean "success")
-										(this:conn:updateWithParams
-											"INSERT INTO users (name, pass) VALUES (?, ?)"
-											(with (JsonArray)
-												(add name)
-												(add (BCrypt:hashpw pass (BCrypt:gensalt 12)))
+						(define buf
+							(Sync:awaitEvent
+								(lambda Consumer{Handler{Buffer}} (h)
+									(define gPost
+										(this:httpClient:postAbs "https://www.google.com/recaptcha/api/siteverify"
+											(lambda Handler{HttpClientResponse} (gRes)
+												(gRes:bodyHandler h)
 											)
-											onUpdated
-										)
-										(begin
-											(rc:put "recaptchaError" true)
-											(this:render templ rc)
 										)
 									)
-									(e Throwable
-										(rc:fail e)
-									)
+									(define enc (QueryStringEncoder ""))
+									(enc:addParam "secret" "6Lek5yYTAAAAAJeKD2b6vmU6Zu7XztzvlN3d7yq3")
+									(enc:addParam "response" g-recaptcha)
+									(gPost:putHeader "content-type" "application/x-www-form-urlencoded")
+									(gPost:end ((enc:toString):substring 1))
 								)
 							)
 						)
-						(define gPost
-							(this:httpClient:postAbs "https://www.google.com/recaptcha/api/siteverify"
-								(lambda Handler{HttpClientResponse} (gRes)
-									(gRes:bodyHandler onBody)
+						(if ((JsonObject (buf:toString)):getBoolean "success")
+							(begin
+								(define ar
+									(Sync:awaitEvent
+										(lambda Consumer{Handler{AsyncResult{UpdateResult}}} (h)
+											(this:conn:updateWithParams
+												"INSERT INTO users (name, pass) VALUES (?, ?)"
+												(with (JsonArray)
+													(add name)
+													(add (BCrypt:hashpw pass (BCrypt:gensalt 12)))
+												)
+												h
+											)
+										)
+									)
+								)
+								(if (ar:succeeded)
+									(begin
+										((rc:response):end "Success")
+										(return)
+									)
+									(set taken true)
 								)
 							)
+							(set recaptchaError true)
 						)
-						(define enc (QueryStringEncoder ""))
-						(enc:addParam "secret" "6Lek5yYTAAAAAJeKD2b6vmU6Zu7XztzvlN3d7yq3")
-						(enc:addParam "response" g-recaptcha)
-						(gPost:putHeader "content-type" "application/x-www-form-urlencoded")
-						(gPost:end ((enc:toString):substring 1))
 					)
 				)
+				((rc:response):end ((RegisterPage:build taken recaptchaError (if (= name null) "" name)):toString))
 			)
 		)
 
@@ -207,7 +209,79 @@
 				)
 			):listen 8080
 		)
+	)
+)
 
-		(fut:complete)
+(define-class BasePage ()
+	((build body StringBuffer) StringBuffer 'static
+		(xml
+			(html
+				(head
+					(script src["https://www.google.com/recaptcha/api.js"])
+					(style
+						"""p {
+	display: inline;
+}
+.error {
+	background-color:#ff4d4d;
+}"""
+					)
+				)
+				(body
+					,body
+				)
+			)
+		)
+	)
+)
+
+(define-class LoginPage ()
+	((build invalid bool recaptcha bool) StringBuffer 'static
+		(BasePage:build
+			(xml
+				(if invalid
+					(div (p class[error] "Invalid username or password."))
+				)
+				"Login:" (br !)
+				(form action[login] method[post]
+					(input name[name] type[text] required[] placeholder[Name] !) (br !)
+					(input name[pass] type[text] required[] placeholder[Password] !) (br !)
+					(if recaptcha
+						(div class[g-recaptcha] data-sitekey["6Lek5yYTAAAAAAgYB34twlRzBIt1iYK4cWQsLcEJ"])
+					)
+					(input type[submit] value[Submit] !)
+				)
+			)
+		)
+	)
+)
+
+(define-class RegisterPage ()
+	((build taken bool recaptchaError bool name String) StringBuffer 'static
+		(BasePage:build
+			(xml
+				(if taken
+					(div (p class[error] "Username is already taken."))
+				)
+				(if recaptchaError
+					(div (p class[error] "reCAPTCHA error."))
+				)
+				"Register:" (br !)
+				(form action[register] method[post]
+					(input name[name] type[text] required[] placeholder[Username]
+						maxlength[100] value[,name] pattern["[a-zA-Z0-9]+"]
+						oninvalid["this.setCustomValidity('Minimum 1 character required, alphanumeric')"]
+						oninput["setCustomValidity('')"] !
+					)
+					(br !)
+					(input name[pass] type[text] required[] placeholder[Password] maxlength[100] pattern["[a-zA-Z0-9]{5,}"]
+						oninvalid["this.setCustomValidity('Minimum 5 characters required, alphanumeric')"]
+						oninput["setCustomValidity('')"] !
+					)
+					(div class[g-recaptcha] data-sitekey["6Lek5yYTAAAAAAgYB34twlRzBIt1iYK4cWQsLcEJ"])
+					(input type[submit] value[Submit] !)
+				)
+			)
+		)
 	)
 )

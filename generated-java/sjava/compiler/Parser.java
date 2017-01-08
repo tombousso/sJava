@@ -65,7 +65,7 @@ public class Parser {
 
             var10000 = t;
         } else {
-            List al = Arrays.asList(new Object[]{this.parse(2)});
+            List al = Arrays.asList(new Object[]{this.parse(0)});
             var10000 = !w.equals(",") && !w.equals(",$")?(w.equals("\'")?new SingleQuoteToken(t.line, al):new QuoteToken(t.line, al)):new UnquoteToken(t.line, al, w.equals(",$"));
         }
 
@@ -80,7 +80,7 @@ public class Parser {
             String w1 = this.peek(0).what;
             if(w1.equals(":")) {
                 this.next();
-                LexedParsedToken right = this.parse(2);
+                LexedParsedToken right = this.parse(1);
                 left = new ColonToken(t.line, new ArrayList(Arrays.asList(new Object[]{left, right})));
             } else if(w1.equals("{")) {
                 this.next();

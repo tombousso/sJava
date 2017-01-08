@@ -173,7 +173,7 @@ public class Main {
         oppositeOps.put(">", "<=");
         oppositeOps.put("!=0", "==0");
         oppositeOps.put("==0", "!=0");
-        precs = new String[][]{{"\"\"\"", "\"", ")", "}", "]", ";"}, {"\'", ",", ",$", "`"}, {":", "(", "{", "["}};
+        precs = new String[][]{{"\"\"\"", "\"", ")", "}", "]", ";"}, {"\'", ",", ",$", "`", ":", "(", "{", "["}};
         specialChars = new HashMap();
         specialChars.put("space", Character.valueOf(' '));
         specialChars.put("newline", Character.valueOf('\n'));
@@ -1238,7 +1238,7 @@ public class Main {
         int mods;
         for(mods = 0; i < toks.size(); ++i) {
             LexedParsedToken tok = (LexedParsedToken)toks.get(i);
-            if(!(tok instanceof SingleQuoteToken)) {
+            if(!(tok instanceof SingleQuoteToken) || !((LexedParsedToken)tok.toks.get(0) instanceof VToken)) {
                 return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
             }
 
