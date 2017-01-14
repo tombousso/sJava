@@ -371,9 +371,10 @@
 		(define n (/ (- (tok:toks:size) i) 2))
 		(define types (ArrayList{Type} n))
 		(for ((j 0)) (!= j n) (inc j)
+			(define arg VToken (tok:toks:get (+ (* j 2) i)))
 			(define type (ci:getType (tok:toks:get (+ (* j 2) i 1))))
 			(types:add type)
-			(scope:put (as VToken (tok:toks:get (+ (* j 2) i))):val (Arg (+ o j) type))
+			(scope:put arg:val (Arg type (+ o j) arg:macro))
 		)
 		types
 	)
@@ -464,7 +465,7 @@
 							(define params (ArrayList{Type} (args:toks:size)))
 							(forEachI arg args:toks i
 								(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
-								(scope:put (as VToken arg):val (Arg (+ i 1) param))
+								(scope:put (as VToken arg):val (Arg param (+ i 1) 0))
 								(params:add param)
 							)
 							(return (LambdaToken block:line (mi:getType (rest:get 0)) scope params (rest:subList 2 (rest:size)) sam))
@@ -509,7 +510,31 @@
 					(return (DefineToken block:line name type tok))
 				)
 				((val:equals "try")
-					(return (TryToken block:line (Main:transformToks block:toks mi)))
+					(define hasFinally
+						(&&
+							(!= (rest:size) 1)
+							(instance? ((rest:get (- (rest:size) 1)):toks:get 0) VToken)
+							((as VToken ((rest:get (- (rest:size) 1)):toks:get 0)):val:equals "finally")
+						)
+					)
+					(define finallyToks List{Token} null)
+					(if hasFinally
+						(begin
+							(define finallyToks (rest:get (- (rest:size) 1)):toks)
+							(set finallyToks (Main:transformToks (finallyToks:subList 1 (finallyToks:size)) mi))
+							(set rest (rest:subList 0 (- (rest:size) 1)))
+						)
+					)
+					(define catches
+						(mapA catch (rest:subList 1 (rest:size))
+							(Tuple3
+								(as VToken (catch:toks:get 0))
+								(mi:getType (catch:toks:get 1))
+								(Main:transformToks (catch:toks:subList 2 (catch:toks:size)) mi)
+							)
+						)
+					)
+					(return (TryToken block:line (Main:transformBlock (rest:get 0) mi) (Arrays:asList catches) finallyToks))
 				)
 				((val:equals "instance?")
 					(return (InstanceToken block:line (Main:transformBlock (block:toks:get 1) mi) (mi:getType (block:toks:get 2))))
@@ -627,10 +652,7 @@
 							)
 						)
 						(if transform
-							(begin
-								;(println block)
-								(return (DefaultToken block:line (Main:transformToks block:toks mi)))
-							)
+							(return (DefaultToken block:line (Main:transformToks block:toks mi)))
 							(return (BlockToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi false))))
 						)
 					)
@@ -1084,6 +1106,7 @@
 
 (define-class Tester () 'public
 	((main args String[]) void 'public 'static
+		(define exit 0)
 		(try
 			(begin
 				(define dir (File "examples/"))
@@ -1105,11 +1128,15 @@
 					(define out (baos:toString))
 					(define passed (out:equals expected))
 					(println name ": " (if passed "PASSED" "FAILED"))
-					(if (! passed) (return))
+					(if (! passed) (set exit 1))
 				)
 			)
-			(e Throwable (e:printStackTrace))
+			(e Throwable
+				(e:printStackTrace)
+				(System:exit 1)
+			)
 		)
+		(System:exit exit)
 	)
 )
 
@@ -1402,7 +1429,12 @@
 
 (define-class Arg (AVar) 'public
 	(n int)
-	((<init> n int type Type) void 'public (super:<init> type) (set this:n n))
+	(level int)
+	((<init> type Type n int level int) void 'public
+		(super:<init> type)
+		(set this:n n)
+		(set this:level level)
+	)
 	((load code CodeAttr) Type 'public
 		(define output (!= code null))
 		(if output (code:emitLoad (code:getArg this:n)))
@@ -1538,7 +1570,7 @@
 				)
 			)
 			(out:add (as Type t))
-			(scope:put name (Arg (+ o i) (as Type t)))
+			(scope:put name (Arg (as Type t) (+ o i) 0))
 		)
 		varargs
 	)
@@ -1577,7 +1609,7 @@
 						(define name (as VToken (params:toks:get 0)):val)
 						(define types (ArrayList{Type} (Arrays:asList (Type[] (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.GenHandler")))))
 						(define mods (| Access:PUBLIC Access:STATIC))
-						(scope:put "mi" (Arg 0 (Main:getCompilerType "AMethodInfo")))
+						(scope:put "mi" (Arg (Main:getCompilerType "AMethodInfo") 0 0))
 						(define varargs (this:getMacroParams types params scope))
 						(if varargs (set mods (| mods Access:TRANSIENT)))
 						(define cname ((("Macros$":concat (this:name:replace "/" "-")):concat "$"):concat (Integer:toString (this:macros:size))))
@@ -1600,7 +1632,7 @@
 						(define name (as VToken (params:toks:get 0)):val)
 						(define types (ArrayList{Type} (Arrays:asList (Type[] (Main:getCompilerType "ClassInfo")))))
 						(define mods (| Access:PUBLIC Access:STATIC))
-						(scope:put "ci" (Arg 0 (Main:getCompilerType "ClassInfo")))
+						(scope:put "ci" (Arg (Main:getCompilerType "ClassInfo") 0 0))
 						(define varargs (this:getMacroParams types params scope))
 						(if varargs (set mods (| mods Access:TRANSIENT)))
 						(define cname (concat "Macros$" (this:name:replace "/" "-") "$" (this:methodMacros:size)))
@@ -1644,7 +1676,7 @@
 	((compileInclude tok IncludeToken) void 'public
 		(define name ("$":concat (Integer:toString (this:includes:c:getMethodCount))))
 		(define scope (LinkedHashMap))
-		(scope:put "mi" (Arg 0 (Main:getCompilerType "AMethodInfo")))
+		(scope:put "mi" (Arg (Main:getCompilerType "AMethodInfo") 0 0))
 		(define params (Type[] (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.GenHandler")))
 		(define mi (this:includes:addMethod name (Arrays:asList params) (Main:getCompilerType "tokens.LexedParsedToken") (| Access:PUBLIC Access:STATIC) tok:toks scope))
 		(mi:compileMethodBody)
@@ -1938,7 +1970,7 @@
 	)
 	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap addThis bool) AMethodInfo 'public
 		(if (&& addThis (= (& mods Access:STATIC) 0))
-			(scope:put "this" (Arg 0 this:c))
+			(scope:put "this" (Arg this:c 0 0))
 		)
 		(define atypes (Type[] len:(params:size)))
 		(params:toArray atypes)
@@ -1993,8 +2025,16 @@
 		)
 		(set this:method method)
 		(set this:scopes (ArrayList))
-		(define h (ArrayDeque))
-		(this:scopes:add h)
+		(this:ensureLevels 0)
+		(forEach entry (firstScope:entrySet)
+			(this:ensureLevels (entry:getValue):level)
+			(define level (this:scopes:get (entry:getValue):level))
+			(if (= (level:size) 0)
+				(level:add (LinkedHashMap))
+			)
+			(define scope (level:getFirst))
+			(scope:put (entry:getKey) (entry:getValue))
+		)
 		(set this:firstScope firstScope)
 		(set this:labels (ArrayDeque))
 		(set this:compiled false)
@@ -2024,6 +2064,11 @@
 	((popLevel) void 'public
 		(this:scopes:remove (- (this:scopes:size) 1))
 	)
+	((ensureLevels n int) void 'public
+		(while (<= (this:scopes:size) n)
+			(this:pushLevel)
+		)
+	)
 	((getVar tok VToken) AVar 'public
 		(define scopes (this:scopes:get tok:macro))
 		(define found AVar null)
@@ -2034,7 +2079,7 @@
 				(set found (vars:get tok:val))
 			)
 		)
-		(if (= found null) (this:firstScope:get tok:val) found)
+		found
 	)
 	((getLabel name String) Label 'public
 		(define found Label null)

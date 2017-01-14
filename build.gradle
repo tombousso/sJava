@@ -94,7 +94,7 @@ task diff(dependsOn: [compiler2_2, compiler3_3]) {
 }
 
 task jar(type: Zip, dependsOn: [compiler]) {
-	archiveName = "sjava.jar"
+	archiveName = "${projectDir}/sjava.jar"
 	from(file("MANIFEST.MF"), { into("META-INF") })
 	from(fileTree("bin/main/sjava/compiler"), { into("sjava/compiler") })
 	from(fileTree("bin/main/sjava/std"), { into("sjava/std") })

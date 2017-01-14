@@ -6,10 +6,12 @@ import sjava.compiler.AVar;
 
 public class Arg extends AVar {
     int n;
+    int level;
 
-    public Arg(int n, Type type) {
+    public Arg(Type type, int n, int level) {
         super(type);
         this.n = n;
+        this.level = level;
     }
 
     public Type load(CodeAttr code) {

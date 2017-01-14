@@ -129,7 +129,7 @@ public class FileScope {
             }
 
             out.add((Type)t);
-            scope.put(name, new Arg(o + i, (Type)t));
+            scope.put(name, new Arg((Type)t, o + i, 0));
         }
 
         return varargs;
@@ -169,7 +169,7 @@ public class FileScope {
                 String name1 = ((VToken)((LexedParsedToken)params.toks.get(0))).val;
                 ArrayList types = new ArrayList(Arrays.asList(new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")}));
                 int mods = Access.PUBLIC | Access.STATIC;
-                scope.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
+                scope.put("mi", new Arg(Main.getCompilerType("AMethodInfo"), 0, 0));
                 boolean varargs = this.getMacroParams(types, params, scope);
                 if(varargs) {
                     mods |= Access.TRANSIENT;
@@ -194,7 +194,7 @@ public class FileScope {
                 String name2 = ((VToken)((LexedParsedToken)params1.toks.get(0))).val;
                 ArrayList types1 = new ArrayList(Arrays.asList(new Type[]{Main.getCompilerType("ClassInfo")}));
                 int mods1 = Access.PUBLIC | Access.STATIC;
-                scope1.put("ci", new Arg(0, Main.getCompilerType("ClassInfo")));
+                scope1.put("ci", new Arg(Main.getCompilerType("ClassInfo"), 0, 0));
                 boolean varargs1 = this.getMacroParams(types1, params1, scope1);
                 if(varargs1) {
                     mods1 |= Access.TRANSIENT;
@@ -258,7 +258,7 @@ public class FileScope {
     public void compileInclude(IncludeToken tok) {
         String name = "$".concat(Integer.toString(this.includes.c.getMethodCount()));
         LinkedHashMap scope = new LinkedHashMap();
-        scope.put("mi", new Arg(0, Main.getCompilerType("AMethodInfo")));
+        scope.put("mi", new Arg(Main.getCompilerType("AMethodInfo"), 0, 0));
         Type[] params = new Type[]{Main.getCompilerType("AMethodInfo"), Type.getType("gnu.bytecode.Type"), Type.intType, Main.getCompilerType("handlers.GenHandler")};
         AMethodInfo mi = this.includes.addMethod(name, Arrays.asList(params), Main.getCompilerType("tokens.LexedParsedToken"), Access.PUBLIC | Access.STATIC, tok.toks, scope);
         mi.compileMethodBody();

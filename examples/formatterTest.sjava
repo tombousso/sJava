@@ -1,6 +1,5 @@
 (package examples.formatterTest)
 
-(import java.nio.file.*)
 (define-class Main () 'public
 	((main args String[]) void 'public 'static
 		(Main:printFormatted

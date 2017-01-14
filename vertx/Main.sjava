@@ -18,16 +18,16 @@
 
 (import java.util.function.Consumer)
 
-(define-macro (fiberHandler @rest)
+(define-macro (fiberHandler rc @rest)
 	`(Sync:fiberHandler
 		(object (Handler{RoutingContext})
-			((handle rc RoutingContext) void '(Suspendable)
+			((handle ,rc RoutingContext) void '(Suspendable)
 				(try
 					(begin
 						,rest
 					)
 					(e Throwable
-						(rc:fail e)
+						((unquote rc):fail e)
 					)
 				)
 			)
@@ -99,7 +99,7 @@
 		(define outer this)
 
 		((router:route "/login"):handler
-			(fiberHandler
+			(fiberHandler rc
 				(define this outer)
 				(define req (rc:request))
 				(define name (req:getParam "name"))
@@ -138,7 +138,7 @@
 		)
 
 		((router:route "/register"):handler
-			(fiberHandler
+			(fiberHandler rc
 				(define this outer)
 				(define req (rc:request))
 				(define name (req:getParam "name"))

@@ -137,25 +137,25 @@ The date is the same in both runs because Gradle didn't recompile `macro.sjava`,
 And finally to run `doubledispatch`:
 
 	> ./gradlew run_doubledispatch
-	0 string1
-	1 string1
-	2 integer1
-	3 integer1
+	Visitor1 received a String: a
+	Visitor1 received a String: b
+	Visitor1 received an Integer: 1
+	Visitor1 received an Integer: 2
 
-	0 string2
-	1 string2
-	2 integer2
-	3 integer2
+	Visitor2 received a String: a
+	Visitor2 received a String: b
+	Visitor2 received an Integer: 1
+	Visitor2 received an Integer: 2
 
-If you have a look at `examples/doubledispatch.sjava` you will notice that it uses several macros, including `println` and `forEachI` ("`I`" suffix means the user wants to define an index variable).  
-The most interesting macro is called on line 24, `doubleDispatch`. This macro roughly expands to:
+If you have a look at `examples/doubledispatch.sjava` you will notice that it uses several macros, including `println` and `forEach`.  
+The most interesting macro is called on line 28, `doubleDispatch`. This macro roughly expands to:
 
 	(cond
 		((instance? o String)
-			(this:visit i (as String o))
+			(this:visit (as String o))
 		)
 		((instance? o Integer)
-			(this:visit i (as Integer o))
+			(this:visit (as Integer o))
 		)
 	)
 

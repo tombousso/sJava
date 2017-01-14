@@ -367,7 +367,7 @@ public class ClassInfo {
 
     public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope, boolean addThis) {
         if(addThis && (mods & Access.STATIC) == 0) {
-            scope.put("this", new Arg(0, this.c));
+            scope.put("this", new Arg(this.c, 0, 0));
         }
 
         Type[] atypes = new Type[params.size()];

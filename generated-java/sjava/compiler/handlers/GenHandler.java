@@ -77,6 +77,7 @@ import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
 import sjava.compiler.tokens.WhileToken;
+import sjava.std.Tuple3;
 
 public class GenHandler extends Handler {
     public static GenHandler inst = new GenHandler();
@@ -600,6 +601,7 @@ public class GenHandler extends Handler {
                 ArrayList toks = new ArrayList(tok1.toks);
                 if(tok1.t == null) {
                     MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, mi.ci.fs), (List)null, (Method)null, scope);
+                    fakemi.ensureLevels(mi.scopes.size() - 1);
                     BlockToken2 beginTok = Main.transformBlockToks(new BeginToken(0, toks), mi);
                     tok1.ret = Main.tryBox(captureH.compile(beginTok, fakemi, (CodeAttr)null, Main.unknownType));
                     generics.add(tok1.ret);
@@ -643,10 +645,7 @@ public class GenHandler extends Handler {
 
                 for(int notused1 = 0; it1.hasNext(); ++notused1) {
                     AMethodInfo omi = (AMethodInfo)it1.next();
-
-                    while(omi.scopes.size() != mi.scopes.size()) {
-                        omi.pushLevel();
-                    }
+                    omi.ensureLevels(mi.scopes.size() - 1);
                 }
 
                 ci.compileMethods(captureH);
@@ -794,25 +793,25 @@ public class GenHandler extends Handler {
 
     public Type compile(TryToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Type type = this.compile((Token)tok.toks.get(1), mi, (CodeAttr)null, needed);
-        DefaultToken last = (DefaultToken)((Token)tok.toks.get(tok.toks.size() - 1));
-        boolean hasFinally = ((VToken)((Token)last.toks.get(0))).val.equals("finally");
+        Type type = this.compile(tok.tok, mi, (CodeAttr)null, needed);
+        boolean hasFinally = tok.finallyToks != null;
         if(output) {
             this.code.emitTryStart(hasFinally, type);
         }
 
-        this.compile((Token)tok.toks.get(1), mi, this.code, needed);
-        int e = tok.toks.size() - (hasFinally?1:0);
+        this.compile(tok.tok, mi, this.code, needed);
+        List iterable = tok.catches;
+        Iterator it = iterable.iterator();
 
-        for(int i = 2; i != e; ++i) {
-            DefaultToken var10 = (DefaultToken)((Token)tok.toks.get(i));
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Tuple3 var10 = (Tuple3)it.next();
             mi.pushScope(this.code, Collections.emptyMap());
-            Variable var = mi.newVar(this.code, (VToken)((Token)var10.toks.get(0)), mi.getType((Token)var10.toks.get(1)));
+            Variable var = mi.newVar(this.code, (VToken)var10._1, (Type)var10._2);
             if(output) {
                 this.code.emitCatchStart(var);
             }
 
-            this.compileAll(var10.toks, 2, var10.toks.size(), mi, this.code, type);
+            this.compileAll((List)var10._3, 0, ((List)var10._3).size(), mi, this.code, type);
             if(output) {
                 this.code.emitCatchEnd();
             }
@@ -825,7 +824,7 @@ public class GenHandler extends Handler {
                 this.code.emitFinallyStart();
             }
 
-            this.compileAll(last.toks, 1, last.toks.size(), mi, this.code, type);
+            this.compileAll(tok.finallyToks, 0, tok.finallyToks.size(), mi, this.code, type);
             if(output) {
                 this.code.emitFinallyEnd();
             }

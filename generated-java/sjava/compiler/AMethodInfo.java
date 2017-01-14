@@ -43,8 +43,22 @@ public class AMethodInfo {
 
         this.method = method;
         this.scopes = new ArrayList();
-        ArrayDeque h = new ArrayDeque();
-        this.scopes.add(h);
+        this.ensureLevels(0);
+        Set iterable = firstScope.entrySet();
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Entry entry = (Entry)it.next();
+            this.ensureLevels(((Arg)entry.getValue()).level);
+            ArrayDeque level = (ArrayDeque)this.scopes.get(((Arg)entry.getValue()).level);
+            if(level.size() == 0) {
+                level.add(new LinkedHashMap());
+            }
+
+            Map scope = (Map)level.getFirst();
+            scope.put((String)entry.getKey(), (Arg)entry.getValue());
+        }
+
         this.firstScope = firstScope;
         this.labels = new ArrayDeque();
         this.compiled = false;
@@ -82,6 +96,13 @@ public class AMethodInfo {
         this.scopes.remove(this.scopes.size() - 1);
     }
 
+    public void ensureLevels(int n) {
+        while(this.scopes.size() <= n) {
+            this.pushLevel();
+        }
+
+    }
+
     public AVar getVar(VToken tok) {
         ArrayDeque scopes = (ArrayDeque)this.scopes.get(tok.macro);
         AVar found = (AVar)null;
@@ -94,7 +115,7 @@ public class AMethodInfo {
             }
         }
 
-        return (AVar)(found == null?(Arg)this.firstScope.get(tok.val):found);
+        return found;
     }
 
     public Label getLabel(String name) {

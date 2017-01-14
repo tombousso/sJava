@@ -493,6 +493,7 @@
 						(if (= tok:t null)
 							(begin
 								(define fakemi (MethodInfo (ClassInfo (as ClassType null) mi:ci:fs) null null scope))
+								(fakemi:ensureLevels (- (mi:scopes:size) 1))
 								(define beginTok (Main:transformBlockToks (BeginToken 0 toks) mi))
 								(set tok:ret (Main:tryBox (captureH:compile beginTok fakemi null Main:unknownType)))
 								(generics:add tok:ret)
@@ -533,9 +534,7 @@
 				(if output
 					(begin
 						(forEach omi ci:methods
-							(while (!= (omi:scopes:size) (mi:scopes:size))
-								(omi:pushLevel)
-							)
+							(omi:ensureLevels (- (mi:scopes:size) 1))
 						)
 						(ci:compileMethods captureH)
 						(set tok:captured (captureH:captured:keySet))
@@ -649,25 +648,22 @@
 	)
 	((compile tok TryToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(define type (this:compile (tok:toks:get 1) mi null needed))
-		(define last DefaultToken (tok:toks:get (- (tok:toks:size) 1)))
-		(define hasFinally ((as VToken (last:toks:get 0)):val:equals "finally"))
+		(define type (this:compile tok:tok mi null needed))
+		(define hasFinally (!= tok:finallyToks null))
 		(if output (this:code:emitTryStart hasFinally type))
-		(this:compile (tok:toks:get 1) mi this:code needed)
-		(define e (- (tok:toks:size) (if hasFinally 1 0)))
-		(for ((i 2)) (!= i e) (inc i)
-			(define catch DefaultToken (tok:toks:get i))
+		(this:compile tok:tok mi this:code needed)
+		(forEach catch tok:catches
 			(mi:pushScope this:code (Collections:emptyMap)) ;catch:labels
-			(define var (mi:newVar this:code (as VToken (catch:toks:get 0)) (mi:getType (catch:toks:get 1))))
+			(define var (mi:newVar this:code catch:_1 catch:_2))
 			(if output (this:code:emitCatchStart var))
-			(this:compileAll catch:toks 2 (catch:toks:size) mi this:code type)
+			(this:compileAll catch:_3 0 (catch:_3:size) mi this:code type)
 			(if output (this:code:emitCatchEnd))
 			(mi:popScope this:code)
 		)
 		(if hasFinally
 			(begin
 				(if output (this:code:emitFinallyStart))
-				(this:compileAll last:toks 1 (last:toks:size) mi this:code type)
+				(this:compileAll tok:finallyToks 0 (tok:finallyToks:size) mi this:code type)
 				(if output (this:code:emitFinallyEnd))
 			)
 		)

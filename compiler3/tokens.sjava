@@ -426,10 +426,14 @@
 )
 
 (define-class TryToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(tok Token 'public)
+	(catches List{Tuple3{VToken Type List{Token}}} 'public)
+	(finallyToks List{Token} 'public)
+	((<init> line int tok Token catches List finallyToks List{Token}) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:tok tok)
+		(set this:catches catches)
+		(set this:finallyToks finallyToks)
 	)
 )
 

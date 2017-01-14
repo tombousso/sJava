@@ -9,6 +9,8 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 public class Tester {
     public static void main(String[] args) {
+        byte exit = 0;
+
         try {
             File dir = new File("examples/");
             WildcardFileFilter fileFilter = new WildcardFileFilter("*.expected.txt");
@@ -42,12 +44,14 @@ public class Tester {
                 sb1.append(passed?"PASSED":"FAILED");
                 var10000.println(sb1.toString());
                 if(!passed) {
-                    return;
+                    exit = 1;
                 }
             }
-        } catch (Throwable var19) {
-            var19.printStackTrace();
+        } catch (Throwable var20) {
+            var20.printStackTrace();
+            System.exit(1);
         }
 
+        System.exit(exit);
     }
 }

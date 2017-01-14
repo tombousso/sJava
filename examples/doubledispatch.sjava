@@ -5,12 +5,16 @@
 		(define objects (Object[] "a" "b" 1 2))
 
 		(define v1 (Visitor1))
-		(forEachI o objects i (v1:visit i o))
+		(forEach o objects
+			(v1:visit o)
+		)
 
 		(println)
 
 		(define v2 (Visitor2))
-		(forEachI o objects i (v2:visit i o))
+		(forEach o objects
+			(v2:visit o)
+		)
 	)
 )
 
@@ -18,10 +22,10 @@
 	((<init>) void
 		(super:<init>)
 	)
-	((visit i int s String) void 'abstract)
-	((visit i int n Integer) void 'abstract)
-	((visit i int o Object) void
-		(doubleDispatch (this:visit i _) o)
+	((visit s String) void 'abstract)
+	((visit n Integer) void 'abstract)
+	((visit o Object) void
+		(doubleDispatch (this:visit _) o)
 	)
 )
 
@@ -29,11 +33,11 @@
 	((<init>) void
 		(super:<init>)
 	)
-	((visit i int s String) void
-		(println i " string1")
+	((visit s String) void
+		(println "Visitor1 received a String: " s)
 	)
-	((visit i int n Integer) void
-		(println i " integer1")
+	((visit n Integer) void
+		(println "Visitor1 received an Integer: " n)
 	)
 )
 
@@ -41,10 +45,10 @@
 	((<init>) void
 		(super:<init>)
 	)
-	((visit i int s String) void
-		(println i " string2")
+	((visit s String) void
+		(println "Visitor2 received a String: " s)
 	)
-	((visit i int n Integer) void
-		(println i " integer2")
+	((visit n Integer) void
+		(println "Visitor2 received an Integer: " n)
 	)
 )

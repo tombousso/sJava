@@ -256,7 +256,7 @@
 	(define f (ci:c:getField s -1))
 	(define tok `((set this:,$s ,$s)))
 	(define scope (LinkedHashMap))
-	(scope:put s (sjava.compiler.Arg 1 (f:getType)))
+	(scope:put s (sjava.compiler.Arg (f:getType) 1 0))
 	(define tup (sjava.compiler.Main:extractModifiers (Arrays:asList rest) 1))
 	(ci:addMethod (concat "set" (Character:toUpperCase (s:charAt 0)) (s:substring 1 (s:length))) Type:voidType tup:_1 tok:toks scope)
 )
@@ -269,13 +269,13 @@
 		(define param (params:toks:get i))
 		(instanceCond param
 			(VToken
-				(scope:put param:val (sjava.compiler.Arg arg (ci:getType (params:toks:get (+ i 1)))))
+				(scope:put param:val (sjava.compiler.Arg (ci:getType (params:toks:get (+ i 1))) arg 0))
 				(inc i)
 			)
 			(SingleQuoteToken
 				(define s (as VToken (param:toks:get 0)):val)
 				(define f (ci:c:getField s -1))
-				(scope:put s (sjava.compiler.Arg arg (f:getType)))
+				(scope:put s (sjava.compiler.Arg (f:getType) arg 0))
 				(sets:add `(set this:,$s ,$s))
 			)
 		)

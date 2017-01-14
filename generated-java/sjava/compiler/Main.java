@@ -89,6 +89,7 @@ import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
 import sjava.compiler.tokens.WhileToken;
 import sjava.std.Tuple2;
+import sjava.std.Tuple3;
 
 public class Main {
     static int ML;
@@ -497,9 +498,10 @@ public class Main {
         ArrayList types = new ArrayList(n);
 
         for(int j = 0; j != n; ++j) {
+            VToken arg = (VToken)((LexedParsedToken)tok.toks.get(j * 2 + i));
             Type type = ci.getType((Token)((LexedParsedToken)tok.toks.get(j * 2 + i + 1)));
             types.add(type);
-            scope.put(((VToken)((LexedParsedToken)tok.toks.get(j * 2 + i))).val, new Arg(o + j, type));
+            scope.put(arg.val, new Arg(type, o + j, arg.macro));
         }
 
         return types;
@@ -597,7 +599,7 @@ public class Main {
                     for(int i = 0; it.hasNext(); ++i) {
                         LexedParsedToken arg = (LexedParsedToken)it.next();
                         Type param = resolveType(t, sam.getGenericParameterTypes()[i]);
-                        scope.put(((VToken)arg).val, new Arg(i + 1, param));
+                        scope.put(((VToken)arg).val, new Arg(param, i + 1, 0));
                         params1.add(param);
                     }
 
@@ -645,7 +647,24 @@ public class Main {
                 }
 
                 if(val.equals("try")) {
-                    return new TryToken(block.line, transformToks(block.toks, mi));
+                    boolean hasFinally = rest.size() != 1 && (LexedParsedToken)((LexedParsedToken)rest.get(rest.size() - 1)).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((LexedParsedToken)rest.get(rest.size() - 1)).toks.get(0))).val.equals("finally");
+                    List finallyToks = (List)null;
+                    if(hasFinally) {
+                        List finallyToks1 = ((LexedParsedToken)rest.get(rest.size() - 1)).toks;
+                        finallyToks1 = transformToks(finallyToks1.subList(1, finallyToks1.size()), mi);
+                        rest = rest.subList(0, rest.size() - 1);
+                    }
+
+                    List collection = rest.subList(1, rest.size());
+                    Tuple3[] out = new Tuple3[collection.size()];
+                    Iterator it1 = collection.iterator();
+
+                    for(int i1 = 0; it1.hasNext(); ++i1) {
+                        LexedParsedToken var29 = (LexedParsedToken)it1.next();
+                        out[i1] = new Tuple3((VToken)((LexedParsedToken)var29.toks.get(0)), mi.getType((LexedParsedToken)var29.toks.get(1)), transformToks(var29.toks.subList(2, var29.toks.size()), mi));
+                    }
+
+                    return new TryToken(block.line, transformBlock((LexedParsedToken)rest.get(0), mi), Arrays.asList(out), finallyToks);
                 }
 
                 if(val.equals("instance?")) {
