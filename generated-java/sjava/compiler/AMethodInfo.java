@@ -30,7 +30,7 @@ public class AMethodInfo {
     public ClassInfo ci;
     public BeginToken block;
     public Method method;
-    public ArrayList<ArrayDeque<Map<String, AVar>>> scopes;
+    public ArrayList<ArrayDeque<Map<String, AVar>>> levels;
     Map<String, Arg> firstScope;
     ArrayDeque<Map> labels;
     boolean compiled;
@@ -42,7 +42,7 @@ public class AMethodInfo {
         }
 
         this.method = method;
-        this.scopes = new ArrayList();
+        this.levels = new ArrayList();
         this.ensureLevels(0);
         Set iterable = firstScope.entrySet();
         Iterator it = iterable.iterator();
@@ -50,7 +50,7 @@ public class AMethodInfo {
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
             this.ensureLevels(((Arg)entry.getValue()).level);
-            ArrayDeque level = (ArrayDeque)this.scopes.get(((Arg)entry.getValue()).level);
+            ArrayDeque level = (ArrayDeque)this.levels.get(((Arg)entry.getValue()).level);
             if(level.size() == 0) {
                 level.add(new LinkedHashMap());
             }
@@ -66,9 +66,12 @@ public class AMethodInfo {
 
     public void pushScope(CodeAttr code, Map label) {
         boolean output = code != null;
+        ArrayList iterable = this.levels;
+        Iterator it = iterable.iterator();
 
-        for(int i = 0; i != this.scopes.size(); ++i) {
-            ((ArrayDeque)this.scopes.get(i)).push(new HashMap());
+        for(int notused = 0; it.hasNext(); ++notused) {
+            ArrayDeque level = (ArrayDeque)it.next();
+            level.push(new HashMap());
         }
 
         this.labels.push(label);
@@ -77,34 +80,34 @@ public class AMethodInfo {
     public void popScope(CodeAttr code) {
         boolean output = code != null;
         boolean i = false;
-        ArrayList iterable = this.scopes;
+        ArrayList iterable = this.levels;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
-            ArrayDeque scope = (ArrayDeque)it.next();
-            scope.pop();
+            ArrayDeque level = (ArrayDeque)it.next();
+            level.pop();
         }
 
         this.labels.pop();
     }
 
     public void pushLevel() {
-        this.scopes.add(new ArrayDeque());
+        this.levels.add(new ArrayDeque());
     }
 
     public void popLevel() {
-        this.scopes.remove(this.scopes.size() - 1);
+        this.levels.remove(this.levels.size() - 1);
     }
 
     public void ensureLevels(int n) {
-        while(this.scopes.size() <= n) {
+        while(this.levels.size() <= n) {
             this.pushLevel();
         }
 
     }
 
     public AVar getVar(VToken tok) {
-        ArrayDeque scopes = (ArrayDeque)this.scopes.get(tok.macro);
+        ArrayDeque scopes = (ArrayDeque)this.levels.get(tok.macro);
         AVar found = (AVar)null;
         Iterator it = scopes.iterator();
 
@@ -136,7 +139,7 @@ public class AMethodInfo {
         boolean output = code != null;
         String name = tok.val;
         Variable var = output?code.addLocal(type.getRawType(), name):(Variable)null;
-        ((HashMap)((Map)((ArrayDeque)this.scopes.get(tok.macro)).getFirst())).put(name, new Var(var, type));
+        ((HashMap)((Map)((ArrayDeque)this.levels.get(tok.macro)).getFirst())).put(name, new Var(var, type));
         return var;
     }
 

@@ -41,7 +41,7 @@ class CaptureVHandler extends GenHandler {
             this.assignField((VCaptured)found, mi, super.code);
         }
 
-        Type var10000;
+        Type var10001;
         if(found == null) {
             AVar outer = this.enc.getVar(tok);
             if(outer == null) {
@@ -50,12 +50,12 @@ class CaptureVHandler extends GenHandler {
 
             VCaptured vcaptured = new VCaptured(outer, (Field)null);
             this.assignField(vcaptured, mi, super.code);
-            ((Map)((ArrayDeque)mi.scopes.get(tok.macro)).getLast()).put(tok.val, vcaptured);
-            var10000 = vcaptured.load(super.code);
+            ((Map)((ArrayDeque)mi.levels.get(tok.macro)).getLast()).put(tok.val, vcaptured);
+            var10001 = vcaptured.load(super.code);
         } else {
-            var10000 = found.load(super.code);
+            var10001 = found.load(super.code);
         }
 
-        return var10000;
+        return this.castMaybe(var10001, needed);
     }
 }

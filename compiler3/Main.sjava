@@ -2013,7 +2013,7 @@
 	(ci ClassInfo 'public)
 	(block BeginToken 'public)
 	(method Method 'public)
-	(scopes ArrayList{ArrayDeque{Map{String AVar}}} 'public)
+	(levels ArrayList{ArrayDeque{Map{String AVar}}} 'public)
 	(firstScope Map{String Arg})
 	(labels ArrayDeque{Map})
 	(compiled bool)
@@ -2024,11 +2024,11 @@
 			(set this:block (BeginToken (toks:get 0):line (ArrayList{Token} toks)))
 		)
 		(set this:method method)
-		(set this:scopes (ArrayList))
+		(set this:levels (ArrayList))
 		(this:ensureLevels 0)
 		(forEach entry (firstScope:entrySet)
 			(this:ensureLevels (entry:getValue):level)
-			(define level (this:scopes:get (entry:getValue):level))
+			(define level (this:levels:get (entry:getValue):level))
 			(if (= (level:size) 0)
 				(level:add (LinkedHashMap))
 			)
@@ -2041,10 +2041,8 @@
 	)
 	((pushScope code CodeAttr label Map) void 'public
 		(define output (!= code null))
-		(define i 0)
-		(while (!= i (this:scopes:size))
-			((this:scopes:get i):push (HashMap))
-			(set i (+ i 1))
+		(forEach level this:levels
+			(level:push (HashMap))
 		)
 		(this:labels:push label)
 		;(if output (code:pushScope))
@@ -2052,25 +2050,25 @@
 	((popScope code CodeAttr) void 'public
 		(define output (!= code null))
 		(define i 0)
-		(forEach scope this:scopes
-			(scope:pop)
+		(forEach level this:levels
+			(level:pop)
 		)
 		(this:labels:pop)
 		;(if output (code:popScope))
 	)
 	((pushLevel) void 'public
-		(this:scopes:add (ArrayDeque))
+		(this:levels:add (ArrayDeque))
 	)
 	((popLevel) void 'public
-		(this:scopes:remove (- (this:scopes:size) 1))
+		(this:levels:remove (- (this:levels:size) 1))
 	)
 	((ensureLevels n int) void 'public
-		(while (<= (this:scopes:size) n)
+		(while (<= (this:levels:size) n)
 			(this:pushLevel)
 		)
 	)
 	((getVar tok VToken) AVar 'public
-		(define scopes (this:scopes:get tok:macro))
+		(define scopes (this:levels:get tok:macro))
 		(define found AVar null)
 		(define it (scopes:iterator))
 		(while (&& (it:hasNext) (= found null))
@@ -2096,7 +2094,7 @@
 		(define output (!= code null))
 		(define name tok:val)
 		(define var Variable (if output (code:addLocal (type:getRawType) name) null))
-		((as HashMap ((this:scopes:get tok:macro):getFirst)):put name (Var var type))
+		((as HashMap ((this:levels:get tok:macro):getFirst)):put name (Var var type))
 		var
 	)
 	((getType tok Token) Type 'public

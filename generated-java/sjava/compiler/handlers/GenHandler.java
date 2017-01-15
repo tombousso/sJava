@@ -115,6 +115,10 @@ public class GenHandler extends Handler {
                 if(result instanceof PrimType) {
                     if(needed instanceof ClassType) {
                         if(result == Type.voidType) {
+                            if(needed != Type.getType("java.lang.Void")) {
+                                throw new RuntimeException();
+                            }
+
                             if(output) {
                                 code.emitPushNull();
                             }
@@ -172,19 +176,19 @@ public class GenHandler extends Handler {
             this.code.emitPushString(tok.val);
         }
 
-        return Type.javalangStringType;
+        return this.castMaybe(Type.javalangStringType, needed);
     }
 
     public Type compile(CToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         char c = tok.val.charValue();
-        Object var10000;
+        Type var10000;
         if(!(needed instanceof PrimType)) {
             if(output) {
                 this.code.emitPushInt(c);
             }
 
-            var10000 = Type.charType;
+            var10000 = this.castMaybe(Type.charType, needed);
         } else {
             if(output) {
                 this.code.emitPushConstant(c, needed);
@@ -193,27 +197,27 @@ public class GenHandler extends Handler {
             var10000 = needed;
         }
 
-        return (Type)var10000;
+        return var10000;
     }
 
     public Type compile(NToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         Number val = tok.val;
-        Object var10000;
+        Object var10001;
         if(val instanceof Double) {
             Double val1 = (Double)val;
             if(output) {
                 this.code.emitPushDouble(val1.doubleValue());
             }
 
-            var10000 = Type.doubleType;
+            var10001 = Type.doubleType;
         } else if(val instanceof Float) {
             Float val2 = (Float)val;
             if(output) {
                 this.code.emitPushFloat(val2.floatValue());
             }
 
-            var10000 = Type.floatType;
+            var10001 = Type.floatType;
         } else {
             if(!(val instanceof Integer)) {
                 throw new RuntimeException();
@@ -225,17 +229,17 @@ public class GenHandler extends Handler {
                     this.code.emitPushInt(val3.intValue());
                 }
 
-                var10000 = Type.intType;
+                var10001 = Type.intType;
             } else {
                 if(output) {
                     this.code.emitPushConstant(val3.intValue(), needed);
                 }
 
-                var10000 = needed;
+                var10001 = needed;
             }
         }
 
-        return (Type)var10000;
+        return this.castMaybe((Type)var10001, needed);
     }
 
     public Type compile(FieldToken tok, AMethodInfo mi, Type needed) {
@@ -260,7 +264,7 @@ public class GenHandler extends Handler {
             this.code.emitCheckcast(out.getRawType());
         }
 
-        return out;
+        return this.castMaybe(out, needed);
     }
 
     Type compileQuasi(Object o, AMethodInfo mi, CodeAttr code, Type needed) {
@@ -491,39 +495,39 @@ public class GenHandler extends Handler {
 
     public Type compile(QuoteToken2 tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        return this.compileQuasi(tok.tok, mi, this.code, Main.getCompilerType("tokens.LexedParsedToken"));
+        return this.castMaybe(this.compileQuasi(tok.tok, mi, this.code, Main.getCompilerType("tokens.LexedParsedToken")), needed);
     }
 
     public Type compile(ConstToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        Object var10000;
+        Object var10001;
         if(tok.val.equals("true")) {
             if(output) {
                 this.code.emitPushInt(1);
             }
 
-            var10000 = Type.booleanType;
+            var10001 = Type.booleanType;
         } else if(tok.val.equals("false")) {
             if(output) {
                 this.code.emitPushInt(0);
             }
 
-            var10000 = Type.booleanType;
+            var10001 = Type.booleanType;
         } else {
             if(output) {
                 this.code.emitPushNull();
             }
 
-            var10000 = Type.nullType;
+            var10001 = Type.nullType;
         }
 
-        return (Type)var10000;
+        return this.castMaybe((Type)var10001, needed);
     }
 
     public Type compile(VToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         AVar found = mi.getVar(tok);
-        return found.load(this.code);
+        return this.castMaybe(found.load(this.code), needed);
     }
 
     public Type compile(IncludeToken tok, AMethodInfo mi, Type needed) {
@@ -542,7 +546,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return this.compile(tok.ret, mi, this.code, needed);
+        return this.castMaybe(this.compile(tok.ret, mi, this.code, needed), needed);
     }
 
     void createCtor(ClassType c, Type[] types, Collection<Field> fields) {
@@ -601,7 +605,7 @@ public class GenHandler extends Handler {
                 ArrayList toks = new ArrayList(tok1.toks);
                 if(tok1.t == null) {
                     MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, mi.ci.fs), (List)null, (Method)null, scope);
-                    fakemi.ensureLevels(mi.scopes.size() - 1);
+                    fakemi.ensureLevels(mi.levels.size() - 1);
                     BlockToken2 beginTok = Main.transformBlockToks(new BeginToken(0, toks), mi);
                     tok1.ret = Main.tryBox(captureH.compile(beginTok, fakemi, (CodeAttr)null, Main.unknownType));
                     generics.add(tok1.ret);
@@ -645,7 +649,7 @@ public class GenHandler extends Handler {
 
                 for(int notused1 = 0; it1.hasNext(); ++notused1) {
                     AMethodInfo omi = (AMethodInfo)it1.next();
-                    omi.ensureLevels(mi.scopes.size() - 1);
+                    omi.ensureLevels(mi.levels.size() - 1);
                 }
 
                 ci.compileMethods(captureH);
@@ -668,7 +672,7 @@ public class GenHandler extends Handler {
             Main.emitInvoke(this, "<init>", ci.c, emitters, mi, this.code, Main.unknownType);
         }
 
-        return tok.t;
+        return this.castMaybe(tok.t, needed);
     }
 
     public Type compile(MacroCallToken tok, AMethodInfo mi, Type needed) {
@@ -708,7 +712,7 @@ public class GenHandler extends Handler {
             }
 
             Class[] classes = out;
-            ArrayList args = new ArrayList(Arrays.asList(new Object[]{mi, needed, Integer.valueOf(mi.scopes.size()), this}));
+            ArrayList args = new ArrayList(Arrays.asList(new Object[]{mi, needed, Integer.valueOf(mi.levels.size()), this}));
             Object var10001;
             if((method.getModifiers() & Access.TRANSIENT) != 0) {
                 int var = params.length - o - 1;
@@ -738,7 +742,7 @@ public class GenHandler extends Handler {
         mi.pushLevel();
         Type out2 = this.compile(tok.ret, mi, this.code, needed);
         mi.popLevel();
-        return out2;
+        return this.castMaybe(out2, needed);
     }
 
     public Type compile(BeginToken tok, AMethodInfo mi, Type needed) {
@@ -811,7 +815,8 @@ public class GenHandler extends Handler {
                 this.code.emitCatchStart(var);
             }
 
-            this.compileAll((List)var10._3, 0, ((List)var10._3).size(), mi, this.code, type);
+            this.compileAll((List)var10._3, 0, ((List)var10._3).size() - 1, mi, this.code, Type.voidType);
+            this.compile((Token)((List)var10._3).get(((List)var10._3).size() - 1), mi, type);
             if(output) {
                 this.code.emitCatchEnd();
             }
@@ -824,7 +829,8 @@ public class GenHandler extends Handler {
                 this.code.emitFinallyStart();
             }
 
-            this.compileAll(tok.finallyToks, 0, tok.finallyToks.size(), mi, this.code, type);
+            this.compileAll(tok.finallyToks, 0, tok.finallyToks.size() - 1, mi, this.code, Type.voidType);
+            this.compile((Token)tok.finallyToks.get(tok.finallyToks.size() - 1), mi, type);
             if(output) {
                 this.code.emitFinallyEnd();
             }
@@ -834,7 +840,7 @@ public class GenHandler extends Handler {
             this.code.emitTryCatchEnd();
         }
 
-        return type;
+        return this.castMaybe(type, needed);
     }
 
     public Type compile(InstanceToken tok, AMethodInfo mi, Type needed) {
@@ -844,7 +850,7 @@ public class GenHandler extends Handler {
             this.code.emitInstanceof(tok.type);
         }
 
-        return Type.booleanType;
+        return this.castMaybe(Type.booleanType, needed);
     }
 
     public Type compile(SetToken tok, AMethodInfo mi, Type needed) {
@@ -904,7 +910,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return type.elements;
+        return this.castMaybe(type.elements, needed);
     }
 
     public Type compile(ALenToken tok, AMethodInfo mi, Type needed) {
@@ -914,12 +920,12 @@ public class GenHandler extends Handler {
             this.code.emitArrayLength();
         }
 
-        return Type.intType;
+        return this.castMaybe(Type.intType, needed);
     }
 
     public Type compile(AsToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        return this.compile(tok.tok, mi, this.code, tok.type);
+        return this.castMaybe(this.compile(tok.tok, mi, this.code, tok.type), needed);
     }
 
     public Type compile(NumOpToken tok, AMethodInfo mi, Type needed) {
@@ -939,7 +945,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return otype;
+        return this.castMaybe(otype, needed);
     }
 
     public Type compile(ShiftToken tok, AMethodInfo mi, Type needed) {
@@ -955,13 +961,13 @@ public class GenHandler extends Handler {
             }
         }
 
-        return otype;
+        return this.castMaybe(otype, needed);
     }
 
     public Type compile(IfToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         boolean hasElse = tok.toks.size() == 4;
-        return Main.emitIf(this, false, tok.toks, 1, (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, this.code, (Type)(hasElse?needed:Type.voidType));
+        return this.castMaybe(Main.emitIf(this, false, tok.toks, 1, (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, this.code, (Type)(hasElse?needed:Type.voidType)), needed);
     }
 
     public Type compile(WhileToken tok, AMethodInfo mi, Type needed) {
@@ -972,14 +978,14 @@ public class GenHandler extends Handler {
             start.define(this.code);
         }
 
-        Type t = Main.emitIf(this, false, tok.toks, 1, new Emitters(new Emitter[]{new Emitters(tok.toks.subList(2, tok.toks.size())), new Goto(start)}), Nothing.inst, mi, this.code, needed);
+        Main.emitIf(this, false, tok.toks, 1, new Emitters(new Emitter[]{new Emitters(tok.toks.subList(2, tok.toks.size())), new Goto(start)}), Nothing.inst, mi, this.code, needed);
         mi.popScope(this.code);
-        return t;
+        return Type.voidType;
     }
 
     public Type compile(CompareToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        return Main.emitIf_(this, false, tok.toks, 0, tok.toks.size(), tok.compare, new ConstToken(tok.line, "true"), new ConstToken(tok.line, "false"), mi, this.code, Type.booleanType);
+        return this.castMaybe(Main.emitIf_(this, false, tok.toks, 0, tok.toks.size(), tok.compare, new ConstToken(tok.line, "true"), new ConstToken(tok.line, "false"), mi, this.code, Type.booleanType), needed);
     }
 
     public Type compile(ThrowToken tok, AMethodInfo mi, Type needed) {
@@ -998,7 +1004,7 @@ public class GenHandler extends Handler {
             this.code.emitPushClass((ObjectType)tok.type.getRawType());
         }
 
-        return Type.javalangClassType;
+        return this.castMaybe(Type.javalangClassType, needed);
     }
 
     public Type compile(SynchronizedToken tok, AMethodInfo mi, Type needed) {
@@ -1049,7 +1055,7 @@ public class GenHandler extends Handler {
         }
 
         mi.popScope(this.code);
-        return type;
+        return this.castMaybe(type, needed);
     }
 
     public Type compile(TypeToken tok, AMethodInfo mi, Type needed) {
@@ -1099,7 +1105,7 @@ public class GenHandler extends Handler {
             this.code.emitInvoke(Main.getCompilerType("AMethodInfo").getDeclaredMethod("popLevel", 0));
         }
 
-        return Type.getType("gnu.bytecode.Type");
+        return this.castMaybe(Type.getType("gnu.bytecode.Type"), needed);
     }
 
     public Type compile(ReturnToken tok, AMethodInfo mi, Type needed) {
@@ -1134,7 +1140,7 @@ public class GenHandler extends Handler {
             t = this.compile(tok.target, mi, this.code, Main.unknownType);
         }
 
-        return Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special);
+        return this.castMaybe(Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special), needed);
     }
 
     public Type compile(DefaultToken tok, AMethodInfo mi, Type needed) {
@@ -1156,7 +1162,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, Main.unknownType);
+        return this.castMaybe(Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, Main.unknownType), needed);
     }
 
     public Type compile(ConstructorToken tok, AMethodInfo mi, Type needed) {
@@ -1171,7 +1177,7 @@ public class GenHandler extends Handler {
         }
 
         Main.emitInvoke(this, "<init>", tok.type, Main.toEmitters(tok.toks), mi, this.code, Main.unknownType);
-        return tok.type;
+        return this.castMaybe(tok.type, needed);
     }
 
     public Type compile(ArrayConstructorToken tok, AMethodInfo mi, Type needed) {
@@ -1202,7 +1208,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return tok.type;
+        return this.castMaybe(tok.type, needed);
     }
 
     public Type compile(Token tok, AMethodInfo mi, Type needed) {
@@ -1212,12 +1218,14 @@ public class GenHandler extends Handler {
         }
 
         try {
-            Type type = super.compile(tok, mi, needed);
-            Type var5 = this.castMaybe(type, needed);
-            return var5;
+            Type t = super.compile(tok, mi, needed);
+            if(needed != Main.unknownType && t != Main.returnType && t != Main.throwType && !Type.isSame(needed, t)) {
+                throw new RuntimeException();
+            } else {
+                return t;
+            }
         } catch (Throwable var8) {
             System.out.println(mi.ci.fs.name.concat(": Error compiling line ".concat(Integer.toString(tok.line))));
-            Object var10000 = null;
             throw var8;
         }
     }
