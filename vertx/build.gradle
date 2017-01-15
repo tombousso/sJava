@@ -1,24 +1,13 @@
-class SJavaCompile extends AbstractCompile {
-	String targetCompatibility = "1.8"
-	String sourceCompatibility = "1.8"
-	@InputFiles
-	def compilerClasspath = project.files("../sjava.jar")
-	@InputFiles
-	def compilerLibs = project.files()
-	@OutputDirectory
-	File destinationDir
-	@InputFiles
-	FileCollection classpath = project.files()
-	@TaskAction
-	void compile() {
-		def classpath_ = classpath
-		project.javaexec {
-			classpath = compilerClasspath + compilerLibs + classpath_
-			main = "sjava.compiler.Main"
-			args = ["build"] + source + ["-d", destinationDir]
-		}
+buildscript {
+	ext.sjavaHome = file('../')
+	def pluginPath = '/plugin/build/libs/plugin.jar'
+	dependencies {
+		classpath files(sjavaHome.toString() + pluginPath)
 	}
 }
+
+apply plugin: 'sjava'
+sjava.home = sjavaHome
 
 configurations {
 	compile
@@ -39,14 +28,8 @@ dependencies {
 	quasar "co.paralleluniverse:quasar-core:0.7.7:jdk8@jar"
 }
 
-task compile(type: SJavaCompile) {
-	source = file("Main.sjava")
-	destinationDir = file("bin")
-	classpath = configurations.compile
-}
-
-task run(type: JavaExec, dependsOn: [compile]) {
-	classpath = files("bin") + configurations.compile
+task run(type: JavaExec, dependsOn: [classes]) {
+	classpath = files("build/classes/main") + configurations.compile
 	main = "Main"
 	standardInput = System.in
 	systemProperty 'co.paralleluniverse.fibers.verifyInstrumentation', 'true'

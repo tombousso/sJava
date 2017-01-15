@@ -1,8 +1,10 @@
 bin/*
 !bin/1-2/
 generated-java/**/*.class
-vertx/bin/
+.gradle/
+vertx/build/
 vertx/.vertx/
 vertx/file-uploads/
-.gradle/
 vertx/.gradle/
+plugin/.gradle/
+plugin/build/

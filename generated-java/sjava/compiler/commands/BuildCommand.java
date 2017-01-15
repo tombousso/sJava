@@ -1,14 +1,11 @@
 package sjava.compiler.commands;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
-import sjava.compiler.ClassInfo;
-import sjava.compiler.FileScope;
 import sjava.compiler.Main;
 import sjava.compiler.commands.Command;
 
@@ -30,21 +27,16 @@ public class BuildCommand extends Command {
             this.printHelp();
         } else {
             String dir = commandLine.hasOption("d")?commandLine.getOptionValue("d"):".";
-            Map fileScopes = Main.compile(args);
-            Set iterable = fileScopes.entrySet();
-            Iterator it = iterable.iterator();
+            File[] out = new File[args.size()];
+            Iterator it = args.iterator();
 
-            for(int notused = 0; it.hasNext(); ++notused) {
-                Entry entry = (Entry)it.next();
-                FileScope fs = (FileScope)entry.getValue();
-                List iterable1 = fs.newClasses;
-                Iterator it1 = iterable1.iterator();
-
-                for(int notused1 = 0; it1.hasNext(); ++notused1) {
-                    ClassInfo ci = (ClassInfo)it1.next();
-                    ci.writeFiles(dir);
-                }
+            for(int i = 0; it.hasNext(); ++i) {
+                String path = (String)it.next();
+                out[i] = new File(path);
             }
+
+            List files = Arrays.asList(out);
+            Main.compile(files, dir);
         }
 
     }

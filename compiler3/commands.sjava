@@ -40,13 +40,14 @@
 			(begin
 				(define dir (if (commandLine:hasOption "d") (commandLine:getOptionValue "d") "."))
 
-				(define fileScopes (Main:compile fileNames))
-				(forEach entry (fileScopes:entrySet)
-					(define fs (entry:getValue))
-					(forEach ci fs:newClasses
-						(ci:writeFiles dir)
+				(define files
+					(Arrays:asList
+						(mapA path fileNames
+							(File path)
+						)
 					)
 				)
+				(Main:compile files dir)
 			)
 		)
 	)
@@ -65,11 +66,17 @@
 				(begin
 					(define fileNames (args:subList 1 (args:size)))
 
-					(define fileScopes (Main:compile fileNames))
-					(define cl (ArrayClassLoader))
+					(define files
+						(Arrays:asList
+							(mapA path fileNames
+								(File path)
+							)
+						)
+					)
+					(define fileScopes (Main:compile files))
+					(define cl (MyClassLoader))
 					(define found ClassInfo null)
-					(forEach entry (fileScopes:entrySet)
-						(define fs (entry:getValue))
+					(forEach fs fileScopes
 						(forEach ci fs:newClasses
 							(if ((ci:c:getName):equals (args:get 0))
 								(set found ci)

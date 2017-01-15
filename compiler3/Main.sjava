@@ -180,8 +180,15 @@
 	((formatCode code String) String 'public 'static
 		(concat (Main:formatToks (Main:parse code (Lexer) (Parser false))) #\newline)
 	)
-	((compile fNames List{String}) Map{String FileScope} 'public 'static
-		(define fileNames (ArrayList{String}))
+	((compile files Collection{File} dir String) void 'public 'static
+		(forEach fs (Main:compile files)
+			(forEach ci fs:newClasses
+				(ci:writeFiles dir)
+			)
+		)
+	)
+	((compile files Collection{File}) List{FileScope} 'public 'static
+		(define mFiles (ArrayList{File}))
 		(define path (((((class Main):getProtectionDomain):getCodeSource):getLocation):getPath))
 		(define pre
 			(if (!= (System:getProperty "sjava.home") null)
@@ -192,18 +199,18 @@
 				)
 			)
 		)
-		(fileNames:add (concat pre "/std/macros.sjava"))
-		(fileNames:addAll fNames)
-		(define files (LinkedHashMap{String List{LexedParsedToken}}))
+		(mFiles:add (File (concat pre "/std/macros.sjava")))
+		(mFiles:addAll files)
+		(define files (LinkedHashMap{File List{LexedParsedToken}}))
 
-		(forEach name fileNames
+		(forEach file mFiles
 			(define code String null)
-			(try (set code (org.apache.commons.io.FileUtils:readFileToString (File name))) (e IOException (throw (RuntimeException e))))
+			(try (set code (org.apache.commons.io.FileUtils:readFileToString file)) (e IOException (throw (RuntimeException e))))
 			(define line (Main:checkFormatted code))
 			(if (!= line -1)
-				(println "Warning: " name " isn't formatted (line " line ")")
+				(println "Warning: " file " isn't formatted (line " line ")")
 			)
-			(files:put name (Main:parse code (Lexer) (Parser)))
+			(files:put file (Main:parse code (Lexer) (Parser)))
 		)
 		(Main:compile files)
 	)
@@ -222,33 +229,30 @@
 			-1
 		)
 	)
-	((compile files HashMap{String ArrayList{LexedParsedToken}}) Map{String FileScope} 'public 'static
+	((compile files HashMap{File ArrayList{LexedParsedToken}}) List{FileScope} 'public 'static
 		(define locals (HashMap))
-		(define fileScopes (LinkedHashMap{String FileScope}))
+		(define fileScopes (ArrayList{FileScope}))
 		(define macroNames (HashMap{String ClassInfo}))
 		(define methodMacroNames (HashMap{String ClassInfo}))
 
 		(forEach entry (files:entrySet)
 			(define toks (entry:getValue))
-			(define fs (FileScope (entry:getKey) toks locals))
+			(define fs (FileScope ((entry:getKey):toString) toks locals))
 			(set fs:macroNames macroNames)
 			(set fs:methodMacroNames methodMacroNames)
-			(fileScopes:put (entry:getKey) fs)
+			(fileScopes:add fs)
 			(fs:compileRoot)
 		)
 
-		(forEach entry (fileScopes:entrySet)
-			(define fs (entry:getValue))
+		(forEach fs fileScopes
 			(fs:compileDefs)
 		)
 
-		(forEach entry (fileScopes:entrySet)
-			(define fs (entry:getValue))
+		(forEach fs fileScopes
 			(fs:runMethodMacros)
 		)
 
-		(forEach entry (fileScopes:entrySet)
-			(define fs (entry:getValue))
+		(forEach fs fileScopes
 			(fs:compileMethods GenHandler:inst)
 		)
 
@@ -1467,7 +1471,7 @@
 )
 
 (define-class FileScope () 'public
-	(name String 'public)
+	(path String 'public)
 	(toks List{LexedParsedToken})
 	(locals HashMap{String ClassType})
 	(imports HashMap{String String})
@@ -1480,9 +1484,9 @@
 	(macroNames HashMap{String List{ClassInfo}} 'public)
 	(methodMacros ArrayList{ClassInfo})
 	(methodMacroNames HashMap{String List{ClassInfo}} 'public)
-	((<init> name String toks List{LexedParsedToken} locals HashMap) void
+	((<init> path String toks List{LexedParsedToken} locals HashMap) void
 		(super:<init>)
-		(set this:name name)
+		(set this:path path)
 		(set this:toks toks)
 		(set this:locals locals)
 		(set this:imports (HashMap))
@@ -1612,7 +1616,7 @@
 						(scope:put "mi" (Arg (Main:getCompilerType "AMethodInfo") 0 0))
 						(define varargs (this:getMacroParams types params scope))
 						(if varargs (set mods (| mods Access:TRANSIENT)))
-						(define cname ((("Macros$":concat (this:name:replace "/" "-")):concat "$"):concat (Integer:toString (this:macros:size))))
+						(define cname "Macros")
 						(define macros (MacroInfo cname this))
 						(macros:c:setModifiers Access:PUBLIC)
 						(define macro (macros:addMethod name types (Main:getCompilerType "tokens.LexedParsedToken") mods (tok:toks:subList 2 (tok:toks:size)) scope))
@@ -1635,7 +1639,7 @@
 						(scope:put "ci" (Arg (Main:getCompilerType "ClassInfo") 0 0))
 						(define varargs (this:getMacroParams types params scope))
 						(if varargs (set mods (| mods Access:TRANSIENT)))
-						(define cname (concat "Macros$" (this:name:replace "/" "-") "$" (this:methodMacros:size)))
+						(define cname "Macros")
 						(define macros (MethodMacroInfo cname this))
 						(macros:c:setModifiers Access:PUBLIC)
 						(define macro (macros:addMethod name types Type:voidType mods (tok:toks:subList 2 (tok:toks:size)) scope))
@@ -1729,13 +1733,13 @@
 		)
 		this:classfile
 	)
-	((addToClassLoader cl ArrayClassLoader) void 'public
+	((addToClassLoader cl MyClassLoader) void 'public
 		(cl:addClass (this:c:getName) (this:getClassfile))
 		(forEach anon this:anonClasses
 			(anon:addToClassLoader cl)
 		)
 	)
-	((getClazz cl ArrayClassLoader) Class 'public
+	((getClazz cl MyClassLoader) Class 'public
 		(define c Class null)
 		(try (set c (cl:loadClass (this:c:getName))) (e ClassNotFoundException (throw (RuntimeException e))))
 		c
@@ -1743,7 +1747,7 @@
 	((getClazz) Class 'public
 		(if (= this:rc null)
 			(begin
-				(define cl (ArrayClassLoader))
+				(define cl (MyClassLoader))
 				(this:addToClassLoader cl)
 				(set this:rc (this:getClazz cl))
 			)
@@ -2135,5 +2139,14 @@
 (define-class MethodInfo (AMethodInfo) 'public
 	((<init> ci ClassInfo toks List{LexedParsedToken} method Method scope LinkedHashMap) void 'public
 		(super:<init> ci toks method scope)
+	)
+)
+
+(define-class MyClassLoader (ClassLoader) 'public
+	((<init>) void 'public
+		(super:<init> ((class Main):getClassLoader))
+	)
+	((addClass s String bytes byte[]) Class 'public
+		(this:defineClass s bytes 0 (alen bytes))
 	)
 )

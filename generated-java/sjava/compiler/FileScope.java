@@ -27,7 +27,7 @@ import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 
 public class FileScope {
-    public String name;
+    public String path;
     List<LexedParsedToken> toks;
     HashMap<String, ClassType> locals;
     HashMap<String, String> imports;
@@ -41,8 +41,8 @@ public class FileScope {
     ArrayList<ClassInfo> methodMacros;
     public HashMap<String, List<ClassInfo>> methodMacroNames;
 
-    FileScope(String name, List<LexedParsedToken> toks, HashMap locals) {
-        this.name = name;
+    FileScope(String path, List<LexedParsedToken> toks, HashMap locals) {
+        this.path = path;
         this.toks = toks;
         this.locals = locals;
         this.imports = new HashMap();
@@ -175,7 +175,7 @@ public class FileScope {
                     mods |= Access.TRANSIENT;
                 }
 
-                String cname = "Macros$".concat(this.name.replace("/", "-")).concat("$").concat(Integer.toString(this.macros.size()));
+                String cname = "Macros";
                 MacroInfo macros = new MacroInfo(cname, this);
                 macros.c.setModifiers(Access.PUBLIC);
                 macros.addMethod(name1, types, Main.getCompilerType("tokens.LexedParsedToken"), mods, tok.toks.subList(2, tok.toks.size()), scope);
@@ -200,12 +200,7 @@ public class FileScope {
                     mods1 |= Access.TRANSIENT;
                 }
 
-                StringBuilder sb = new StringBuilder();
-                sb.append("Macros$");
-                sb.append(this.name.replace("/", "-"));
-                sb.append("$");
-                sb.append(this.methodMacros.size());
-                String cname1 = sb.toString();
+                String cname1 = "Macros";
                 MethodMacroInfo macros1 = new MethodMacroInfo(cname1, this);
                 macros1.c.setModifiers(Access.PUBLIC);
                 AMethodInfo macro = macros1.addMethod(name2, types1, Type.voidType, mods1, tok.toks.subList(2, tok.toks.size()), scope1);

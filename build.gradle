@@ -88,7 +88,6 @@ task compiler3_3(type: SJavaCompile, dependsOn: [compiler]) {
 
 task diff(dependsOn: [compiler2_2, compiler3_3]) {
 	doLast {
-		println("diff2_2: "+(same(file("bin/1-2"), file("bin/2-2")) ? "good" : "bad"))
 		println("diff3_3: "+(same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler")) ? "good" : "bad"))
 	}
 }
@@ -124,7 +123,6 @@ task java_compile(type: JavaCompile, dependsOn: [compiler3_3]) {
 	classpath = JARS
 	sourceCompatibility = "1.8"
 	targetCompatibility = "1.8"
-	dependencyCacheDir = file("${buildDir}/tmp/dependency-cache")
 	doLast {
 		file("bin/java-3-3").deleteDir()
 		task java_compile_test(type: SJavaCompile) {

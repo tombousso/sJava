@@ -2,7 +2,6 @@ package sjava.compiler;
 
 import gnu.bytecode.Access;
 import gnu.bytecode.AnnotationEntry;
-import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
@@ -26,6 +25,7 @@ import sjava.compiler.Arg;
 import sjava.compiler.FileScope;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
+import sjava.compiler.MyClassLoader;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.tokens.ArrayToken;
@@ -82,7 +82,7 @@ public class ClassInfo {
         return this.classfile;
     }
 
-    public void addToClassLoader(ArrayClassLoader cl) {
+    public void addToClassLoader(MyClassLoader cl) {
         cl.addClass(this.c.getName(), this.getClassfile());
         List iterable = this.anonClasses;
         Iterator it = iterable.iterator();
@@ -94,7 +94,7 @@ public class ClassInfo {
 
     }
 
-    public Class getClazz(ArrayClassLoader cl) {
+    public Class getClazz(MyClassLoader cl) {
         Class c = (Class)null;
 
         try {
@@ -107,7 +107,7 @@ public class ClassInfo {
 
     public Class getClazz() {
         if(this.rc == null) {
-            ArrayClassLoader cl = new ArrayClassLoader();
+            MyClassLoader cl = new MyClassLoader();
             this.addToClassLoader(cl);
             this.rc = this.getClazz(cl);
         }

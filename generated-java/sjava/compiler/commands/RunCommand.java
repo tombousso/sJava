@@ -1,16 +1,16 @@
 package sjava.compiler.commands;
 
-import gnu.bytecode.ArrayClassLoader;
+import java.io.File;
 import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 import org.apache.commons.cli.CommandLine;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.FileScope;
 import sjava.compiler.Main;
+import sjava.compiler.MyClassLoader;
 import sjava.compiler.commands.Command;
 
 public class RunCommand extends Command {
@@ -28,20 +28,27 @@ public class RunCommand extends Command {
         } else {
             try {
                 List fileNames = args.subList(1, args.size());
-                Map fileScopes = Main.compile(fileNames);
-                ArrayClassLoader cl = new ArrayClassLoader();
+                File[] out = new File[fileNames.size()];
+                Iterator it = fileNames.iterator();
+
+                for(int i = 0; it.hasNext(); ++i) {
+                    String path = (String)it.next();
+                    out[i] = new File(path);
+                }
+
+                List files = Arrays.asList(out);
+                List fileScopes = Main.compile((Collection)files);
+                MyClassLoader cl = new MyClassLoader();
                 ClassInfo found = (ClassInfo)null;
-                Set iterable = fileScopes.entrySet();
-                Iterator it = iterable.iterator();
+                Iterator it1 = fileScopes.iterator();
 
-                for(int notused = 0; it.hasNext(); ++notused) {
-                    Entry entry = (Entry)it.next();
-                    FileScope fs = (FileScope)entry.getValue();
-                    List iterable1 = fs.newClasses;
-                    Iterator it1 = iterable1.iterator();
+                for(int notused = 0; it1.hasNext(); ++notused) {
+                    FileScope fs = (FileScope)it1.next();
+                    List iterable = fs.newClasses;
+                    Iterator it2 = iterable.iterator();
 
-                    for(int notused1 = 0; it1.hasNext(); ++notused1) {
-                        ClassInfo ci = (ClassInfo)it1.next();
+                    for(int notused1 = 0; it2.hasNext(); ++notused1) {
+                        ClassInfo ci = (ClassInfo)it2.next();
                         if(ci.c.getName().equals((String)args.get(0))) {
                             found = ci;
                         }
@@ -59,8 +66,8 @@ public class RunCommand extends Command {
                 } else {
                     found.getClazz(cl).getMethod("main", new Class[]{String[].class}).invoke((Object)null, new Object[]{null});
                 }
-            } catch (Throwable var18) {
-                var18.printStackTrace();
+            } catch (Throwable var24) {
+                var24.printStackTrace();
             }
         }
 

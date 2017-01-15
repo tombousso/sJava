@@ -728,14 +728,16 @@ public class GenHandler extends Handler {
             args.addAll((Collection)var10001);
 
             try {
-                LexedParsedToken ret = (LexedParsedToken)ci.getClazz().getMethod(tok.name, classes).invoke((Object)null, args.toArray());
+                Class clazz = ci.getClazz();
+                java.lang.reflect.Method method1 = clazz.getMethod(tok.name, classes);
+                LexedParsedToken ret = (LexedParsedToken)method1.invoke((Object)null, args.toArray());
                 tok.ret = Main.transformBlock(ret, mi);
-            } catch (NoSuchMethodException var29) {
-                throw new RuntimeException(var29);
-            } catch (IllegalAccessException var30) {
-                throw new RuntimeException(var30);
-            } catch (InvocationTargetException var31) {
+            } catch (NoSuchMethodException var31) {
                 throw new RuntimeException(var31);
+            } catch (IllegalAccessException var32) {
+                throw new RuntimeException(var32);
+            } catch (InvocationTargetException var33) {
+                throw new RuntimeException(var33);
             }
         }
 
@@ -967,7 +969,7 @@ public class GenHandler extends Handler {
     public Type compile(IfToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         boolean hasElse = tok.toks.size() == 4;
-        return this.castMaybe(Main.emitIf(this, false, tok.toks, 1, (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, this.code, (Type)(hasElse?needed:Type.voidType)), needed);
+        return Main.emitIf(this, false, tok.toks, 1, (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, this.code, (Type)(hasElse?needed:Type.voidType));
     }
 
     public Type compile(WhileToken tok, AMethodInfo mi, Type needed) {
@@ -1140,7 +1142,7 @@ public class GenHandler extends Handler {
             t = this.compile(tok.target, mi, this.code, Main.unknownType);
         }
 
-        return this.castMaybe(Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special), needed);
+        return Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special);
     }
 
     public Type compile(DefaultToken tok, AMethodInfo mi, Type needed) {
@@ -1162,7 +1164,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return this.castMaybe(Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, Main.unknownType), needed);
+        return Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, needed);
     }
 
     public Type compile(ConstructorToken tok, AMethodInfo mi, Type needed) {
@@ -1214,7 +1216,7 @@ public class GenHandler extends Handler {
     public Type compile(Token tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         if(output) {
-            this.code.putLineNumber(mi.ci.fs.name.substring(mi.ci.fs.name.lastIndexOf("/") + 1), tok.line);
+            this.code.putLineNumber(mi.ci.fs.path.substring(mi.ci.fs.path.lastIndexOf("/") + 1), tok.line);
         }
 
         try {
@@ -1225,7 +1227,7 @@ public class GenHandler extends Handler {
                 return t;
             }
         } catch (Throwable var8) {
-            System.out.println(mi.ci.fs.name.concat(": Error compiling line ".concat(Integer.toString(tok.line))));
+            System.out.println(mi.ci.fs.path.concat(": Error compiling line ".concat(Integer.toString(tok.line))));
             throw var8;
         }
     }

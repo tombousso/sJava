@@ -1,0 +1,13 @@
+plugins {
+	id 'java-gradle-plugin'
+}
+apply plugin: 'groovy'
+
+gradlePlugin {
+	plugins {
+		simplePlugin {
+			id = 'sjava'
+			implementationClass = 'sjava.gradle.SjavaPlugin'
+		}
+	}
+}

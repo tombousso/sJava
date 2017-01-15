@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -273,24 +274,41 @@ public class Main {
         return sb.toString();
     }
 
-    public static Map<String, FileScope> compile(List<String> fNames) {
-        ArrayList fileNames = new ArrayList();
+    public static void compile(Collection<File> files, String dir) {
+        List iterable = compile(files);
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            FileScope fs = (FileScope)it.next();
+            List iterable1 = fs.newClasses;
+            Iterator it1 = iterable1.iterator();
+
+            for(int notused1 = 0; it1.hasNext(); ++notused1) {
+                ClassInfo ci = (ClassInfo)it1.next();
+                ci.writeFiles(dir);
+            }
+        }
+
+    }
+
+    public static List<FileScope> compile(Collection<File> files) {
+        ArrayList mFiles = new ArrayList();
         String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String pre = System.getProperty("sjava.home") != null?System.getProperty("sjava.home"):(path.endsWith(".jar")?(new File(path)).getParent():".");
         StringBuilder sb = new StringBuilder();
         sb.append(pre);
         sb.append("/std/macros.sjava");
-        fileNames.add(sb.toString());
-        fileNames.addAll(fNames);
-        LinkedHashMap files = new LinkedHashMap();
-        Iterator it = fileNames.iterator();
+        mFiles.add(new File(sb.toString()));
+        mFiles.addAll(files);
+        LinkedHashMap files1 = new LinkedHashMap();
+        Iterator it = mFiles.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
-            String name = (String)it.next();
+            File file = (File)it.next();
             String code = (String)null;
 
             try {
-                code = FileUtils.readFileToString(new File(name));
+                code = FileUtils.readFileToString(file);
             } catch (IOException var14) {
                 throw new RuntimeException(var14);
             }
@@ -300,17 +318,17 @@ public class Main {
                 PrintStream var10000 = System.out;
                 StringBuilder sb1 = new StringBuilder();
                 sb1.append("Warning: ");
-                sb1.append(name);
+                sb1.append(file);
                 sb1.append(" isn\'t formatted (line ");
                 sb1.append(line);
                 sb1.append(")");
                 var10000.println(sb1.toString());
             }
 
-            files.put(name, parse(code, new Lexer(), new Parser()));
+            files1.put(file, parse(code, new Lexer(), new Parser()));
         }
 
-        return compile((HashMap)files);
+        return compile((HashMap)files1);
     }
 
     public static int checkFormatted(String code) {
@@ -331,9 +349,9 @@ public class Main {
         return code.length() != formatted.length()?line:-1;
     }
 
-    public static Map<String, FileScope> compile(HashMap<String, ArrayList<LexedParsedToken>> files) {
+    public static List<FileScope> compile(HashMap<File, ArrayList<LexedParsedToken>> files) {
         HashMap locals = new HashMap();
-        LinkedHashMap fileScopes = new LinkedHashMap();
+        ArrayList fileScopes = new ArrayList();
         HashMap macroNames = new HashMap();
         HashMap methodMacroNames = new HashMap();
         Set iterable = files.entrySet();
@@ -342,37 +360,31 @@ public class Main {
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
             ArrayList toks = (ArrayList)entry.getValue();
-            FileScope fs = new FileScope((String)entry.getKey(), toks, locals);
+            FileScope fs = new FileScope(((File)entry.getKey()).toString(), toks, locals);
             fs.macroNames = macroNames;
             fs.methodMacroNames = methodMacroNames;
-            fileScopes.put((String)entry.getKey(), fs);
+            fileScopes.add(fs);
             fs.compileRoot();
         }
 
-        Set iterable1 = fileScopes.entrySet();
-        Iterator it1 = iterable1.iterator();
+        Iterator it1 = fileScopes.iterator();
 
         for(int notused1 = 0; it1.hasNext(); ++notused1) {
-            Entry entry1 = (Entry)it1.next();
-            FileScope fs1 = (FileScope)entry1.getValue();
+            FileScope fs1 = (FileScope)it1.next();
             fs1.compileDefs();
         }
 
-        Set iterable2 = fileScopes.entrySet();
-        Iterator it2 = iterable2.iterator();
+        Iterator it2 = fileScopes.iterator();
 
         for(int notused2 = 0; it2.hasNext(); ++notused2) {
-            Entry entry2 = (Entry)it2.next();
-            FileScope fs2 = (FileScope)entry2.getValue();
+            FileScope fs2 = (FileScope)it2.next();
             fs2.runMethodMacros();
         }
 
-        Set iterable3 = fileScopes.entrySet();
-        Iterator it3 = iterable3.iterator();
+        Iterator it3 = fileScopes.iterator();
 
         for(int notused3 = 0; it3.hasNext(); ++notused3) {
-            Entry entry3 = (Entry)it3.next();
-            FileScope fs3 = (FileScope)entry3.getValue();
+            FileScope fs3 = (FileScope)it3.next();
             fs3.compileMethods(GenHandler.inst);
         }
 

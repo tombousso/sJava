@@ -602,7 +602,9 @@
 				)
 				(try
 					(begin
-						(define ret (as LexedParsedToken (((ci:getClazz):getMethod tok:name classes):invoke null (args:toArray))))
+						(define clazz (ci:getClazz))
+						(define method (clazz:getMethod tok:name classes))
+						(define ret (as LexedParsedToken (method:invoke null (args:toArray))))
 						(set tok:ret
 							(Main:transformBlock
 								ret
@@ -780,7 +782,7 @@
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(this:castMaybe (Main:emitIf this false tok:toks 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType)) needed)
+		(Main:emitIf this false tok:toks 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
 	)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -884,7 +886,7 @@
 		(if (= t null)
 			(set t (this:compile tok:target mi this:code Main:unknownType))
 		)
-		(this:castMaybe (Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi this:code needed special) needed)
+		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi this:code needed special)
 	)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -903,7 +905,7 @@
 			)
 			(set method (method:getNext))
 		)
-		(this:castMaybe (Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code Main:unknownType) needed)
+		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed)
 	)
 	((compile tok ConstructorToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -933,7 +935,7 @@
 	)
 	((compile tok Token mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(if output (this:code:putLineNumber (mi:ci:fs:name:substring (+ (mi:ci:fs:name:lastIndexOf "/") 1)) tok:line))
+		(if output (this:code:putLineNumber (mi:ci:fs:path:substring (+ (mi:ci:fs:path:lastIndexOf "/") 1)) tok:line))
 		(try
 			(begin
 				(define t (super:compile tok mi needed))
@@ -949,7 +951,7 @@
 				t
 			)
 			(e Throwable
-				(System:out:println (mi:ci:fs:name:concat (": Error compiling line ":concat (Integer:toString tok:line))))
+				(System:out:println (mi:ci:fs:path:concat (": Error compiling line ":concat (Integer:toString tok:line))))
 				(throw e)
 			)
 		)
