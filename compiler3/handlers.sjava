@@ -886,7 +886,7 @@
 		(if (= t null)
 			(set t (this:compile tok:target mi this:code Main:unknownType))
 		)
-		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi this:code needed special)
+		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi this:code needed special):_1
 	)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -905,15 +905,27 @@
 			)
 			(set method (method:getNext))
 		)
-		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed)
+		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed):_1
 	)
 	((compile tok ConstructorToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define class ClassType (tok:type:getRawType))
 		(if output (this:code:emitNew class))
 		(if output (this:code:emitDup))
-		(Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) mi this:code Main:unknownType)
-		(this:castMaybe tok:type needed)
+		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) mi this:code Main:unknownType):_2)
+		(if
+			(&&
+				(instance? tok:type ClassType)
+				(!= ((as ClassType tok:type):getTypeParameters) null)
+				(!= (alen ((as ClassType tok:type):getTypeParameters)) 0)
+			)
+			(begin
+				(define tparams ((as ClassType tok:type):getTypeParameters))
+				(define ptype (ParameterizedType (as ClassType tok:type) tparams))
+				(this:castMaybe (Main:resolveType mc:tvs mc:t ptype) needed)
+			)
+			(this:castMaybe tok:type needed)
+		)
 	)
 	((compile tok ArrayConstructorToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))

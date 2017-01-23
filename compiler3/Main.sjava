@@ -347,7 +347,9 @@
 						(set t (Main:unresolveTv tv (aget generics j) (aget reals j)))
 						(set j (+ j 1))
 					)
-					(out:put tv t)
+					(if (!= t null)
+						(out:put tv t)
+					)
 				)
 				out
 			)
@@ -766,7 +768,7 @@
 			comp
 		)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type special bool) Type 'static 'public
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type special bool) Tuple2{Type MethodCall} 'static 'public
 		(define output (!= code null))
 		(define types (Emitter:emitAll emitters h mi null Main:unknownType))
 		;(System:out:println name)
@@ -827,9 +829,9 @@
 		(if (&& (!= out Type:voidType) (!= needed Type:voidType))
 			(if output (code:emitCheckcast (out:getRawType)))
 		)
-		(h:castMaybe out needed)
+		(Tuple2 (h:castMaybe out needed) mc)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type) Tuple2{Type MethodCall} 'static 'public
 		(Main:emitInvoke h name type emitters mi code needed false)
 	)
 	((compareType types Type[]) Type 'static

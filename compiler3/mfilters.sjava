@@ -198,7 +198,30 @@
 								this:types
 							)
 						)
-						(define tvs (Main:unresolveTvs (method:getTypeParameters) params reals))
+						(define tparams
+							(if (this:name:equals "<init>")
+								(begin
+									(define ctparams ((as ClassType (generic:getRawType)):getTypeParameters))
+									(define mtparams (method:getTypeParameters))
+									(cond
+										((= ctparams null)
+											mtparams
+										)
+										((= mtparams null)
+											ctparams
+										)
+										(true
+											(define o (TypeVariable[] len:(+ (alen ctparams) (alen mtparams))))
+											(System:arraycopy ctparams 0 o 0 (alen ctparams))
+											(System:arraycopy mtparams 0 o (alen ctparams) (alen mtparams))
+											o
+										)
+									)
+								)
+								(method:getTypeParameters)
+							)
+						)
+						(define tvs (Main:unresolveTvs tparams params reals))
 						(define stop false)
 						(define i 0)
 						(while (! (|| stop (= i (alen this:types))))

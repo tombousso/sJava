@@ -472,7 +472,9 @@ public class Main {
                     t = unresolveTv(tv, generics[j], reals[j]);
                 }
 
-                out.put(tv, t);
+                if(t != null) {
+                    out.put(tv, t);
+                }
             }
 
             var10000 = out;
@@ -867,7 +869,7 @@ public class Main {
         return inv?(String)oppositeOps.get(comp):comp;
     }
 
-    public static Type emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
         boolean output = code != null;
         Type[] types = Emitter.emitAll(emitters, h, mi, (CodeAttr)null, unknownType);
         MFilter filter = new MFilter(name, types, type);
@@ -929,10 +931,10 @@ public class Main {
             code.emitCheckcast(out.getRawType());
         }
 
-        return h.castMaybe(out, needed);
+        return new Tuple2(h.castMaybe(out, needed), mc);
     }
 
-    public static Type emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
         return emitInvoke(h, name, type, emitters, mi, code, needed, false);
     }
 

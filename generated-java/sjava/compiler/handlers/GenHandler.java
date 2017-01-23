@@ -11,6 +11,7 @@ import gnu.bytecode.ObjectType;
 import gnu.bytecode.ParameterizedType;
 import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
+import gnu.bytecode.TypeVariable;
 import gnu.bytecode.Variable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import sjava.compiler.emitters.Nothing;
 import sjava.compiler.handlers.CaptureVHandler;
 import sjava.compiler.handlers.Handler;
 import sjava.compiler.mfilters.MFilter;
+import sjava.compiler.mfilters.MethodCall;
 import sjava.compiler.tokens.AGetToken;
 import sjava.compiler.tokens.ALenToken;
 import sjava.compiler.tokens.ASetToken;
@@ -1142,7 +1144,7 @@ public class GenHandler extends Handler {
             t = this.compile(tok.target, mi, this.code, Main.unknownType);
         }
 
-        return Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special);
+        return (Type)Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), mi, this.code, needed, special)._1;
     }
 
     public Type compile(DefaultToken tok, AMethodInfo mi, Type needed) {
@@ -1164,7 +1166,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, needed);
+        return (Type)Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), mi, this.code, needed)._1;
     }
 
     public Type compile(ConstructorToken tok, AMethodInfo mi, Type needed) {
@@ -1178,8 +1180,17 @@ public class GenHandler extends Handler {
             this.code.emitDup();
         }
 
-        Main.emitInvoke(this, "<init>", tok.type, Main.toEmitters(tok.toks), mi, this.code, Main.unknownType);
-        return this.castMaybe(tok.type, needed);
+        MethodCall mc = (MethodCall)Main.emitInvoke(this, "<init>", tok.type, Main.toEmitters(tok.toks), mi, this.code, Main.unknownType)._2;
+        Type var10000;
+        if(tok.type instanceof ClassType && ((ClassType)tok.type).getTypeParameters() != null && ((ClassType)tok.type).getTypeParameters().length != 0) {
+            TypeVariable[] tparams = ((ClassType)tok.type).getTypeParameters();
+            ParameterizedType ptype = new ParameterizedType((ClassType)tok.type, tparams);
+            var10000 = this.castMaybe(Main.resolveType(mc.tvs, mc.t, ptype), needed);
+        } else {
+            var10000 = this.castMaybe(tok.type, needed);
+        }
+
+        return var10000;
     }
 
     public Type compile(ArrayConstructorToken tok, AMethodInfo mi, Type needed) {

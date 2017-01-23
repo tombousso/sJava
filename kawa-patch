@@ -1,8 +1,8 @@
-Index: gnu/bytecode/ArrayType.java
-===================================================================
---- gnu/bytecode/ArrayType.java	(revision 8926)
-+++ gnu/bytecode/ArrayType.java	(working copy)
-@@ -121,6 +121,13 @@
+diff --git a/gnu/bytecode/ArrayType.java b/gnu/bytecode/ArrayType.java
+index 912ec1a..0ac7799 100644
+--- a/gnu/bytecode/ArrayType.java
++++ b/gnu/bytecode/ArrayType.java
+@@ -121,6 +121,13 @@ public class ArrayType extends ObjectType
              return -3;
      }
  
@@ -16,23 +16,22 @@ Index: gnu/bytecode/ArrayType.java
      public void writeExternal(ObjectOutput out) throws IOException {
          out.writeObject(elements);
      }
-Index: gnu/bytecode/ClassType.java
-===================================================================
---- gnu/bytecode/ClassType.java	(revision 8926)
-+++ gnu/bytecode/ClassType.java	(working copy)
-@@ -72,7 +72,11 @@
+diff --git a/gnu/bytecode/ClassType.java b/gnu/bytecode/ClassType.java
+index 8eaa789..914857e 100644
+--- a/gnu/bytecode/ClassType.java
++++ b/gnu/bytecode/ClassType.java
+@@ -73,6 +73,10 @@ public class ClassType extends ObjectType
    private ClassType superClass;
    /** The constant pool index of the superClass, or -1 if unassigned. */
    int superClassIndex = -1;
 +  
 +  private Type genericSuperClass;
- 
-+  Type[] genericInterfaces;
 +
++  Type[] genericInterfaces;
+ 
    ClassType[] interfaces;
    private ClassType[] allInterfaces;
-   int[] interfaceIndexes;
-@@ -392,21 +396,29 @@
+@@ -393,19 +397,27 @@ public class ClassType extends ObjectType
      TypeVariable[] typeParameters;
  
      public TypeVariable[] getTypeParameters() {
@@ -62,20 +61,18 @@ Index: gnu/bytecode/ClassType.java
 +            typeParameters = params;
 +        }
 +        return params;
-     }
- 
++    }
++
 +    public void setTypeParameters(TypeVariable[] typeParameters) {
 +        this.typeParameters = typeParameters;
 +    }
 +
 +    public void setTypeParameters(Type[] typeParameters) {
 +        this.typeParameters = Arrays.copyOf(typeParameters, typeParameters.length, TypeVariable[].class);
-+    }
-+
+     }
+ 
    /**
-    * Set the superclass of the is class.
-    * @param name name of super class, or null if this is "Object".
-@@ -416,23 +428,42 @@
+@@ -417,22 +429,41 @@ public class ClassType extends ObjectType
      setSuper(name == null ? Type.pointer_type : ClassType.make(name));
    }
  
@@ -105,7 +102,7 @@ Index: gnu/bytecode/ClassType.java
 +        this.superClass = (ClassType) superClass.getRawType();
 +        this.genericSuperClass = superClass;
 +    }
- 
++
 +    public synchronized ClassType getSuperclass ()
 +    {
 +        if (superClass == null
@@ -129,11 +126,10 @@ Index: gnu/bytecode/ClassType.java
 +        }
 +        return genericSuperClass;
 +    }
-+
+ 
    public String getPackageName()
    {
-     String name = getName();
-@@ -440,26 +471,42 @@
+@@ -441,25 +472,41 @@ public class ClassType extends ObjectType
      return index < 0 ? "" : name.substring(0, index);
    }
  
@@ -184,17 +180,16 @@ Index: gnu/bytecode/ClassType.java
 +            int numInterfaces = reflectInterfaces.length;
 +            genericInterfaces
 +            = numInterfaces == 0 ? Type.typeArray0 : new Type[numInterfaces];
- 
++
 +            for (int i = 0; i < numInterfaces; i++)
 +                genericInterfaces[i] = Type.make(reflectInterfaces[i]);
 +        }
 +        return genericInterfaces;
 +    }
-+
+ 
      /** Get all the interfaces this class implements.
       * Includes those inherited from its superclass/superinterfaces.
-      */
-@@ -493,31 +540,74 @@
+@@ -494,30 +541,73 @@ public class ClassType extends ObjectType
          return true;
      }
  
@@ -261,7 +256,7 @@ Index: gnu/bytecode/ClassType.java
 +        interfaces[oldCount] = newInterface;
 +        genericInterfaces[oldCount] = newInterface;
 +    }
- 
++
 +    public void addInterface (Type newInterface)
 +    {
 +        int oldCount;
@@ -288,11 +283,10 @@ Index: gnu/bytecode/ClassType.java
 +        interfaces[oldCount] = (ClassType) newInterface.getRawType();
 +        genericInterfaces[oldCount] = newInterface;
 +    }
-+
+ 
    public final boolean isInterface()
    { return (getModifiers() & Access.INTERFACE) != 0; }
- 
-@@ -736,8 +826,14 @@
+@@ -737,8 +827,14 @@ public class ClassType extends ObjectType
      * a new one.
      * In contrast, the other addMethod methods always create new Methods. */
    public synchronized Method addMethod (String name, int flags,
@@ -308,7 +302,7 @@ Index: gnu/bytecode/ClassType.java
      Method method = getDeclaredMethod(name, arg_types);
      if (method != null
          && return_type.equals(method.getReturnType())
-@@ -745,6 +841,7 @@
+@@ -746,6 +842,7 @@ public class ClassType extends ObjectType
        return method;
      method = addMethod(name, flags);
      method.arg_types = arg_types;
@@ -316,7 +310,21 @@ Index: gnu/bytecode/ClassType.java
      method.return_type = return_type;
      return method;
    }
-@@ -1133,6 +1230,28 @@
+@@ -768,11 +865,12 @@ public class ClassType extends ObjectType
+   public Method addMethod (java.lang.reflect.Constructor method)
+   {
+     Class[] paramTypes = method.getParameterTypes();
++    java.lang.reflect.Type[] gparamTypes = method.getGenericParameterTypes();
+     int modifiers = method.getModifiers();
+     int j = paramTypes.length;
+     Type[] args = new Type[j];
+     while (--j >= 0)
+-      args[j] = Type.make(paramTypes[j]);
++	args[j] = Type.make(paramTypes[j], gparamTypes[j]);
+     Method meth = addMethod("<init>", modifiers, args, Type.voidType);
+     meth.rmethod = method;
+     return meth;
+@@ -1134,6 +1232,28 @@ public class ClassType extends ObjectType
          return null;
      }
  
@@ -345,7 +353,7 @@ Index: gnu/bytecode/ClassType.java
    /** Do various fixups after generating code but before we can write it out.
     * This includes assigning constant pool indexes where needed,
     * finalizing labels, etc. */
-@@ -1140,6 +1259,8 @@
+@@ -1141,6 +1261,8 @@ public class ClassType extends ObjectType
    {
      if (constants == null)
        constants = new ConstantPool();
@@ -354,11 +362,11 @@ Index: gnu/bytecode/ClassType.java
      if (thisClassIndex == 0)
        thisClassIndex = constants.addClass(this).index;
      if (superClass == this)
-Index: gnu/bytecode/CodeAttr.java
-===================================================================
---- gnu/bytecode/CodeAttr.java	(revision 8926)
-+++ gnu/bytecode/CodeAttr.java	(working copy)
-@@ -2095,6 +2095,9 @@
+diff --git a/gnu/bytecode/CodeAttr.java b/gnu/bytecode/CodeAttr.java
+index 63aaa61..8c81986 100644
+--- a/gnu/bytecode/CodeAttr.java
++++ b/gnu/bytecode/CodeAttr.java
+@@ -2095,6 +2095,9 @@ public class CodeAttr extends Attribute implements AttrContainer
              top = ((ArrayType) top).getComponentType();
              continue;
            }
@@ -368,11 +376,11 @@ Index: gnu/bytecode/CodeAttr.java
          return true;
        }
    }
-Index: gnu/bytecode/Method.java
-===================================================================
---- gnu/bytecode/Method.java	(revision 8926)
-+++ gnu/bytecode/Method.java	(working copy)
-@@ -19,6 +19,7 @@
+diff --git a/gnu/bytecode/Method.java b/gnu/bytecode/Method.java
+index f3203ec..e5e0d43 100644
+--- a/gnu/bytecode/Method.java
++++ b/gnu/bytecode/Method.java
+@@ -19,6 +19,7 @@ import java.io.*;
  public class Method implements AttrContainer, Member {
      private String name;
      Type[] arg_types;
@@ -380,7 +388,7 @@ Index: gnu/bytecode/Method.java
      Type return_type;
      int access_flags;
      int name_index; /* Index in constant table, or 0 if un-assigned */
-@@ -27,9 +28,9 @@
+@@ -27,9 +28,9 @@ public class Method implements AttrContainer, Member {
      ClassType classfile;
      CodeAttr code;
      /* #ifdef JAVA8 */
@@ -392,7 +400,7 @@ Index: gnu/bytecode/Method.java
      /* #endif */
  
      Attribute attributes;
-@@ -309,7 +310,7 @@
+@@ -309,7 +310,7 @@ public class Method implements AttrContainer, Member {
          if (name_index == 0 && name != null)
              name_index = constants.addUtf8(name).index;
          String signature = getSignature();
@@ -401,7 +409,7 @@ Index: gnu/bytecode/Method.java
          if (signature_index == 0)
              signature_index = constants.addUtf8(signature).index;
          if (genericSignature != null && ! genericSignature.equals(signature)) {
-@@ -326,6 +327,8 @@
+@@ -326,6 +327,8 @@ public class Method implements AttrContainer, Member {
  
      public final Type[] getParameterTypes() { return arg_types; }
  
@@ -410,7 +418,7 @@ Index: gnu/bytecode/Method.java
      public final ClassType[] getExceptions()
      {
          if (exceptions == null) return null;
-@@ -384,4 +387,23 @@
+@@ -384,4 +387,23 @@ public class Method implements AttrContainer, Member {
          exceptions = null;
          code = null;
      }
@@ -434,11 +442,11 @@ Index: gnu/bytecode/Method.java
 +        return params;
 +    }
  };
-Index: gnu/bytecode/Type.java
-===================================================================
---- gnu/bytecode/Type.java	(revision 8926)
-+++ gnu/bytecode/Type.java	(working copy)
-@@ -139,8 +139,13 @@
+diff --git a/gnu/bytecode/Type.java b/gnu/bytecode/Type.java
+index f887817..19f2acd 100644
+--- a/gnu/bytecode/Type.java
++++ b/gnu/bytecode/Type.java
+@@ -139,8 +139,13 @@ public abstract class Type
      static Type make(java.lang.reflect.Type type) {
  	if (type instanceof Class)
  	    return make((Class) type);
@@ -454,23 +462,23 @@ Index: gnu/bytecode/Type.java
  	if (type instanceof java.lang.reflect.ParameterizedType) {
  	    java.lang.reflect.ParameterizedType ptype
  		= (java.lang.reflect.ParameterizedType) type;
-Index: gnu/bytecode/TypeVariable.java
-===================================================================
---- gnu/bytecode/TypeVariable.java	(revision 8926)
-+++ gnu/bytecode/TypeVariable.java	(working copy)
-@@ -12,31 +12,35 @@
+diff --git a/gnu/bytecode/TypeVariable.java b/gnu/bytecode/TypeVariable.java
+index 259a0e5..e6b1d07 100644
+--- a/gnu/bytecode/TypeVariable.java
++++ b/gnu/bytecode/TypeVariable.java
+@@ -12,31 +12,35 @@ public class TypeVariable extends ObjectType {
      java.lang.reflect.TypeVariable rtype;
  
      public TypeVariable(String name) {
 -	super(name);
 +        this(name, Type.objectType);
-     }
- 
++    }
++
 +    public TypeVariable(String name, ClassType rawType) {
 +        super(name);
 +        this.rawType = rawType;
-+    }
-+
+     }
+ 
      public static TypeVariable make(java.lang.reflect.TypeVariable rtype) {
 -	TypeVariable tvar = new TypeVariable(rtype.getName());
 -	tvar.rawType = Type.objectType;
@@ -513,7 +521,7 @@ Index: gnu/bytecode/TypeVariable.java
      }
  
      public ClassType getRawType() {
-@@ -50,6 +54,11 @@
+@@ -50,6 +54,11 @@ public class TypeVariable extends ObjectType {
      @Override
      public String getSignature () { return getRawType().getSignature(); }
  

@@ -6,6 +6,7 @@ import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
 import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
+import gnu.bytecode.TypeVariable;
 import java.util.ArrayList;
 import java.util.Map;
 import sjava.compiler.Main;
@@ -44,7 +45,26 @@ public class MFilter extends AFilter {
                 }
 
                 Type[] reals = var10000;
-                Map tvs = Main.unresolveTvs(method.getTypeParameters(), params, reals);
+                TypeVariable[] var22;
+                if(this.name.equals("<init>")) {
+                    TypeVariable[] ctparams = ((ClassType)generic.getRawType()).getTypeParameters();
+                    TypeVariable[] mtparams = method.getTypeParameters();
+                    if(ctparams == null) {
+                        var22 = mtparams;
+                    } else if(mtparams == null) {
+                        var22 = ctparams;
+                    } else {
+                        TypeVariable[] o = new TypeVariable[ctparams.length + mtparams.length];
+                        System.arraycopy(ctparams, 0, o, 0, ctparams.length);
+                        System.arraycopy(mtparams, 0, o, ctparams.length, mtparams.length);
+                        var22 = o;
+                    }
+                } else {
+                    var22 = method.getTypeParameters();
+                }
+
+                TypeVariable[] tparams = var22;
+                Map tvs = Main.unresolveTvs(tparams, params, reals);
                 boolean stop = false;
 
                 for(int i = 0; !stop && i != this.types.length; ++i) {
