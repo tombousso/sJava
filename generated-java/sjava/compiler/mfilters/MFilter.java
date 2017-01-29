@@ -69,7 +69,7 @@ public class MFilter extends AFilter {
 
                 for(int i = 0; !stop && i != this.types.length; ++i) {
                     Type at = Main.resolveType(tvs, generic, arrayNeeded && i >= np - 1?((ArrayType)params[np - 1]).elements:params[i]);
-                    int level = at.compare(this.types[i]);
+                    int level = Main.compare(at, this.types[i]);
                     if(level < 0 || this.types[i] == Type.nullType && at instanceof PrimType) {
                         stop = true;
                     }

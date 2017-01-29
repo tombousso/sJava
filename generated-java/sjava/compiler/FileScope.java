@@ -86,9 +86,11 @@ public class FileScope {
             ClassType c = new ClassType(this.package_.concat(((VToken)((LexedParsedToken)tok1.toks.get(0))).val));
             List params = tok1.toks.subList(1, tok1.toks.size());
             Type[] tparams = new Type[params.size()];
+            Iterator it = params.iterator();
 
-            for(int i = 0; i != params.size(); ++i) {
-                String name = ((VToken)((LexedParsedToken)params.get(i))).val;
+            for(int i = 0; it.hasNext(); ++i) {
+                LexedParsedToken param = (LexedParsedToken)it.next();
+                String name = ((VToken)param).val;
                 TypeVariable tv = new TypeVariable(name);
                 tparams[i] = tv;
             }
@@ -106,8 +108,12 @@ public class FileScope {
     }
 
     void compileRoot() {
-        for(int i = 0; i != this.toks.size(); ++i) {
-            this.compileRoot((LexedParsedToken)this.toks.get(i));
+        List iterable = this.toks;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            LexedParsedToken tok = (LexedParsedToken)it.next();
+            this.compileRoot(tok);
         }
 
     }
@@ -146,13 +152,9 @@ public class FileScope {
                 this.newClasses.add(ci);
                 this.locals.put(name, ci.c);
                 boolean run = true;
-                int i = 3;
 
-                while(run && i != tok.toks.size()) {
+                for(int i = 3; run && i != tok.toks.size(); ++i) {
                     run = Main.compileClassMod((LexedParsedToken)tok.toks.get(i), ci.c);
-                    if(run) {
-                        ++i;
-                    }
                 }
             } else if(first.val.equals("import")) {
                 String var8 = ((VToken)((LexedParsedToken)tok.toks.get(1))).val;
@@ -244,8 +246,12 @@ public class FileScope {
     }
 
     public void compileMethods(GenHandler h) {
-        for(int i = 0; i != this.newClasses.size(); ++i) {
-            ((ClassInfo)this.newClasses.get(i)).compileMethods(h);
+        List iterable = this.newClasses;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            ClassInfo newClass = (ClassInfo)it.next();
+            newClass.compileMethods(h);
         }
 
     }

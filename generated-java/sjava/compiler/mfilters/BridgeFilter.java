@@ -20,11 +20,10 @@ public class BridgeFilter extends AFilter {
         Type r2 = method.getReturnType();
         if(method.getName().equals(this.m.getName()) && p1.length == p2.length && !Type.isSame(generic, super.pt)) {
             int n = p1.length;
-            int i = 0;
             boolean diff = !Type.isSame(r1.getRawType(), r2.getRawType());
+            boolean overrides = true;
 
-            boolean overrides;
-            for(overrides = true; overrides && i != n; ++i) {
+            for(int i = 0; overrides && i != n; ++i) {
                 if(!diff && !Type.isSame(p1[i].getRawType(), p2[i].getRawType())) {
                     diff = true;
                 }

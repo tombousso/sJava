@@ -26,7 +26,7 @@ public class MethodCall {
         for(int i = 0; i < n; ++i) {
             Type a = Main.resolveType(this.tvs, this.t, as[i]);
             Type b = Main.resolveType(o.tvs, o.t, bs[i]);
-            int comp = b.compare(a);
+            int comp = Main.compare(b, a);
             if(comp == 1) {
                 good = true;
             } else if(comp < 0) {

@@ -283,7 +283,7 @@
 	)
 	(define tup (sjava.compiler.Main:extractModifiers (Arrays:asList rest) 0))
 	(define body ((Arrays:asList rest):subList tup:_2 (alen rest)))
-	(define toks (ArrayList{Token}))
+	(define toks (ArrayList{LexedParsedToken}))
 	(toks:add (body:get 0))
 	(toks:addAll sets)
 	(toks:addAll (body:subList 1 (body:size)))

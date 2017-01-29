@@ -229,7 +229,7 @@
 			-1
 		)
 	)
-	((compile files HashMap{File ArrayList{LexedParsedToken}}) List{FileScope} 'public 'static
+	((compile files HashMap{File List{LexedParsedToken}}) List{FileScope} 'public 'static
 		(define locals (HashMap))
 		(define fileScopes (ArrayList{FileScope}))
 		(define macroNames (HashMap{String ClassInfo}))
@@ -258,7 +258,7 @@
 
 		fileScopes
 	)
-	((resolveType map Map{TypeVariable Type} pt Type t Type) Type 'static 'public
+	((resolveType map Map{TypeVariable Type} pt Type t Type defaultToRaw bool) Type 'static 'public
 		(cond
 			((instance? t TypeVariable)
 				(if (instance? pt ParameterizedType)
@@ -270,34 +270,44 @@
 								(return ((as ParameterizedType pt):getTypeArgumentType i))
 							)
 						)
-						(t:getRawType)
 					)
-					(if (&& (!= map null) (map:containsKey (as TypeVariable t)))
-						(map:get (as TypeVariable t))
+				)
+				(if (&& (!= map null) (map:containsKey (as TypeVariable t)))
+					(map:get (as TypeVariable t))
+					(if defaultToRaw
 						(t:getRawType)
+						null
 					)
 				)
 			)
 			((instance? t ArrayType)
-				(ArrayType (Main:resolveType map pt (as ArrayType t):elements))
+				(ArrayType (Main:resolveType map pt (as ArrayType t):elements defaultToRaw))
 			)
 			((instance? t ParameterizedType)
-				(begin
-					(define types ((as ParameterizedType t):getTypeArgumentTypes))
-					(define parameterized (Type[] len:(alen types)))
-					(forEachI type types i
-						(aset parameterized i (Main:resolveType map pt type))
+				(define types ((as ParameterizedType t):getTypeArgumentTypes))
+				(define parameterized (Type[] len:(alen types)))
+				(forEachI type types i
+					(define r (Main:resolveType map pt type false))
+					(if (|| (= r null) (!= 0 (as int ((as ParameterizedType t):getTypeArgumentBound i))))
+						(return (t:getRawType))
 					)
-					(ParameterizedType (as ClassType (t:getRawType)) parameterized)
+					(aset parameterized i r)
 				)
+				(ParameterizedType (as ClassType (t:getRawType)) parameterized)
 			)
 			(true
 				t
 			)
 		)
 	)
+	((resolveType map Map{TypeVariable Type} pt Type t Type) Type 'static 'public
+		(Main:resolveType map pt t true)
+	)
 	((resolveType pt Type t Type) Type 'static 'public
-		(Main:resolveType null pt t)
+		(Main:resolveType null pt t true)
+	)
+	((resolveType map Map{TypeVariable Type} t Type) Type 'static 'public
+		(Main:resolveType map null t true)
 	)
 	((unresolveTv tv TypeVariable generic Type real Type) Type 'static
 		(cond
@@ -313,19 +323,15 @@
 					(instance? real ParameterizedType)
 					((generic:getRawType):equals (real:getRawType))
 				)
-				(begin
-					(define gtypes ((as ParameterizedType generic):getTypeArgumentTypes))
-					(define rtypes ((as ParameterizedType real):getTypeArgumentTypes))
-					(define i 0)
-					(while (< i (alen gtypes))
-						(define ret (Main:unresolveTv tv (aget gtypes i) (aget rtypes i)))
-						(if (!= ret null)
-							(return ret)
-						)
-						(set i (+ i 1))
+				(define gtypes ((as ParameterizedType generic):getTypeArgumentTypes))
+				(define rtypes ((as ParameterizedType real):getTypeArgumentTypes))
+				(forEachI gtype gtypes i
+					(define ret (Main:unresolveTv tv gtype (aget rtypes i)))
+					(if (!= ret null)
+						(return ret)
 					)
-					null
 				)
+				null
 			)
 			((&& (instance? generic ArrayType) (instance? real ArrayType))
 				(Main:unresolveTv tv (as ArrayType generic):elements (as ArrayType real):elements)
@@ -341,11 +347,9 @@
 			(begin
 				(define out (HashMap{TypeVariable Type}))
 				(forEach tv tvs
-					(define j 0)
 					(define t Type null)
-					(while (&& (= t null) (!= j (alen generics)))
+					(for ((j 0)) (&& (= t null) (!= j (alen generics))) (inc j)
 						(set t (Main:unresolveTv tv (aget generics j) (aget reals j)))
-						(set j (+ j 1))
 					)
 					(if (!= t null)
 						(out:put tv t)
@@ -403,7 +407,7 @@
 			(begin
 				(while (!= i (block:toks:size))
 					(Main:transformBlockTok block mi transform i)
-					(set i (+ i 1))
+					(inc i)
 				)
 				(set block:isTransformed true)
 			)
@@ -723,26 +727,27 @@
 	((numericOpType types Type[]) Type 'static 'public
 		(define l (Arrays:asList types))
 		(cond
-			((|| (l:contains Type:doubleType) (l:contains (ClassType:make "java.lang.Double")))
+			((|| (l:contains Type:doubleType) (l:contains (Type:doubleType:boxedType)))
 				Type:doubleType
 			)
-			((|| (l:contains Type:floatType) (l:contains (ClassType:make "java.lang.Float")))
+			((|| (l:contains Type:floatType) (l:contains (Type:floatType:boxedType)))
 				Type:floatType
 			)
-			((|| (l:contains Type:longType) (l:contains (ClassType:make "java.lang.Long")))
+			((|| (l:contains Type:longType) (l:contains (Type:longType:boxedType)))
 				Type:longType
 			)
 			(true Type:intType)
 		)
 	)
+	((isNumeric type Type) bool 'static 'public
+		(define unbox (Main:tryUnbox type))
+		(&& (instance? unbox PrimType) (!= unbox Type:voidType) (!= unbox Type:booleanType))
+	)
 	((allNumeric types Type[]) bool 'static 'public
-		(define i 0)
-		(while (!= i (alen types))
-			(define t (Main:tryUnbox (aget types i)))
-			(if (! (instance? t PrimType))
+		(forEach type types
+			(if (! (Main:isNumeric type))
 				(return false)
 			)
-			(set i (+ i 1))
 		)
 		true
 	)
@@ -802,7 +807,7 @@
 			)
 			(while (!= j (- (alen params) n))
 				((emitters:get j):emit h mi code (Main:resolveType mc:tvs mc:t (aget params j)))
-				(set j (+ j 1))
+				(inc j)
 			)
 			(if (= n 1)
 				(begin
@@ -816,7 +821,7 @@
 						(if output (code:emitPushInt (- j oj)))
 						((emitters:get j):emit h mi code et)
 						(if output (code:emitArrayStore))
-						(set j (+ j 1))
+						(inc j)
 					)
 				)
 			)
@@ -835,139 +840,312 @@
 		(Main:emitInvoke h name type emitters mi code needed false)
 	)
 	((compareType types Type[]) Type 'static
-		(if (Main:allNumeric types)
-			(Main:numericOpType types)
-			Type:objectType
+		(cond
+			((Main:allNumeric types)
+				(Main:numericOpType types)
+			)
+			(
+				(=
+					(+
+						(Collections:frequency (Arrays:asList types) Type:booleanType)
+						(Collections:frequency (Arrays:asList types) (ClassType:make "java.lang.Boolean"))
+					)
+					(alen types)
+				)
+				Type:booleanType
+			)
+			(true Type:objectType)
 		)
 	)
-	;tok = condition
-	((emitIf_ h GenHandler inv bool toks List{Token} i int e int compare String trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
+	;toks = condition
+	((emitIf_ h GenHandler inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
 		(define output (!= code null))
 		(if (compare:equals "!")
-			(Main:emitIf h (! inv) toks i trueE falseE mi code needed)
-			(if (|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
-				(begin
+			(Main:emitIf h (! inv) (toks:get 0) trueE falseE mi code needed)
+			(cond
+				((|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
 					(define skipL (Label))
 					(define falseL (Label))
 					(define falseG (Goto falseL))
-					(define i i)
-					(while (!= i (- e 1))
-						(Main:emitIf h inv toks i Nothing:inst falseG mi code needed)
-						(set i (+ i 1))
+					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
+						(Main:emitIf h inv (toks:get i) Nothing:inst falseG mi code Type:voidType)
 					)
-					(Main:emitIf h inv toks (- e 1) (Emitters (Emitter[] trueE (Goto skipL))) Nothing:inst mi code needed)
+					(Main:emitIf h inv (toks:get (- (toks:size) 1)) (Emitters (Emitter[] trueE (Goto skipL))) Nothing:inst mi code needed)
 					(if output (falseL:define code))
 					(falseE:emit h mi code needed)
 					(if output (skipL:define code))
 					(trueE:emit h mi null needed)
 				)
-				(if (|| (&& (! inv) (compare:equals "||")) (&& inv (compare:equals "&&")))
-					(begin
-						(define skipL (Label))
-						(define trueL (Label))
-						(define trueG (Goto trueL))
-						(define i i)
-						(while (!= i (- e 1))
-							(Main:emitIf h (! inv) toks i Nothing:inst trueG mi code needed)
-							(set i (+ i 1))
-						)
-						(Main:emitIf h (! inv) toks (- e 1) (Emitters (Emitter[] falseE (Goto skipL))) Nothing:inst mi code needed)
-						(if output (trueL:define code))
-						(define type (trueE:emit h mi code needed))
-						(if output (skipL:define code))
-						type
+				((|| (&& (! inv) (compare:equals "||")) (&& inv (compare:equals "&&")))
+					(define skipL (Label))
+					(define trueL (Label))
+					(define trueG (Goto trueL))
+					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
+						(Main:emitIf h (! inv) (toks:get i) Nothing:inst trueG mi code Type:voidType)
 					)
-					(begin
-						(define falseLabel (instance? falseE Goto))
-						(define skip (Label))
-						(define label
-							(if falseLabel
-								(as Goto falseE):label
-								skip
+					(Main:emitIf h (! inv) (toks:get (- (toks:size) 1)) (Emitters (Emitter[] falseE (Goto skipL))) Nothing:inst mi code needed)
+					(if output (trueL:define code))
+					(define type (trueE:emit h mi code needed))
+					(if output (skipL:define code))
+					type
+				)
+				(true
+					(define falseLabel (instance? falseE Goto))
+					(define label
+						(if falseLabel
+							(as Goto falseE):label
+							(Label)
+						)
+					)
+					(define invCompare (Main:invertComp inv compare))
+					(if (Main:compare1Ops:containsKey invCompare)
+						(begin
+							(for ((j 0)) (!= j (toks:size)) (inc j)
+								(define types (h:compileAll toks j (+ j 1) mi null Main:unknownType))
+								(define otype (Main:compareType types))
+								(h:compileAll toks j (+ j 1) mi code otype)
+								(if output (code:emitGotoIfCompare1 label (Main:compare1Ops:get invCompare)))
 							)
 						)
-						(define invCompare (Main:invertComp inv compare))
-						(if (Main:compare1Ops:containsKey invCompare)
-							(begin
-								(define j i)
-								(while (!= j e)
-									(define types (h:compileAll toks j (+ j 1) mi null Main:unknownType))
-									(define otype (Main:compareType types))
-									(h:compileAll toks j (+ j 1) mi code otype)
-									(if output (code:emitGotoIfCompare1 label (Main:compare1Ops:get invCompare)))
-									(set j (+ j 1))
-								)
-							)
-							(begin
-								(define j i)
-								(while (!= (+ j 1) e)
-									(define types (h:compileAll toks j (+ j 2) mi null Main:unknownType))
-									(define otype (Main:compareType types))
-									(h:compileAll toks j (+ j 2) mi code otype)
-									(if (|| (= otype Type:doubleType) (= otype Type:floatType))
-										(begin
-											(define lt (|| (compare:equals "<") (compare:equals "<=")))
-											(define op (if (= otype Type:doubleType) (if lt 151 152) (if lt 149 150)))
-											(if output (code:emitPrimop op 2 Type:intType))
-											(cond
-												((invCompare:equals ">") (if output (code:emitGotoIfIntLeZero label)))
-												((invCompare:equals ">=") (if output (code:emitGotoIfIntLtZero label)))
-												((invCompare:equals "<") (if output (code:emitGotoIfIntGeZero label)))
-												((invCompare:equals "<=") (if output (code:emitGotoIfIntGtZero label)))
-												((invCompare:equals "=") (if output (code:emitGotoIfIntNeZero label)))
-												((invCompare:equals "!=") (if output (code:emitGotoIfIntEqZero label)))
-											)
+						(begin
+							(for ((j 0)) (!= (+ j 1) (toks:size)) (inc j)
+								(define types (h:compileAll toks j (+ j 2) mi null Main:unknownType))
+								(define otype (Main:compareType types))
+								(h:compileAll toks j (+ j 2) mi code otype)
+								(if (|| (= otype Type:doubleType) (= otype Type:floatType))
+									(begin
+										(define lt (|| (compare:equals "<") (compare:equals "<=")))
+										(define op (if (= otype Type:doubleType) (if lt 151 152) (if lt 149 150)))
+										(if output (code:emitPrimop op 2 Type:intType))
+										(cond
+											((invCompare:equals ">") (if output (code:emitGotoIfIntLeZero label)))
+											((invCompare:equals ">=") (if output (code:emitGotoIfIntLtZero label)))
+											((invCompare:equals "<") (if output (code:emitGotoIfIntGeZero label)))
+											((invCompare:equals "<=") (if output (code:emitGotoIfIntGtZero label)))
+											((invCompare:equals "=") (if output (code:emitGotoIfIntNeZero label)))
+											((invCompare:equals "!=") (if output (code:emitGotoIfIntEqZero label)))
 										)
-										(if output (code:emitGotoIfCompare2 label (Main:compare2Ops:get invCompare)))
 									)
-									(set j (+ j 1))
+									(if output (code:emitGotoIfCompare2 label (Main:compare2Ops:get invCompare)))
 								)
 							)
 						)
-						(define type (trueE:emit h mi code needed))
-						(if (! falseLabel)
-							(begin
-								(define end (Label))
-								(if (! (instance? falseE Nothing))
-									(if (&& output (code:reachableHere)) (code:emitGoto end))
-								)
-								(if output (skip:define code))
-								(falseE:emit h mi code needed)
-								(if output (end:define code))
-							)
+					)
+					(cond
+						(falseLabel
+							(trueE:emit h mi code needed)
 						)
-						type
+						((instance? falseE Nothing)
+							(define trueT (trueE:emit h mi code needed))
+							(if output (label:define code))
+							trueT
+						)
+						(true
+							(if (= needed Main:unknownType)
+								(set needed
+									(Main:commonType
+										(falseE:emit h mi null needed)
+										(trueE:emit h mi null needed)
+									)
+								)
+							)
+							(define trueT (trueE:emit h mi code needed))
+							(define end (Label))
+							(if (&& output (code:reachableHere)) (code:emitGoto end))
+							(if output (label:define code))
+							(define falseT (falseE:emit h mi code needed))
+							(if output (end:define code))
+							trueT
+						)
 					)
 				)
 			)
 		)
 	)
-	((emitIf h GenHandler inv bool toks List{Token} i int trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
-		(define cond (toks:get i))
+	((emitIf h GenHandler inv bool cond Token trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
 		(instanceCond cond
-			(CompareToken (Main:emitIf_ h inv cond:toks 0 (cond:toks:size) cond:compare trueE falseE mi code needed))
-			(true (Main:emitIf_ h inv toks i (+ i 1) "!=0" trueE falseE mi code needed))
+			(CompareToken (Main:emitIf_ h inv cond:toks cond:compare trueE falseE mi code needed))
+			(true (Main:emitIf_ h inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE mi code needed))
+		)
+	)
+	((compare a Type b Type) int 'public 'static
+		(cond
+			(
+				(&&
+					(|| (instance? a ClassType) (instance? a ParameterizedType))
+					(|| (instance? b ClassType) (instance? b ParameterizedType))
+				)
+				; raw types
+				(if
+					(&&
+						(instance? a ClassType) (instance? b ParameterizedType)
+						(!= ((as ClassType a):getTypeParameters) null) (!= (alen ((as ClassType a):getTypeParameters)) 0)
+					)
+					(set b (b:getRawType))
+				)
+				(if
+					(&&
+						(instance? a ParameterizedType) (instance? b ClassType)
+						(!= ((as ClassType b):getTypeParameters) null) (!= (alen ((as ClassType b):getTypeParameters)) 0)
+					)
+					(set a (a:getRawType))
+				)
+				(if (Type:isSame a b)
+					0
+					; return 1 if "a" is supertype of "b"
+					(cond
+						(((Main:superTypes b):contains a)
+							1
+						)
+						(true -1)
+					)
+				)
+			)
+			(true
+				(a:compare b)
+			)
+		)
+	)
+	((getGenericSuperclass a Type) Type 'public 'static
+		(Main:resolveType a ((as ClassType (a:getRawType)):getGenericSuperclass))
+	)
+	((getGenericInterfaces a Type) List{Type} 'public 'static
+		(define gintfs ((as ClassType (a:getRawType)):getGenericInterfaces))
+		(cond
+			((= gintfs null)
+				Collections:EMPTY_LIST
+			)
+			(true
+				(define o (ArrayList{Type}))
+				(forEach intf gintfs
+					(o:add (Main:resolveType a intf))
+				)
+				o
+			)
+		)
+	)
+	((superClasses a Type) LinkedHashSet{Type} 'public 'static
+		(define o (LinkedHashSet{Type}))
+		(for ((superA Type a)) (!= superA null) (set superA (Main:getGenericSuperclass superA))
+			(o:add superA)
+		)
+		o
+	)
+	((superIntfs sc LinkedHashSet{Type}) LinkedHashSet{Type} 'public 'static
+		(define o (LinkedHashSet{Type}))
+		(forEach superA sc
+			(define q (ArrayDeque{Type}))
+			(q:addAll (Main:getGenericInterfaces superA))
+			(while (! (q:isEmpty))
+				(define t (q:poll))
+				(o:add t)
+				(q:addAll (Main:getGenericInterfaces t))
+			)
+		)
+		o
+	)
+	((superTypes a Type) LinkedHashSet{Type} 'public 'static
+		(define o (Main:superClasses a))
+		(o:addAll (Main:superIntfs o))
+		o
+	)
+	((superType a Type b Type) Type 'public 'static
+		(define supersA (Main:superClasses a))
+		(define supersB (Main:superClasses b))
+		(forEach t supersA
+			(if (supersB:contains t)
+				(return t)
+			)
+		)
+		(define intfsA (Main:superIntfs supersA))
+		(define intfsB (Main:superIntfs supersB))
+		(intfsA:retainAll intfsB)
+		(forEach intf1 intfsA
+			(forEach intf2 intfsA
+				(if (! ((as ClassType (intf2:getRawType)):implementsInterface (as ClassType (intf1:getRawType))))
+					(goto next)
+				)
+			)
+			(return intf1)
+			(label next)
+		)
+		Type:objectType
+		;(throw (RuntimeException))
+	)
+	((commonType a Type b Type) Type 'public 'static
+		(cond
+			(
+				(||
+					(= a Main:returnType)
+					(= a Main:throwType)
+				)
+				b
+			)
+			(
+				(||
+					(= b Main:returnType)
+					(= b Main:throwType)
+				)
+				a
+			)
+			((= a Type:nullType)
+				(Main:tryBox b)
+			)
+			((= b Type:nullType)
+				(Main:tryBox a)
+			)
+			((Type:isSame a b)
+				a
+			)
+			((&& (Main:isNumeric a) (Main:isNumeric b))
+				(set a (Main:tryUnbox a))
+				(set b (Main:tryUnbox b))
+				(define l (Arrays:asList (Type[] a b)))
+				(cond
+					((Type:isSame a b)
+						a
+					)
+					((l:contains Type:doubleType)
+						Type:doubleType
+					)
+					((l:contains Type:floatType)
+						Type:floatType
+					)
+					((l:contains Type:longType)
+						Type:longType
+					)
+					((l:contains Type:intType)
+						Type:intType
+					)
+					((&& (l:contains Type:shortType) (l:contains Type:booleanType)) ;one of each
+						Type:shortType
+					)
+					(true (throw (RuntimeException)))
+				)
+			)
+			((&& (= (Main:tryUnbox a) Type:booleanType) (= (Main:tryUnbox b) Type:booleanType))
+				Type:booleanType
+			)
+			(true
+				(Main:superType a b)
+			)
 		)
 	)
 	((generateBridgeMethod target Method params Type[] ret Type) void 'static 'public
 		(define c (target:getDeclaringClass))
 		(define rparams (Type[] len:(alen params)))
-		(define i 0)
-		(while (!= i (alen params))
+		(for ((i 0)) (!= i (alen params)) (inc i)
 			(aset rparams i ((aget params i):getRawType))
-			(set i (+ i 1))
 		)
 		(define found (c:getDeclaredMethod (target:getName) rparams))
 		(if (|| (= found null) (! (Type:isSame (found:getReturnType) ret)))
 			(begin
 				(define m (c:addMethod (target:getName) rparams (ret:getRawType) (| Access:PUBLIC Access:BRIDGE Access:SYNTHETIC)))
 				(define code (m:startCode))
-				(define i 0)
 				(code:emitPushThis)
-				(while (!= i (alen rparams))
+				(for ((i 0)) (!= i (alen rparams)) (inc i)
 					(code:emitLoad (code:getArg (+ i 1)))
 					(GenHandler:castMaybe code (aget rparams i) (aget (target:getGenericParameterTypes) i))
-					(set i (+ i 1))
 				)
 				(code:emitInvoke target)
 				(GenHandler:castMaybe code (target:getReturnType) (ret:getRawType))
@@ -1539,12 +1717,10 @@
 				(define c (ClassType (this:package_:concat (as VToken (tok:toks:get 0)):val)))
 				(define params (tok:toks:subList 1 (tok:toks:size)))
 				(define tparams (Type[] len:(params:size)))
-				(define i 0)
-				(while (!= i (params:size))
-					(define name (as VToken (params:get i)):val)
+				(forEachI param params i
+					(define name (as VToken param):val)
 					(define tv (TypeVariable name))
 					(aset tparams i tv)
-					(set i (+ i 1))
 				)
 				(c:setTypeParameters tparams)
 				c
@@ -1556,10 +1732,8 @@
 		)
 	)
 	((compileRoot) void
-		(define i 0)
-		(while (!= i (this:toks:size))
-			(this:compileRoot (this:toks:get i))
-			(set i (+ i 1))
+		(forEach tok this:toks
+			(this:compileRoot tok)
 		)
 	)
 	((getMacroParams out List{Type} params BlockToken scope Map) bool
@@ -1593,10 +1767,8 @@
 						(this:newClasses:add ci)
 						(this:locals:put name ci:c)
 						(define run true)
-						(define i 3)
-						(while (&& run (!= i (tok:toks:size)))
+						(for ((i 3)) (&& run (!= i (tok:toks:size))) (inc i)
 							(set run (Main:compileClassMod (tok:toks:get i) ci:c))
-							(if run (set i (+ i 1)))
 						)
 					)
 					((first:val:equals "import")
@@ -1673,10 +1845,8 @@
 	)
 	;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
 	((compileMethods h GenHandler) void 'public
-		(define i 0)
-		(while (!= i (this:newClasses:size))
-			((this:newClasses:get i):compileMethods h)
-			(set i (+ i 1))
+		(forEach newClass this:newClasses
+			(newClass:compileMethods h)
 		)
 	)
 	((compileInclude tok IncludeToken) void 'public
@@ -1713,13 +1883,10 @@
 				(if (!= args null)
 					(begin
 						(set this:tvs (HashMap{String TypeVariable}))
-						(define i 0)
-						(while (!= i (alen args))
-							(define tv Type (aget args i))
+						(forEach tv args
 							(if (instance? tv TypeVariable)
 								(this:tvs:put (tv:getName) (as TypeVariable tv))
 							)
-							(set i (+ i 1))
 						)
 					)
 				)
@@ -1794,8 +1961,7 @@
 			)
 			(true
 				(define type Type null)
-				(define i 0)
-				(while (&& (! abs) (= type null) (!= i (this:fs:starImports:size)))
+				(for ((i 0)) (&& (! abs) (= type null) (!= i (this:fs:starImports:size))) (inc i)
 					(define fullName ((this:fs:starImports:get i):concat name))
 					(if (this:fs:locals:containsKey fullName)
 						(set type (this:fs:locals:get fullName))
@@ -1803,7 +1969,6 @@
 							(set type (Type:getType fullName))
 						)
 					)
-					(set i (+ i 1))
 				)
 				(if (&& (= type null) (this:fs:classExists name))
 					(Type:getType name)
@@ -1817,11 +1982,10 @@
 			(GenericToken
 				(define c ClassType ((this:getType (as VToken (tok:toks:get 0)):val):getRawType))
 				(define params (tok:toks:subList 1 (tok:toks:size)))
-				(define tparams (Type[] len:(params:size)))
-				(define i 0)
-				(while (!= i (params:size))
-					(aset tparams i (this:getType (params:get i)))
-					(set i (+ i 1))
+				(define tparams
+					(mapA param params
+						(this:getType param)
+					)
 				)
 				(ParameterizedType c tparams)
 			)
@@ -1911,11 +2075,8 @@
 		)
 	)
 	((compileMethods h GenHandler) void 'public
-		(define i 0)
-		(while (!= i (this:methods:size))
-			(define mi (this:methods:get i))
+		(forEach mi this:methods
 			(mi:compileMethodBody h)
-			(set i (+ i 1))
 		)
 	)
 	((runMethodMacros) void
@@ -1964,7 +2125,7 @@
 					(al:add out)
 					al
 				)
-				(tok:toks:subList 1 (tok:toks:size))
+				(as ArrayList (tok:toks:subList 1 (tok:toks:size)))
 			)
 		)
 		(try

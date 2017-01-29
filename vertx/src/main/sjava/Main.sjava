@@ -65,7 +65,7 @@
 			)
 		)
 		(Sync:awaitResult
-			(lambda Consumer{Handler{AsyncResult{SQLConnection}}} (h)
+			(lambda Consumer{Handler{AsyncResult{Void}}} (h)
 				(this:conn:execute
 					"""CREATE TABLE IF NOT EXISTS users (
 						id serial PRIMARY KEY,

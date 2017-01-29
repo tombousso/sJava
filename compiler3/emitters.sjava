@@ -28,9 +28,7 @@
 	)
 	((emitAll emitters List{Emitter} h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public 'static
 		(define types (Type[] len:(emitters:size)))
-		(define i 0)
-		(while (< i (alen types))
-			(define emitter (emitters:get i))
+		(forEachI emitter emitters i
 			(if (!= emitter null)
 				(begin
 					(aset types i
@@ -43,7 +41,6 @@
 					)
 				)
 			)
-			(set i (+ i 1))
 		)
 		types
 	)

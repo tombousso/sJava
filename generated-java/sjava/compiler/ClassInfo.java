@@ -58,11 +58,12 @@ public class ClassInfo {
             TypeVariable[] args = c.getTypeParameters();
             if(args != null) {
                 this.tvs = new HashMap();
+                TypeVariable[] array = args;
 
-                for(int i = 0; i != args.length; ++i) {
-                    TypeVariable tv = args[i];
+                for(int notused = 0; notused != array.length; ++notused) {
+                    TypeVariable tv = array[notused];
                     if(tv instanceof TypeVariable) {
-                        this.tvs.put(tv.getName(), (TypeVariable)tv);
+                        this.tvs.put(tv.getName(), tv);
                     }
                 }
             }
@@ -189,13 +190,15 @@ public class ClassInfo {
             GenericToken tok1 = (GenericToken)tok;
             ClassType c = (ClassType)this.getType(((VToken)((LexedParsedToken)tok1.toks.get(0))).val).getRawType();
             List params = tok1.toks.subList(1, tok1.toks.size());
-            Type[] tparams = new Type[params.size()];
+            Type[] out = new Type[params.size()];
+            Iterator it = params.iterator();
 
-            for(int i = 0; i != params.size(); ++i) {
-                tparams[i] = this.getType((Token)((LexedParsedToken)params.get(i)));
+            for(int i = 0; it.hasNext(); ++i) {
+                LexedParsedToken param = (LexedParsedToken)it.next();
+                out[i] = this.getType((Token)param);
             }
 
-            var10000 = new ParameterizedType(c, tparams);
+            var10000 = new ParameterizedType(c, out);
         } else if(tok instanceof ArrayToken) {
             ArrayToken tok2 = (ArrayToken)tok;
             var10000 = new ArrayType(this.getType((Token)((LexedParsedToken)tok2.toks.get(0))));
@@ -288,8 +291,11 @@ public class ClassInfo {
     }
 
     public void compileMethods(GenHandler h) {
-        for(int i = 0; i != this.methods.size(); ++i) {
-            AMethodInfo mi = (AMethodInfo)this.methods.get(i);
+        List iterable = this.methods;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            AMethodInfo mi = (AMethodInfo)it.next();
             mi.compileMethodBody(h);
         }
 
@@ -340,7 +346,7 @@ public class ClassInfo {
 
         Class[] classes = out;
         ArrayList args = new ArrayList(Arrays.asList(new Object[]{this}));
-        Object var10001;
+        ArrayList var10001;
         if((method.getModifiers() & Access.TRANSIENT) != 0) {
             int var = params.length - o;
             ArrayList al = new ArrayList(tok.toks.subList(1, var));
@@ -349,10 +355,10 @@ public class ClassInfo {
             al.add(out1);
             var10001 = al;
         } else {
-            var10001 = tok.toks.subList(1, tok.toks.size());
+            var10001 = (ArrayList)tok.toks.subList(1, tok.toks.size());
         }
 
-        args.addAll((Collection)var10001);
+        args.addAll(var10001);
 
         try {
             ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());

@@ -13,17 +13,15 @@
 	((compileAll toks List{Token} i int e int mi AMethodInfo needed Object) Type[] 'public
 		(define l (toks:size))
 		(define types (Type[] len:(- e i)))
-		(define j i)
-		(while (! (>= j e))
+		(for ((j i)) (! (>= j e)) (inc j)
 			(aset types (- j i)
 				(this:compile (toks:get j) mi
 					(if (instance? needed Type[])
 						(aget (as Type[] needed) (- j i))
-						needed
+						(as Type needed)
 					)
 				)
 			)
-			(set j (+ j 1))
 		)
 		types
 	)
@@ -231,7 +229,7 @@
 				(return needed)
 			)
 		)
-		(define result
+		(define result Type
 			(instanceCond o
 				(UnquoteToken
 					(define tok (Main:transformBlock (o:toks:get 0) mi))
@@ -354,31 +352,30 @@
 					(if output (this:code:emitDup))
 					(if output (this:code:emitInvoke (al:getMethod "<init>" (Type[]))))
 					(define i 0)
-					(while (!= i (o:size))
-						(define t (this:compileQuasi (o:get i) mi null Main:unknownType))
+					(forEach a o
+						(define t (this:compileQuasi a mi null Main:unknownType))
 						(if (= t (Main:getCompilerType "tokens.LexedParsedToken"))
 							(begin
 								(if output (this:code:emitDup))
-								(this:compileQuasi (o:get i) mi this:code Main:unknownType)
+								(this:compileQuasi a mi this:code Main:unknownType)
 								(if output (this:code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
 								(if output (this:code:emitPop 1))
 							)
 							(if (instance? t ArrayType)
 								(begin
 									(if output (this:code:emitDup))
-									(this:compileQuasi (o:get i) mi this:code Main:unknownType)
+									(this:compileQuasi a mi this:code Main:unknownType)
 									(if output (this:code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
 									(if output (this:code:emitPop 1))
 								)
 								(begin
 									(if output (this:code:emitDup))
-									(this:compileQuasi (o:get i) mi this:code Main:unknownType)
+									(this:compileQuasi a mi this:code Main:unknownType)
 									(if output (this:code:emitInvoke ((as ClassType (Type:getType "java.util.List")):getDeclaredMethod "addAll" 1)))
 									(if output (this:code:emitPop 1))
 								)
 							)
 						)
-						(set i (+ i 1))
 					)
 					al
 				)
@@ -479,7 +476,7 @@
 	((compile tok ObjectToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define ci tok:ci)
-		(define emitters List{Emitter} (ArrayList tok:superArgs))
+		(define emitters List{Emitter} (ArrayList{LexedParsedToken} tok:superArgs))
 		(if (= ci null)
 			(begin
 				(define captureH (CaptureVHandler mi))
@@ -597,7 +594,7 @@
 							(al:add out)
 							al
 						)
-						tok:toks
+						(as ArrayList tok:toks)
 					)
 				)
 				(try
@@ -760,13 +757,9 @@
 					otype
 				)
 			)
-			(begin
-				(define i 1)
-				(while (!= i (tok:toks:size))
-					(this:compile (tok:toks:get i) mi this:code otype)
-					(if output (this:code:emitBinop (Main:binOps:get tok:op) otype))
-					(set i (+ i 1))
-				)
+			(for ((i 1)) (!= i (tok:toks:size)) (inc i)
+				(this:compile (tok:toks:get i) mi this:code otype)
+				(if output (this:code:emitBinop (Main:binOps:get tok:op) otype))
 			)
 		)
 		(this:castMaybe otype needed)
@@ -782,20 +775,20 @@
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(Main:emitIf this false tok:toks 1 (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
+		(Main:emitIf this false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
 	)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(mi:pushScope this:code tok:labels)
 		(define start Label (Label))
 		(if output (start:define this:code))
-		(Main:emitIf this false tok:toks 1 (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi this:code needed)
+		(Main:emitIf this false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi this:code needed)
 		(mi:popScope this:code)
 		Type:voidType
 	)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(this:castMaybe (Main:emitIf_ this false tok:toks 0 (tok:toks:size) tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi this:code Type:booleanType) needed)
+		(this:castMaybe (Main:emitIf_ this false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi this:code Type:booleanType) needed)
 	)
 	((compile tok ThrowToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -922,7 +915,7 @@
 			(begin
 				(define tparams ((as ClassType tok:type):getTypeParameters))
 				(define ptype (ParameterizedType (as ClassType tok:type) tparams))
-				(this:castMaybe (Main:resolveType mc:tvs mc:t ptype) needed)
+				(this:castMaybe (Main:resolveType mc:tvs ptype) needed)
 			)
 			(this:castMaybe tok:type needed)
 		)
@@ -935,13 +928,11 @@
 			(if output (this:code:emitPushInt (tok:toks:size)))
 		)
 		(if output (this:code:emitNewArray (array:elements:getRawType)))
-		(define i 0)
-		(while (!= i (tok:toks:size))
+		(for ((i 0)) (!= i (tok:toks:size)) (inc i)
 			(if output (this:code:emitDup))
 			(if output (this:code:emitPushInt i))
 			(this:compile (tok:toks:get i) mi this:code array:elements)
 			(if output (this:code:emitArrayStore))
-			(set i (+ i 1))
 		)
 		(this:castMaybe tok:type needed)
 	)

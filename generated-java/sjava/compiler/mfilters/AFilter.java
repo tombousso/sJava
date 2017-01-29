@@ -4,8 +4,9 @@ import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
 import gnu.bytecode.Type;
-import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import sjava.compiler.Main;
 
 public abstract class AFilter {
@@ -37,30 +38,12 @@ public abstract class AFilter {
         if(this.pt instanceof ArrayType) {
             this.searchArray();
         } else {
-            Type t = this.pt;
+            LinkedHashSet iterable = Main.superTypes(this.pt);
+            Iterator it = iterable.iterator();
 
-            ArrayList supers;
-            for(supers = new ArrayList(); t != null; t = Main.resolveType(t, ((ClassType)t.getRawType()).getGenericSuperclass())) {
+            for(int notused = 0; it.hasNext(); ++notused) {
+                Type t = (Type)it.next();
                 this.search(t);
-                supers.add(t);
-            }
-
-            for(int i = 0; i != supers.size(); ++i) {
-                Type superC = (Type)supers.get(i);
-                this.searchIntfs(superC, ((ClassType)superC.getRawType()).getGenericInterfaces());
-            }
-        }
-
-    }
-
-    void searchIntfs(Type sub, Type[] intfs) {
-        int j = 0;
-        if(intfs != null) {
-            while(j != intfs.length) {
-                Type gintf = Main.resolveType(sub, intfs[j]);
-                this.search(gintf);
-                this.searchIntfs(gintf, ((ClassType)gintf.getRawType()).getGenericInterfaces());
-                ++j;
             }
         }
 
