@@ -22,8 +22,8 @@
 	(constTypes HashMap{String Type} 'static)
 	(accessModifiers HashMap{String Short} 'static)
 	(binOps HashMap{String Integer} 'static 'public)
-	(compare2Ops HashMap{String Integer} 'static)
-	(compare1Ops HashMap{String Integer} 'static)
+	(compare2Ops HashMap{String Integer} 'public 'static)
+	(compare1Ops HashMap{String Integer} 'public 'static)
 	(oppositeOps HashMap{String String} 'static)
 	(unknownType Type 'static 'public)
 	(returnType Type 'static 'public)
@@ -767,7 +767,7 @@
 	((isCompare s String) bool 'static 'public
 		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare2Ops:containsKey s))
 	)
-	((invertComp inv bool comp String) String 'static
+	((invertComp inv bool comp String) String 'public 'static
 		(if inv
 			(Main:oppositeOps:get comp)
 			comp
@@ -839,7 +839,7 @@
 	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type) Tuple2{Type MethodCall} 'static 'public
 		(Main:emitInvoke h name type emitters mi code needed false)
 	)
-	((compareType types Type[]) Type 'static
+	((compareType types Type[]) Type 'public 'static
 		(cond
 			((Main:allNumeric types)
 				(Main:numericOpType types)
@@ -857,115 +857,23 @@
 			(true Type:objectType)
 		)
 	)
-	;toks = condition
-	((emitIf_ h GenHandler inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
+	((emitGotoIf otype Type invCompare String compare String label Label code CodeAttr) void 'public 'static
 		(define output (!= code null))
-		(if (compare:equals "!")
-			(Main:emitIf h (! inv) (toks:get 0) trueE falseE mi code needed)
-			(cond
-				((|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
-					(define skipL (Label))
-					(define falseL (Label))
-					(define falseG (Goto falseL))
-					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
-						(Main:emitIf h inv (toks:get i) Nothing:inst falseG mi code Type:voidType)
-					)
-					(Main:emitIf h inv (toks:get (- (toks:size) 1)) (Emitters (Emitter[] trueE (Goto skipL))) Nothing:inst mi code needed)
-					(if output (falseL:define code))
-					(falseE:emit h mi code needed)
-					(if output (skipL:define code))
-					(trueE:emit h mi null needed)
-				)
-				((|| (&& (! inv) (compare:equals "||")) (&& inv (compare:equals "&&")))
-					(define skipL (Label))
-					(define trueL (Label))
-					(define trueG (Goto trueL))
-					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
-						(Main:emitIf h (! inv) (toks:get i) Nothing:inst trueG mi code Type:voidType)
-					)
-					(Main:emitIf h (! inv) (toks:get (- (toks:size) 1)) (Emitters (Emitter[] falseE (Goto skipL))) Nothing:inst mi code needed)
-					(if output (trueL:define code))
-					(define type (trueE:emit h mi code needed))
-					(if output (skipL:define code))
-					type
-				)
-				(true
-					(define falseLabel (instance? falseE Goto))
-					(define label
-						(if falseLabel
-							(as Goto falseE):label
-							(Label)
-						)
-					)
-					(define invCompare (Main:invertComp inv compare))
-					(if (Main:compare1Ops:containsKey invCompare)
-						(begin
-							(for ((j 0)) (!= j (toks:size)) (inc j)
-								(define types (h:compileAll toks j (+ j 1) mi null Main:unknownType))
-								(define otype (Main:compareType types))
-								(h:compileAll toks j (+ j 1) mi code otype)
-								(if output (code:emitGotoIfCompare1 label (Main:compare1Ops:get invCompare)))
-							)
-						)
-						(begin
-							(for ((j 0)) (!= (+ j 1) (toks:size)) (inc j)
-								(define types (h:compileAll toks j (+ j 2) mi null Main:unknownType))
-								(define otype (Main:compareType types))
-								(h:compileAll toks j (+ j 2) mi code otype)
-								(if (|| (= otype Type:doubleType) (= otype Type:floatType))
-									(begin
-										(define lt (|| (compare:equals "<") (compare:equals "<=")))
-										(define op (if (= otype Type:doubleType) (if lt 151 152) (if lt 149 150)))
-										(if output (code:emitPrimop op 2 Type:intType))
-										(cond
-											((invCompare:equals ">") (if output (code:emitGotoIfIntLeZero label)))
-											((invCompare:equals ">=") (if output (code:emitGotoIfIntLtZero label)))
-											((invCompare:equals "<") (if output (code:emitGotoIfIntGeZero label)))
-											((invCompare:equals "<=") (if output (code:emitGotoIfIntGtZero label)))
-											((invCompare:equals "=") (if output (code:emitGotoIfIntNeZero label)))
-											((invCompare:equals "!=") (if output (code:emitGotoIfIntEqZero label)))
-										)
-									)
-									(if output (code:emitGotoIfCompare2 label (Main:compare2Ops:get invCompare)))
-								)
-							)
-						)
-					)
-					(cond
-						(falseLabel
-							(trueE:emit h mi code needed)
-						)
-						((instance? falseE Nothing)
-							(define trueT (trueE:emit h mi code needed))
-							(if output (label:define code))
-							trueT
-						)
-						(true
-							(if (= needed Main:unknownType)
-								(set needed
-									(Main:commonType
-										(falseE:emit h mi null needed)
-										(trueE:emit h mi null needed)
-									)
-								)
-							)
-							(define trueT (trueE:emit h mi code needed))
-							(define end (Label))
-							(if (&& output (code:reachableHere)) (code:emitGoto end))
-							(if output (label:define code))
-							(define falseT (falseE:emit h mi code needed))
-							(if output (end:define code))
-							trueT
-						)
-					)
+		(if (|| (= otype Type:doubleType) (= otype Type:floatType))
+			(begin
+				(define lt (|| (compare:equals "<") (compare:equals "<=")))
+				(define op (if (= otype Type:doubleType) (if lt 151 152) (if lt 149 150)))
+				(if output (code:emitPrimop op 2 Type:intType))
+				(cond
+					((invCompare:equals ">") (if output (code:emitGotoIfIntLeZero label)))
+					((invCompare:equals ">=") (if output (code:emitGotoIfIntLtZero label)))
+					((invCompare:equals "<") (if output (code:emitGotoIfIntGeZero label)))
+					((invCompare:equals "<=") (if output (code:emitGotoIfIntGtZero label)))
+					((invCompare:equals "=") (if output (code:emitGotoIfIntNeZero label)))
+					((invCompare:equals "!=") (if output (code:emitGotoIfIntEqZero label)))
 				)
 			)
-		)
-	)
-	((emitIf h GenHandler inv bool cond Token trueE Emitter falseE Emitter mi AMethodInfo code CodeAttr needed Type) Type 'static 'public
-		(instanceCond cond
-			(CompareToken (Main:emitIf_ h inv cond:toks cond:compare trueE falseE mi code needed))
-			(true (Main:emitIf_ h inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE mi code needed))
+			(if output (code:emitGotoIfCompare2 label (Main:compare2Ops:get invCompare)))
 		)
 	)
 	((compare a Type b Type) int 'public 'static
@@ -975,7 +883,7 @@
 					(|| (instance? a ClassType) (instance? a ParameterizedType))
 					(|| (instance? b ClassType) (instance? b ParameterizedType))
 				)
-				; raw types
+				;raw types
 				(if
 					(&&
 						(instance? a ClassType) (instance? b ParameterizedType)
@@ -992,7 +900,7 @@
 				)
 				(if (Type:isSame a b)
 					0
-					; return 1 if "a" is supertype of "b"
+					;return 1 if "a" is supertype of "b"
 					(cond
 						(((Main:superTypes b):contains a)
 							1
@@ -1073,19 +981,26 @@
 		;(throw (RuntimeException))
 	)
 	((commonType a Type b Type) Type 'public 'static
+		(define aReturns
+			(||
+				(= a Main:returnType)
+				(= a Main:throwType)
+			)
+		)
+		(define bReturns
+			(||
+				(= b Main:returnType)
+				(= b Main:throwType)
+			)
+		)
 		(cond
-			(
-				(||
-					(= a Main:returnType)
-					(= a Main:throwType)
-				)
+			((&& aReturns bReturns)
+				Type:voidType
+			)
+			(aReturns
 				b
 			)
-			(
-				(||
-					(= b Main:returnType)
-					(= b Main:throwType)
-				)
+			(bReturns
 				a
 			)
 			((= a Type:nullType)

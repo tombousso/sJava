@@ -169,6 +169,122 @@ public class GenHandler extends Handler {
         return var10000;
     }
 
+    public Type emitIf_(boolean inv, List<Token> toks, String compare, Emitter trueE, Emitter falseE, AMethodInfo mi, Type needed) {
+        boolean output = this.code != null;
+        if(needed == Main.unknownType) {
+            needed = Main.commonType(falseE.emit(this, mi, (CodeAttr)null, needed), trueE.emit(this, mi, (CodeAttr)null, needed));
+        }
+
+        Object var10000;
+        if(compare.equals("!")) {
+            var10000 = this.emitIf(!inv, (Token)toks.get(0), trueE, falseE, mi, needed);
+        } else if(!compare.equals("&&") && !compare.equals("||")) {
+            boolean isFalseGoto = falseE instanceof Goto;
+            Label falseLabel = isFalseGoto?((Goto)falseE).label:new Label();
+            String invCompare = Main.invertComp(inv, compare);
+            if(Main.compare1Ops.containsKey(invCompare)) {
+                for(int j = 0; j != toks.size(); ++j) {
+                    Type[] types = this.compileAll(toks, j, j + 1, mi, (CodeAttr)null, Main.unknownType);
+                    Type otype = Main.compareType(types);
+                    this.compileAll(toks, j, j + 1, mi, otype);
+                    if(output) {
+                        this.code.emitGotoIfCompare1(falseLabel, ((Integer)Main.compare1Ops.get(invCompare)).intValue());
+                    }
+                }
+            } else {
+                if(toks.size() > 2 && compare.equals("!=")) {
+                    throw new RuntimeException();
+                }
+
+                for(int j1 = 0; j1 + 1 != toks.size(); ++j1) {
+                    Type[] types1 = this.compileAll(toks, j1, j1 + 2, mi, (CodeAttr)null, Main.unknownType);
+                    Type otype1 = Main.compareType(types1);
+                    this.compileAll(toks, j1, j1 + 2, mi, otype1);
+                    Main.emitGotoIf(otype1, invCompare, compare, falseLabel, this.code);
+                }
+            }
+
+            if(isFalseGoto) {
+                trueE.emit(this, mi, this.code, needed);
+                var10000 = Type.voidType;
+            } else if(falseE instanceof Nothing) {
+                trueE.emit(this, mi, this.code, needed);
+                if(output) {
+                    falseLabel.define(this.code);
+                }
+
+                var10000 = Type.voidType;
+            } else {
+                trueE.emit(this, mi, this.code, needed);
+                Label end = new Label();
+                if(output && this.code.reachableHere()) {
+                    this.code.emitGoto(end);
+                }
+
+                if(output) {
+                    falseLabel.define(this.code);
+                }
+
+                falseE.emit(this, mi, this.code, needed);
+                if(output) {
+                    end.define(this.code);
+                }
+
+                var10000 = needed;
+            }
+        } else {
+            Label skipL = new Label();
+            Label trueL = new Label();
+            Goto trueG = new Goto(trueL);
+            Label falseL = new Label();
+            Goto falseG = new Goto(falseL);
+            if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
+                for(int i = 0; i != toks.size() - 1; ++i) {
+                    this.emitIf(inv, (Token)toks.get(i), Nothing.inst, falseG, mi, Type.voidType);
+                }
+            } else {
+                for(int i1 = 0; i1 != toks.size() - 1; ++i1) {
+                    this.emitIf(!inv, (Token)toks.get(i1), Nothing.inst, trueG, mi, Type.voidType);
+                }
+            }
+
+            this.emitIf(inv, (Token)toks.get(toks.size() - 1), Nothing.inst, falseG, mi, Type.voidType);
+            if(output) {
+                trueL.define(this.code);
+            }
+
+            trueE.emit(this, mi, this.code, needed);
+            if(output && this.code.reachableHere()) {
+                this.code.emitGoto(skipL);
+            }
+
+            if(output) {
+                falseL.define(this.code);
+            }
+
+            falseE.emit(this, mi, this.code, needed);
+            if(output) {
+                skipL.define(this.code);
+            }
+
+            var10000 = needed;
+        }
+
+        return (Type)var10000;
+    }
+
+    public Type emitIf(boolean inv, Token cond, Emitter trueE, Emitter falseE, AMethodInfo mi, Type needed) {
+        Type var10000;
+        if(cond instanceof CompareToken) {
+            CompareToken cond1 = (CompareToken)cond;
+            var10000 = this.emitIf_(inv, cond1.toks, cond1.compare, trueE, falseE, mi, needed);
+        } else {
+            var10000 = this.emitIf_(inv, Arrays.asList(new Token[]{cond}), "!=0", trueE, falseE, mi, needed);
+        }
+
+        return var10000;
+    }
+
     public Type compile(EmptyToken tok, AMethodInfo mi, Type needed) {
         return Type.voidType;
     }
@@ -976,7 +1092,7 @@ public class GenHandler extends Handler {
     public Type compile(IfToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         boolean hasElse = tok.toks.size() == 4;
-        return Main.emitIf(this, false, (Token)tok.toks.get(1), (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, this.code, (Type)(hasElse?needed:Type.voidType));
+        return this.emitIf(false, (Token)tok.toks.get(1), (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, (Type)(hasElse?needed:Type.voidType));
     }
 
     public Type compile(WhileToken tok, AMethodInfo mi, Type needed) {
@@ -987,14 +1103,14 @@ public class GenHandler extends Handler {
             start.define(this.code);
         }
 
-        Main.emitIf(this, false, (Token)tok.toks.get(1), new Emitters(new Emitter[]{new Emitters(tok.toks.subList(2, tok.toks.size())), new Goto(start)}), Nothing.inst, mi, this.code, needed);
+        this.emitIf(false, (Token)tok.toks.get(1), new Emitters(new Emitter[]{new Emitters(tok.toks.subList(2, tok.toks.size())), new Goto(start)}), Nothing.inst, mi, needed);
         mi.popScope(this.code);
         return Type.voidType;
     }
 
     public Type compile(CompareToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        return this.castMaybe(Main.emitIf_(this, false, tok.toks, tok.compare, new ConstToken(tok.line, "true"), new ConstToken(tok.line, "false"), mi, this.code, Type.booleanType), needed);
+        return this.castMaybe(this.emitIf_(false, tok.toks, tok.compare, new ConstToken(tok.line, "true"), new ConstToken(tok.line, "false"), mi, Type.booleanType), needed);
     }
 
     public Type compile(ThrowToken tok, AMethodInfo mi, Type needed) {

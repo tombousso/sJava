@@ -144,6 +144,105 @@
 			)
 		)
 	)
+	;toks = condition
+	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo needed Type) Type 'public
+		(define output (!= this:code null))
+		(if (= needed Main:unknownType)
+			(set needed
+				(Main:commonType
+					(falseE:emit this mi null needed)
+					(trueE:emit this mi null needed)
+				)
+			)
+		)
+		(cond
+			((compare:equals "!")
+				(this:emitIf (! inv) (toks:get 0) trueE falseE mi needed)
+			)
+			((|| (compare:equals "&&") (compare:equals "||"))
+				(define skipL (Label))
+				(define trueL (Label))
+				(define trueG (Goto trueL))
+				(define falseL (Label))
+				(define falseG (Goto falseL))
+				(if (|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
+					;AND
+					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
+						(this:emitIf inv (toks:get i) Nothing:inst falseG mi Type:voidType)
+					)
+					;OR
+					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
+						(this:emitIf (! inv) (toks:get i) Nothing:inst trueG mi Type:voidType)
+					)
+				)
+				(this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG mi Type:voidType)
+				(if output (trueL:define this:code))
+				(trueE:emit this mi this:code needed)
+				(if (&& output (this:code:reachableHere)) (this:code:emitGoto skipL))
+				(if output (falseL:define this:code))
+				(falseE:emit this mi this:code needed)
+				(if output (skipL:define this:code))
+				needed
+			)
+			(true
+				(define isFalseGoto (instance? falseE Goto))
+				(define falseLabel
+					(if isFalseGoto
+						(as Goto falseE):label
+						(Label)
+					)
+				)
+				(define invCompare (Main:invertComp inv compare))
+				(if (Main:compare1Ops:containsKey invCompare)
+					(begin
+						(for ((j 0)) (!= j (toks:size)) (inc j)
+							(define types (this:compileAll toks j (+ j 1) mi null Main:unknownType))
+							(define otype (Main:compareType types))
+							(this:compileAll toks j (+ j 1) mi otype)
+							(if output (this:code:emitGotoIfCompare1 falseLabel (Main:compare1Ops:get invCompare)))
+						)
+					)
+					(begin
+						(if (&& (> (toks:size) 2) (compare:equals "!="))
+							(throw (RuntimeException))
+						)
+						(for ((j 0)) (!= (+ j 1) (toks:size)) (inc j)
+							(define types (this:compileAll toks j (+ j 2) mi null Main:unknownType))
+							(define otype (Main:compareType types))
+							(this:compileAll toks j (+ j 2) mi otype)
+							(Main:emitGotoIf otype invCompare compare falseLabel this:code)
+						)
+					)
+				)
+				(cond
+					(isFalseGoto
+						(trueE:emit this mi this:code needed)
+						Type:voidType
+					)
+					((instance? falseE Nothing)
+						(trueE:emit this mi this:code needed)
+						(if output (falseLabel:define this:code))
+						Type:voidType
+					)
+					(true
+						(define trueT (trueE:emit this mi this:code needed))
+						(define end (Label))
+						(if (&& output (this:code:reachableHere)) (this:code:emitGoto end))
+						(if output (falseLabel:define this:code))
+						(define falseT (falseE:emit this mi this:code needed))
+						(if output (end:define this:code))
+						needed
+					)
+				)
+			)
+		)
+	)
+	((emitIf inv bool cond Token trueE Emitter falseE Emitter mi AMethodInfo needed Type) Type 'public
+		(instanceCond cond
+			(CompareToken (this:emitIf_ inv cond:toks cond:compare trueE falseE mi needed))
+			(true (this:emitIf_ inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE mi needed))
+		)
+	)
 	((compile tok EmptyToken mi AMethodInfo needed Type) Type 'public
 		Type:voidType
 	)
@@ -775,20 +874,20 @@
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(Main:emitIf this false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi this:code (if hasElse needed Type:voidType))
+		(this:emitIf false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi (if hasElse needed Type:voidType))
 	)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(mi:pushScope this:code tok:labels)
 		(define start Label (Label))
 		(if output (start:define this:code))
-		(Main:emitIf this false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi this:code needed)
+		(this:emitIf false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi needed)
 		(mi:popScope this:code)
 		Type:voidType
 	)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(this:castMaybe (Main:emitIf_ this false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi this:code Type:booleanType) needed)
+		(this:castMaybe (this:emitIf_ false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi Type:booleanType) needed)
 	)
 	((compile tok ThrowToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))

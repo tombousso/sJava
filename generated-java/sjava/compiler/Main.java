@@ -40,9 +40,6 @@ import sjava.compiler.commands.Command;
 import sjava.compiler.commands.FormatCommand;
 import sjava.compiler.commands.RunCommand;
 import sjava.compiler.emitters.Emitter;
-import sjava.compiler.emitters.Emitters;
-import sjava.compiler.emitters.Goto;
-import sjava.compiler.emitters.Nothing;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.mfilters.MethodCall;
@@ -104,8 +101,8 @@ public class Main {
     static HashMap<String, Type> constTypes;
     static HashMap<String, Short> accessModifiers;
     public static HashMap<String, Integer> binOps;
-    static HashMap<String, Integer> compare2Ops;
-    static HashMap<String, Integer> compare1Ops;
+    public static HashMap<String, Integer> compare2Ops;
+    public static HashMap<String, Integer> compare1Ops;
     static HashMap<String, String> oppositeOps;
     public static Type unknownType = Type.getType("unknownType");
     public static Type returnType = Type.getType("returnType");
@@ -891,7 +888,7 @@ public class Main {
         return s.equals("!") || s.equals("&&") || s.equals("||") || compare2Ops.containsKey(s);
     }
 
-    static String invertComp(boolean inv, String comp) {
+    public static String invertComp(boolean inv, String comp) {
         return inv?(String)oppositeOps.get(comp):comp;
     }
 
@@ -964,157 +961,48 @@ public class Main {
         return emitInvoke(h, name, type, emitters, mi, code, needed, false);
     }
 
-    static Type compareType(Type[] types) {
+    public static Type compareType(Type[] types) {
         return (Type)(allNumeric(types)?numericOpType(types):(Collections.frequency(Arrays.asList(types), Type.booleanType) + Collections.frequency(Arrays.asList(types), ClassType.make("java.lang.Boolean")) == types.length?Type.booleanType:Type.objectType));
     }
 
-    public static Type emitIf_(GenHandler h, boolean inv, List<Token> toks, String compare, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
+    public static void emitGotoIf(Type otype, String invCompare, String compare, Label label, CodeAttr code) {
         boolean output = code != null;
-        Type var10000;
-        if(compare.equals("!")) {
-            var10000 = emitIf(h, !inv, (Token)toks.get(0), trueE, falseE, mi, code, needed);
-        } else if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
-            Label skipL1 = new Label();
-            Label falseL = new Label();
-            Goto falseG = new Goto(falseL);
-
-            for(int i1 = 0; i1 != toks.size() - 1; ++i1) {
-                emitIf(h, inv, (Token)toks.get(i1), Nothing.inst, falseG, mi, code, Type.voidType);
-            }
-
-            emitIf(h, inv, (Token)toks.get(toks.size() - 1), new Emitters(new Emitter[]{trueE, new Goto(skipL1)}), Nothing.inst, mi, code, needed);
+        if(otype != Type.doubleType && otype != Type.floatType) {
             if(output) {
-                falseL.define(code);
+                code.emitGotoIfCompare2(label, ((Integer)compare2Ops.get(invCompare)).intValue());
             }
-
-            falseE.emit(h, mi, code, needed);
-            if(output) {
-                skipL1.define(code);
-            }
-
-            var10000 = trueE.emit(h, mi, (CodeAttr)null, needed);
-        } else if(!inv && compare.equals("||") || inv && compare.equals("&&")) {
-            Label skipL = new Label();
-            Label trueL = new Label();
-            Goto trueG = new Goto(trueL);
-
-            for(int i = 0; i != toks.size() - 1; ++i) {
-                emitIf(h, !inv, (Token)toks.get(i), Nothing.inst, trueG, mi, code, Type.voidType);
-            }
-
-            emitIf(h, !inv, (Token)toks.get(toks.size() - 1), new Emitters(new Emitter[]{falseE, new Goto(skipL)}), Nothing.inst, mi, code, needed);
-            if(output) {
-                trueL.define(code);
-            }
-
-            Type type = trueE.emit(h, mi, code, needed);
-            if(output) {
-                skipL.define(code);
-            }
-
-            var10000 = type;
         } else {
-            boolean falseLabel = falseE instanceof Goto;
-            Label label = falseLabel?((Goto)falseE).label:new Label();
-            String invCompare = invertComp(inv, compare);
-            if(compare1Ops.containsKey(invCompare)) {
-                for(int j = 0; j != toks.size(); ++j) {
-                    Type[] types = h.compileAll(toks, j, j + 1, mi, (CodeAttr)null, unknownType);
-                    Type otype = compareType(types);
-                    h.compileAll(toks, j, j + 1, mi, code, otype);
-                    if(output) {
-                        code.emitGotoIfCompare1(label, ((Integer)compare1Ops.get(invCompare)).intValue());
-                    }
-                }
-            } else {
-                for(int j1 = 0; j1 + 1 != toks.size(); ++j1) {
-                    Type[] types1 = h.compileAll(toks, j1, j1 + 2, mi, (CodeAttr)null, unknownType);
-                    Type otype1 = compareType(types1);
-                    h.compileAll(toks, j1, j1 + 2, mi, code, otype1);
-                    if(otype1 != Type.doubleType && otype1 != Type.floatType) {
-                        if(output) {
-                            code.emitGotoIfCompare2(label, ((Integer)compare2Ops.get(invCompare)).intValue());
-                        }
-                    } else {
-                        boolean lt = compare.equals("<") || compare.equals("<=");
-                        int op = otype1 == Type.doubleType?(lt?151:152):(lt?149:150);
-                        if(output) {
-                            code.emitPrimop(op, 2, Type.intType);
-                        }
-
-                        if(invCompare.equals(">")) {
-                            if(output) {
-                                code.emitGotoIfIntLeZero(label);
-                            }
-                        } else if(invCompare.equals(">=")) {
-                            if(output) {
-                                code.emitGotoIfIntLtZero(label);
-                            }
-                        } else if(invCompare.equals("<")) {
-                            if(output) {
-                                code.emitGotoIfIntGeZero(label);
-                            }
-                        } else if(invCompare.equals("<=")) {
-                            if(output) {
-                                code.emitGotoIfIntGtZero(label);
-                            }
-                        } else if(invCompare.equals("=")) {
-                            if(output) {
-                                code.emitGotoIfIntNeZero(label);
-                            }
-                        } else if(invCompare.equals("!=") && output) {
-                            code.emitGotoIfIntEqZero(label);
-                        }
-                    }
-                }
+            boolean lt = compare.equals("<") || compare.equals("<=");
+            int op = otype == Type.doubleType?(lt?151:152):(lt?149:150);
+            if(output) {
+                code.emitPrimop(op, 2, Type.intType);
             }
 
-            if(falseLabel) {
-                var10000 = trueE.emit(h, mi, code, needed);
-            } else if(falseE instanceof Nothing) {
-                Type trueT = trueE.emit(h, mi, code, needed);
+            if(invCompare.equals(">")) {
                 if(output) {
-                    label.define(code);
+                    code.emitGotoIfIntLeZero(label);
                 }
-
-                var10000 = trueT;
-            } else {
-                if(needed == unknownType) {
-                    needed = commonType(falseE.emit(h, mi, (CodeAttr)null, needed), trueE.emit(h, mi, (CodeAttr)null, needed));
-                }
-
-                Type trueT1 = trueE.emit(h, mi, code, needed);
-                Label end = new Label();
-                if(output && code.reachableHere()) {
-                    code.emitGoto(end);
-                }
-
+            } else if(invCompare.equals(">=")) {
                 if(output) {
-                    label.define(code);
+                    code.emitGotoIfIntLtZero(label);
                 }
-
-                falseE.emit(h, mi, code, needed);
+            } else if(invCompare.equals("<")) {
                 if(output) {
-                    end.define(code);
+                    code.emitGotoIfIntGeZero(label);
                 }
-
-                var10000 = trueT1;
+            } else if(invCompare.equals("<=")) {
+                if(output) {
+                    code.emitGotoIfIntGtZero(label);
+                }
+            } else if(invCompare.equals("=")) {
+                if(output) {
+                    code.emitGotoIfIntNeZero(label);
+                }
+            } else if(invCompare.equals("!=") && output) {
+                code.emitGotoIfIntEqZero(label);
             }
         }
 
-        return var10000;
-    }
-
-    public static Type emitIf(GenHandler h, boolean inv, Token cond, Emitter trueE, Emitter falseE, AMethodInfo mi, CodeAttr code, Type needed) {
-        Type var10000;
-        if(cond instanceof CompareToken) {
-            CompareToken cond1 = (CompareToken)cond;
-            var10000 = emitIf_(h, inv, cond1.toks, cond1.compare, trueE, falseE, mi, code, needed);
-        } else {
-            var10000 = emitIf_(h, inv, Arrays.asList(new Token[]{cond}), "!=0", trueE, falseE, mi, code, needed);
-        }
-
-        return var10000;
     }
 
     public static int compare(Type a, Type b) {
@@ -1231,44 +1119,44 @@ public class Main {
     }
 
     public static Type commonType(Type a, Type b) {
+        boolean aReturns = a == returnType || a == throwType;
+        boolean bReturns = b == returnType || b == throwType;
         Object var10000;
-        if(a != returnType && a != throwType) {
-            if(b != returnType && b != throwType) {
-                if(a == Type.nullType) {
-                    var10000 = tryBox(b);
-                } else if(b == Type.nullType) {
-                    var10000 = tryBox(a);
-                } else if(Type.isSame(a, b)) {
-                    var10000 = a;
-                } else if(isNumeric(a) && isNumeric(b)) {
-                    a = tryUnbox(a);
-                    b = tryUnbox(b);
-                    List l = Arrays.asList(new Type[]{a, b});
-                    if(Type.isSame(a, b)) {
-                        var10000 = a;
-                    } else if(l.contains(Type.doubleType)) {
-                        var10000 = Type.doubleType;
-                    } else if(l.contains(Type.floatType)) {
-                        var10000 = Type.floatType;
-                    } else if(l.contains(Type.longType)) {
-                        var10000 = Type.longType;
-                    } else if(l.contains(Type.intType)) {
-                        var10000 = Type.intType;
-                    } else {
-                        if(!l.contains(Type.shortType) || !l.contains(Type.booleanType)) {
-                            throw new RuntimeException();
-                        }
-
-                        var10000 = Type.shortType;
-                    }
-                } else {
-                    var10000 = tryUnbox(a) == Type.booleanType && tryUnbox(b) == Type.booleanType?Type.booleanType:superType(a, b);
-                }
-            } else {
+        if(aReturns && bReturns) {
+            var10000 = Type.voidType;
+        } else if(aReturns) {
+            var10000 = b;
+        } else if(bReturns) {
+            var10000 = a;
+        } else if(a == Type.nullType) {
+            var10000 = tryBox(b);
+        } else if(b == Type.nullType) {
+            var10000 = tryBox(a);
+        } else if(Type.isSame(a, b)) {
+            var10000 = a;
+        } else if(isNumeric(a) && isNumeric(b)) {
+            a = tryUnbox(a);
+            b = tryUnbox(b);
+            List l = Arrays.asList(new Type[]{a, b});
+            if(Type.isSame(a, b)) {
                 var10000 = a;
+            } else if(l.contains(Type.doubleType)) {
+                var10000 = Type.doubleType;
+            } else if(l.contains(Type.floatType)) {
+                var10000 = Type.floatType;
+            } else if(l.contains(Type.longType)) {
+                var10000 = Type.longType;
+            } else if(l.contains(Type.intType)) {
+                var10000 = Type.intType;
+            } else {
+                if(!l.contains(Type.shortType) || !l.contains(Type.booleanType)) {
+                    throw new RuntimeException();
+                }
+
+                var10000 = Type.shortType;
             }
         } else {
-            var10000 = b;
+            var10000 = tryUnbox(a) == Type.booleanType && tryUnbox(b) == Type.booleanType?Type.booleanType:superType(a, b);
         }
 
         return (Type)var10000;
