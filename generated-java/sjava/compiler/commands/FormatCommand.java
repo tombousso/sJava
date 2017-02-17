@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.io.FileUtils;
-import sjava.compiler.Main;
+import sjava.compiler.Formatter;
 import sjava.compiler.commands.Command;
 
 public class FormatCommand extends Command {
@@ -30,7 +30,7 @@ public class FormatCommand extends Command {
                     String name = (String)it.next();
                     File f = new File(name);
                     String in = FileUtils.readFileToString(f);
-                    String out = Main.formatCode(in);
+                    String out = Formatter.formatCode(in);
                     if(!in.equals(out)) {
                         PrintStream var10000 = System.out;
                         StringBuilder sb = new StringBuilder();

@@ -9,11 +9,13 @@
 	(m Method 'public)
 	(t Type 'public)
 	(tvs Map{TypeVariable Type} 'public)
-	((<init> m Method t Type tvs Map{TypeVariable Type}) void
+	(types Type[] 'public)
+	((<init> m Method t Type tvs Map{TypeVariable Type} types Type[]) void
 		(super:<init>)
 		(set this:m m)
 		(set this:t t)
 		(set this:tvs tvs)
+		(set this:types types)
 	)
 	((moreSpecific o MethodCall) bool
 		(define as (this:m:getGenericParameterTypes))
@@ -35,6 +37,14 @@
 			false
 			true
 		)
+	)
+	((mostSpecific methods List{MethodCall}) bool
+		(forEach method methods
+			(if (! (this:moreSpecific method))
+				(return false)
+			)
+		)
+		true
 	)
 	((toString) String 'public
 		(this:m:toString)
@@ -141,120 +151,110 @@
 				(= 0 (& (method:getModifiers) Access:SYNTHETIC))
 			)
 			(begin
-				(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
-				(define na (alen this:types))
-				(define params (method:getGenericParameterTypes))
-				(define np (alen params))
-				(if (|| (= na np) (&& varargs (>= na (- np 1))))
-					(begin
-						(define arrayNeeded
-							(&&
-								varargs
-								(||
-									(= na (- np 1))
-									(!= (Main:arrayDim (aget params (- np 1))) (Main:arrayDim (aget this:types (- np 1))))
-								)
-							)
-						)
-						(define reals
-							(if arrayNeeded
-								(begin
-									(define types (Type[] len:np))
-									(define default (= na (- np 1)))
-									(System:arraycopy this:types 0 types 0 (- np 1))
-									(aset types (- np 1)
-										(if default
-											(aget params (- np 1))
-											(ArrayType (aget this:types (- np 1))) ;can be more specific
-										)
-									)
-									types
-								)
-								this:types
-							)
-						)
-						(define tparams
-							(if (this:name:equals "<init>")
-								(begin
-									(define ctparams ((as ClassType (generic:getRawType)):getTypeParameters))
-									(define mtparams (method:getTypeParameters))
-									(cond
-										((= ctparams null)
-											mtparams
-										)
-										((= mtparams null)
-											ctparams
-										)
-										(true
-											(define o (TypeVariable[] len:(+ (alen ctparams) (alen mtparams))))
-											(System:arraycopy ctparams 0 o 0 (alen ctparams))
-											(System:arraycopy mtparams 0 o (alen ctparams) (alen mtparams))
-											o
-										)
-									)
-								)
-								(method:getTypeParameters)
-							)
-						)
-						(define tvs (Main:unresolveTvs tparams params reals))
-						(define stop false)
-						(for ((i 0)) (! (|| stop (= i (alen this:types)))) (inc i)
-							(define at
-								(Main:resolveType tvs generic
-									(if
-										(&&
-											arrayNeeded
-											(>= i (- np 1))
-										)
-										(as ArrayType (aget params (- np 1))):elements
-										(aget params i)
-									)
-								)
-							)
-							(define level (Main:compare at (aget this:types i)))
-							(if (|| (< level 0) (&& (= (aget this:types i) Type:nullType) (instance? at PrimType)))
-								(set stop true)
-							)
-						)
-						(define mc (MethodCall method generic tvs))
-						(if (! stop)
-							(this:methods:add mc)
-						)
-					)
+				(define mc (MFilter:isCompatible method generic this:types))
+				(if (!= mc null)
+					(this:methods:add mc)
 				)
 			)
 		)
 	)
 	((getMethodCall) MethodCall 'public
-		(define n (this:methods:size))
-		(if (= n 0)
-			(return null)
-			(if (= n 1)
-				(return (this:methods:get 0))
+		(forEach method this:methods
+			(if (method:mostSpecific this:methods)
+				(return method)
 			)
 		)
-		(define found MethodCall null)
-		(for ((i 0)) (< i n) (inc i)
-			(define a (this:methods:get i))
-			(for ((j 0)) (< j n) (inc j)
-				(define b (this:methods:get j))
-				(if (&& (!= i j) (! (a:moreSpecific b)))
-					(goto next)
-				)
-			)
-			(if (= found null)
-				(set found a)
-				(return null)
-			)
-			(label next)
-		)
-		found
+		null
 	)
 	((getMethod) Method 'public
 		(define mc (this:getMethodCall))
 		(if (= mc null)
 			null
 			mc:m
+		)
+	)
+	((isCompatible method Method generic Type types Type[]) MethodCall 'public 'static
+		(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
+		(define na (alen types))
+		(define params (method:getGenericParameterTypes))
+		(define np (alen params))
+		(if (|| (= na np) (&& varargs (>= na (- np 1))))
+			(begin
+				(define arrayNeeded
+					(&&
+						varargs
+						(||
+							(= na (- np 1))
+							(!= (Main:arrayDim (aget params (- np 1))) (Main:arrayDim (aget types (- np 1))))
+						)
+					)
+				)
+				(define reals
+					(if arrayNeeded
+						(begin
+							(define ntypes (Type[] len:np))
+							(define default (= na (- np 1)))
+							(System:arraycopy types 0 ntypes 0 (- np 1))
+							(aset ntypes (- np 1)
+								(if default
+									(aget params (- np 1))
+									(ArrayType (aget types (- np 1))) ;can be more specific
+								)
+							)
+							ntypes
+						)
+						types
+					)
+				)
+				(define tparams
+					(if ((method:getName):equals "<init>")
+						(begin
+							(define ctparams ((as ClassType (generic:getRawType)):getTypeParameters))
+							(define mtparams (method:getTypeParameters))
+							(cond
+								((= ctparams null)
+									mtparams
+								)
+								((= mtparams null)
+									ctparams
+								)
+								(true
+									(define o (TypeVariable[] len:(+ (alen ctparams) (alen mtparams))))
+									(System:arraycopy ctparams 0 o 0 (alen ctparams))
+									(System:arraycopy mtparams 0 o (alen ctparams) (alen mtparams))
+									o
+								)
+							)
+						)
+						(method:getTypeParameters)
+					)
+				)
+				(define tvs (Main:unresolveTvs tparams params reals))
+				(define stop false)
+				(for ((i 0)) (! (|| stop (= i (alen types)))) (inc i)
+					(define at
+						(Main:resolveType tvs generic
+							(if
+								(&&
+									arrayNeeded
+									(>= i (- np 1))
+								)
+								(as ArrayType (aget params (- np 1))):elements
+								(aget params i)
+							)
+						)
+					)
+					(define level (Main:compare at (aget types i)))
+					(if (|| (< level 0) (&& (= (aget types i) Type:nullType) (instance? at PrimType)))
+						(set stop true)
+					)
+				)
+				(if (! stop)
+					(MethodCall method generic tvs types)
+					null
+				)
+			)
+			null
 		)
 	)
 )

@@ -25,6 +25,7 @@ import sjava.compiler.tokens.IncludeToken;
 import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
 import sjava.compiler.tokens.MacroCallToken;
+import sjava.compiler.tokens.MacroIncludeToken;
 import sjava.compiler.tokens.NToken;
 import sjava.compiler.tokens.NumOpToken;
 import sjava.compiler.tokens.ObjectToken;
@@ -73,7 +74,7 @@ public abstract class Handler {
 
     public abstract Type compile(ObjectToken var1, AMethodInfo var2, Type var3);
 
-    public abstract Type compile(MacroCallToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(MacroIncludeToken var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(BeginToken var1, AMethodInfo var2, Type var3);
 
@@ -123,6 +124,8 @@ public abstract class Handler {
 
     public abstract Type compile(ConstructorToken var1, AMethodInfo var2, Type var3);
 
+    public abstract Type compile(MacroCallToken var1, AMethodInfo var2, Type var3);
+
     public abstract Type compile(ArrayConstructorToken var1, AMethodInfo var2, Type var3);
 
     public Type compile(Token tok, AMethodInfo mi, Type needed) {
@@ -147,8 +150,8 @@ public abstract class Handler {
             var10000 = this.compile((IncludeToken)tok, mi, needed);
         } else if(tok instanceof ObjectToken) {
             var10000 = this.compile((ObjectToken)tok, mi, needed);
-        } else if(tok instanceof MacroCallToken) {
-            var10000 = this.compile((MacroCallToken)tok, mi, needed);
+        } else if(tok instanceof MacroIncludeToken) {
+            var10000 = this.compile((MacroIncludeToken)tok, mi, needed);
         } else if(tok instanceof BeginToken) {
             var10000 = this.compile((BeginToken)tok, mi, needed);
         } else if(tok instanceof LabelToken) {
@@ -197,6 +200,8 @@ public abstract class Handler {
             var10000 = this.compile((DefaultToken)tok, mi, needed);
         } else if(tok instanceof ConstructorToken) {
             var10000 = this.compile((ConstructorToken)tok, mi, needed);
+        } else if(tok instanceof MacroCallToken) {
+            var10000 = this.compile((MacroCallToken)tok, mi, needed);
         } else {
             if(!(tok instanceof ArrayConstructorToken)) {
                 StringBuilder sb = new StringBuilder();

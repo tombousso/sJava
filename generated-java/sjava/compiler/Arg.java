@@ -5,8 +5,8 @@ import gnu.bytecode.Type;
 import sjava.compiler.AVar;
 
 public class Arg extends AVar {
-    int n;
-    int level;
+    public int n;
+    public int level;
 
     public Arg(Type type, int n, int level) {
         super(type);

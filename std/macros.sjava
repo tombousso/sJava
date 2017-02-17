@@ -12,13 +12,13 @@
 	`(set ,v (+ ,v ,n))
 )
 (define-macro (inc v)
-	`(inc ,v 1)
+	(macro inc v `1)
 )
 (define-macro (dec v n)
 	`(set ,v (- ,v ,n))
 )
 (define-macro (dec v)
-	`(dec ,v 1)
+	(macro dec v `1)
 )
 (define-macro (forEachI item iterable index @block)
 	(if (instance? (type iterable) ArrayType)
@@ -56,7 +56,7 @@
 	(define t (type collection))
 	(define itemT
 		(if (instance? t ArrayType)
-			((as ArrayType t):getComponentType)
+			(t:getComponentType)
 			(type
 				`(begin
 					(define collection ,collection)
@@ -198,6 +198,7 @@
 		)
 		(inc j)
 	)
+	(call:toks:set special arg)
 	(define conds (ArrayList))
 	(define mname (as VToken ((call:toks:get 0):toks:get 1)):val)
 	(define nargs (alen (mi:method:getParameterTypes)))
@@ -209,11 +210,9 @@
 			)
 			(begin
 				(define t (aget (omi:method:getParameterTypes) (- special 1)))
-				(define ncall `(,call:toks))
-				(ncall:toks:set special `(as ,$(t:getName) ,arg))
 				(conds:add
-					`((instance? ,arg ,$(t:getName))
-						,ncall
+					`((instance? ,arg ,t)
+						,call
 					)
 				)
 			)
@@ -296,7 +295,7 @@
 	)
 )
 (define-macro (xml @rest)
-	(define out (ArrayList{Token}))
+	(define out (ArrayList{LexedParsedToken}))
 	(forEach tag rest
 		(cond
 			(
@@ -323,7 +322,7 @@
 				)
 				(define size (tag:toks:size))
 				(if selfClose (dec size))
-				(define props (ArrayList{Token}))
+				(define props (ArrayList{LexedParsedToken}))
 				(define i 1)
 				(for () (&& (< i size) (instance? (tag:toks:get i) ArrayToken)) (inc i)
 					(define tok (tag:toks:get i))
@@ -343,7 +342,7 @@
 						)
 					)
 				)
-				(define children (ArrayList{Token}))
+				(define children (ArrayList{LexedParsedToken}))
 				(forEach tok (tag:toks:subList i size)
 					(if (instance? tok BlockToken)
 						(children:add `(sb:append (xml ,tok)))

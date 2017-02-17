@@ -35,7 +35,7 @@
 	((compile tok VToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok IncludeToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ObjectToken mi AMethodInfo needed Type) Type 'public 'abstract)
-	((compile tok MacroCallToken mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok BeginToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok LabelToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok GotoToken mi AMethodInfo needed Type) Type 'public 'abstract)
@@ -60,6 +60,7 @@
 	((compile tok CallToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ConstructorToken mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok MacroCallToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ArrayConstructorToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok Token mi AMethodInfo needed Type) Type 'public
 		(doubleDispatch (this:compile _ mi needed) tok)
@@ -144,17 +145,55 @@
 			)
 		)
 	)
-	;toks = condition
-	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo needed Type) Type 'public
+	((emitTrueFalseClauses_ mi AMethodInfo trueE Emitter falseE Emitter trueCasts List{Tuple2{VToken Type}} falseCasts List{Tuple2{VToken Type}} needed Type skipL Label trueL Label falseL Label) Tuple2{Type Type}
 		(define output (!= this:code null))
+
+		(mi:pushScope this:code (HashMap))
+		(forEach cast trueCasts
+			(GenHandler:putCast mi cast)
+		)
+		(if output (trueL:define this:code))
+		(define trueT (trueE:emit this mi this:code needed))
+		(mi:popScope this:code)
+
+		(if (&& output (this:code:reachableHere)) (this:code:emitGoto skipL))
+
+		(mi:pushScope this:code (HashMap))
+		(forEach cast falseCasts
+			(GenHandler:putCast mi cast)
+		)
+		(if output (falseL:define this:code))
+		(define falseT (falseE:emit this mi this:code needed))
+		(mi:popScope this:code)
+
+		(if output (skipL:define this:code))
+
+		(Tuple2 trueT falseT)
+	)
+	((emitTrueFalseClauses mi AMethodInfo trueE Emitter falseE Emitter trueCasts List{Tuple2{VToken Type}} falseCasts List{Tuple2{VToken Type}} needed Type skipL Label trueL Label falseL Label) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} 'public
 		(if (= needed Main:unknownType)
-			(set needed
-				(Main:commonType
-					(falseE:emit this mi null needed)
-					(trueE:emit this mi null needed)
+			(begin
+				(define ocode this:code)
+				(set this:code null)
+				(define ts (this:emitTrueFalseClauses_ mi trueE falseE trueCasts falseCasts needed skipL trueL falseL))
+				(set this:code ocode)
+				(set needed
+					(Main:commonType
+						ts:_1
+						ts:_2
+					)
 				)
 			)
 		)
+		(this:emitTrueFalseClauses_ mi trueE falseE trueCasts falseCasts needed skipL trueL falseL)
+		(Tuple3 needed trueCasts falseCasts)
+	)
+	;toks = condition
+	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} 'public
+		(define output (!= this:code null))
+
+		(define trueCasts (ArrayList{Tuple2{VToken Type}}))
+		(define falseCasts (ArrayList{Tuple2{VToken Type}}))
 		(cond
 			((compare:equals "!")
 				(this:emitIf (! inv) (toks:get 0) trueE falseE mi needed)
@@ -165,27 +204,37 @@
 				(define trueG (Goto trueL))
 				(define falseL (Label))
 				(define falseG (Goto falseL))
+				(mi:pushScope this:code (HashMap))
 				(if (|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
 					;AND
-					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
-						(this:emitIf inv (toks:get i) Nothing:inst falseG mi Type:voidType)
+					(begin
+						(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
+							(define a (this:emitIf inv (toks:get i) Nothing:inst falseG mi Type:voidType))
+							(forEach cast a:_2
+								(GenHandler:putCast mi cast)
+							)
+							(trueCasts:addAll a:_2)
+						)
+						(trueCasts:addAll (this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG mi Type:voidType):_2)
 					)
 					;OR
-					(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
-						(this:emitIf (! inv) (toks:get i) Nothing:inst trueG mi Type:voidType)
+					(begin
+						(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
+							(define a (this:emitIf (! inv) (toks:get i) Nothing:inst trueG mi Type:voidType))
+							(forEach cast a:_2
+								(GenHandler:putCast mi cast)
+							)
+							(falseCasts:addAll a:_2)
+						)
+						(falseCasts:addAll (this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG mi Type:voidType):_2)
 					)
 				)
-				(this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG mi Type:voidType)
-				(if output (trueL:define this:code))
-				(trueE:emit this mi this:code needed)
-				(if (&& output (this:code:reachableHere)) (this:code:emitGoto skipL))
-				(if output (falseL:define this:code))
-				(falseE:emit this mi this:code needed)
-				(if output (skipL:define this:code))
-				needed
+				(mi:popScope this:code)
+				(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed skipL trueL falseL)
 			)
 			(true
-				(define isFalseGoto (instance? falseE Goto))
+				(define cast Tuple2{VToken Type} null)
+				(define isFalseGoto (&& (instance? trueE Nothing) (instance? falseE Goto)))
 				(define falseLabel
 					(if isFalseGoto
 						(as Goto falseE):label
@@ -196,6 +245,17 @@
 				(if (Main:compare1Ops:containsKey invCompare)
 					(begin
 						(for ((j 0)) (!= j (toks:size)) (inc j)
+							(define tok (toks:get j))
+							(if
+								(&&
+									(instance? tok InstanceToken)
+									(instance? (as InstanceToken tok):tok VToken)
+								)
+								(begin
+									(define it (as InstanceToken tok))
+									(set cast (Tuple2 (as VToken it:tok) it:type))
+								)
+							)
 							(define types (this:compileAll toks j (+ j 1) mi null Main:unknownType))
 							(define otype (Main:compareType types))
 							(this:compileAll toks j (+ j 1) mi otype)
@@ -214,30 +274,42 @@
 						)
 					)
 				)
+				(if (!= cast null)
+					(if inv
+						(falseCasts:add cast)
+						(trueCasts:add cast)
+					)
+				)
 				(cond
 					(isFalseGoto
-						(trueE:emit this mi this:code needed)
-						Type:voidType
-					)
-					((instance? falseE Nothing)
-						(trueE:emit this mi this:code needed)
-						(if output (falseLabel:define this:code))
-						Type:voidType
+						(Tuple3 Type:voidType trueCasts falseCasts)
 					)
 					(true
-						(define trueT (trueE:emit this mi this:code needed))
-						(define end (Label))
-						(if (&& output (this:code:reachableHere)) (this:code:emitGoto end))
-						(if output (falseLabel:define this:code))
-						(define falseT (falseE:emit this mi this:code needed))
-						(if output (end:define this:code))
-						needed
+						(define casts (Arrays:asList (Tuple2[] cast)))
+						(define trueCasts List{Tuple2{VToken Type}}
+							(if (! inv)
+								casts
+								Collections:EMPTY_LIST
+							)
+						)
+						(define falseCasts List{Tuple2{VToken Type}}
+							(if inv
+								casts
+								Collections:EMPTY_LIST
+							)
+						)
+						(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed (Label) (Label) falseLabel)
 					)
 				)
 			)
 		)
 	)
-	((emitIf inv bool cond Token trueE Emitter falseE Emitter mi AMethodInfo needed Type) Type 'public
+	((putCast mi AMethodInfo cast Tuple2{VToken Type}) void 'static
+		(if (!= cast null)
+			(mi:putVar cast:_1 (CastVar (mi:getVar cast:_1) cast:_2))
+		)
+	)
+	((emitIf inv bool cond Token trueE Emitter falseE Emitter mi AMethodInfo needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} 'public
 		(instanceCond cond
 			(CompareToken (this:emitIf_ inv cond:toks cond:compare trueE falseE mi needed))
 			(true (this:emitIf_ inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE mi needed))
@@ -341,7 +413,7 @@
 						)
 						(
 							(||
-								(= t (Main:getCompilerType "tokens.LexedParsedToken"))
+								(>= (Main:compare (Main:getCompilerType "tokens.LexedParsedToken") t) 0)
 								;(&&
 								(instance? t ArrayType)
 								;	(= (as ArrayType t):elements (Main:getCompilerType "tokens.LexedParsedToken"))
@@ -413,7 +485,7 @@
 									(if output (this:code:emitPushInt 0))
 								)
 								((instance? mi:ci MacroInfo)
-									(if output (this:code:emitLoad (this:code:getArg 2)))
+									(if output (this:code:emitLoad (this:code:getArg 1)))
 								)
 							)
 							(if output (this:code:emitPutField (type:getField "macro")))
@@ -453,7 +525,7 @@
 					(define i 0)
 					(forEach a o
 						(define t (this:compileQuasi a mi null Main:unknownType))
-						(if (= t (Main:getCompilerType "tokens.LexedParsedToken"))
+						(if (>= (Main:compare (Main:getCompilerType "tokens.LexedParsedToken") t) 0)
 							(begin
 								(if output (this:code:emitDup))
 								(this:compileQuasi a mi this:code Main:unknownType)
@@ -529,11 +601,10 @@
 									((mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
 										(Class[]
 											(class AMethodInfo)
-											(class gnu.bytecode.Type)
 											Integer:TYPE
 											(class GenHandler)
 										)
-									):invoke null (Object[] mi needed 0 this)
+									):invoke null (Object[] mi 0 this)
 								)
 							)
 							mi
@@ -662,12 +733,42 @@
 	)
 	((compile tok MacroCallToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
+		(define o 3)
+		(define l (tok:toks:size))
+		(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") Type:intType (Main:getCompilerType "handlers.GenHandler")))
+		(for ((j 0)) (!= j l) (inc j)
+			(aset types (+ o j) (Main:getCompilerType "tokens.LexedParsedToken"))
+		)
+		(define mc MethodCall null)
+		(for ((i 0)) (= mc null) (inc i)
+			(define ci ((mi:ci:fs:macroNames:get tok:name):get i))
+			(define filter (MFilter tok:name types ci:c))
+			(filter:searchDeclared)
+			(set mc (filter:getMethodCall))
+		)
+		(define emitters
+			(ArrayList
+				(Arrays:asList
+					(Emitter[]
+						(LoadAVar (Arg (Main:getCompilerType "AMethodInfo") 0 0))
+						(Add1 (LoadAVar (Arg Type:intType 1 0)))
+						(LoadAVar (Arg (Main:getCompilerType "handlers.GenHandler") 2 0))
+					)
+				)
+			)
+		)
+		(emitters:addAll tok:toks)
+		(Main:emitInvoke this mc emitters mi this:code Main:unknownType)
+		(this:castMaybe (Main:getCompilerType "LexedParsedToken") needed)
+	)
+	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type 'public
+		(define output (!= this:code null))
 		(if (= tok:ret null)
 			(begin
 				;dupped with runMethodMacro
-				(define o 4)
+				(define o 3)
 				(define l (tok:toks:size))
-				(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") (Type:getType "gnu.bytecode.Type") Type:intType (Main:getCompilerType "handlers.GenHandler")))
+				(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") Type:intType (Main:getCompilerType "handlers.GenHandler")))
 				(for ((j 0)) (!= j l) (inc j)
 					(aset types (+ o j) (Main:getCompilerType "tokens.LexedParsedToken"))
 				)
@@ -679,10 +780,9 @@
 					(filter:searchDeclared)
 					(set method (filter:getMethod))
 				)
-				(ci:compileMethods GenHandler:inst)
 				(define params (method:getGenericParameterTypes))
 				(define classes (mapA t params (t:getReflectClass)))
-				(define args (ArrayList (Arrays:asList (Object[] mi needed (mi:levels:size) this))))
+				(define args (ArrayList (Arrays:asList (Object[] mi (mi:levels:size) this))))
 				(args:addAll
 					(if (!= (& (method:getModifiers) Access:TRANSIENT) 0)
 						(begin
@@ -803,10 +903,17 @@
 					(if output (this:code:emitPutField field))
 				)
 			)
-			(true
-				(define var (mi:getVar (as VToken (tok:toks:get 1))))
+			(VToken
+				(define var (mi:getVar out))
+				(while (instance? var CastVar)
+					(mi:removeVar out)
+					(set var (mi:getVar out))
+				)
 				(this:compile (tok:toks:get 2) mi this:code var:type)
 				(var:store this:code)
+			)
+			(true
+				(throw (RuntimeException))
 			)
 		)
 		Type:voidType
@@ -874,20 +981,20 @@
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(this:emitIf false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi (if hasElse needed Type:voidType))
+		(this:emitIf false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi (if hasElse needed Type:voidType)):_1
 	)
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(mi:pushScope this:code tok:labels)
 		(define start Label (Label))
 		(if output (start:define this:code))
-		(this:emitIf false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi needed)
+		(this:emitIf false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi Type:voidType)
 		(mi:popScope this:code)
 		Type:voidType
 	)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(this:castMaybe (this:emitIf_ false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi Type:booleanType) needed)
+		(this:emitIf_ false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi needed):_1
 	)
 	((compile tok ThrowToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -927,7 +1034,7 @@
 		(define output (!= this:code null))
 		(if output (this:code:emitLoad (this:code:getArg 0)))
 		(if output (this:code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "pushLevel" 0)))
-		(if output (this:code:emitLoad (this:code:getArg 3)))
+		(if output (this:code:emitLoad (this:code:getArg 2)))
 		(this:compile tok:tok mi this:code Main:unknownType)
 		(if output (this:code:emitLoad (this:code:getArg 0)))
 		(if output (this:code:emitInvoke ((Main:getCompilerType "Main"):getDeclaredMethod "transformBlock" 2)))
@@ -1048,7 +1155,7 @@
 						(!= t Main:throwType)
 						(! (Type:isSame needed t))
 					)
-					(throw (RuntimeException))
+					(throw (RuntimeException (concat t " vs " needed)))
 				)
 				t
 			)

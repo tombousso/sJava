@@ -32,7 +32,7 @@ public class AMethodInfo {
     public Method method;
     public ArrayList<ArrayDeque<Map<String, AVar>>> levels;
     Map<String, Arg> firstScope;
-    ArrayDeque<Map> labels;
+    ArrayDeque<Map<String, Label>> labels;
     boolean compiled;
 
     AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, Arg> firstScope) {
@@ -79,7 +79,6 @@ public class AMethodInfo {
 
     public void popScope(CodeAttr code) {
         boolean output = code != null;
-        boolean i = false;
         ArrayList iterable = this.levels;
         Iterator it = iterable.iterator();
 
@@ -107,40 +106,56 @@ public class AMethodInfo {
     }
 
     public AVar getVar(VToken tok) {
-        ArrayDeque scopes = (ArrayDeque)this.levels.get(tok.macro);
-        AVar found = (AVar)null;
-        Iterator it = scopes.iterator();
+        ArrayDeque iterable = (ArrayDeque)this.levels.get(tok.macro);
+        Iterator it = iterable.iterator();
 
-        while(it.hasNext() && found == null) {
-            Map vars = (Map)it.next();
-            if(vars.containsKey(tok.val)) {
-                found = (AVar)vars.get(tok.val);
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Map scope = (Map)it.next();
+            if(scope.containsKey(tok.val)) {
+                return (AVar)scope.get(tok.val);
             }
         }
 
-        return found;
+        return (AVar)null;
     }
 
     public Label getLabel(String name) {
-        Label found = (Label)null;
-        Iterator it = this.labels.iterator();
+        ArrayDeque iterable = this.labels;
+        Iterator it = iterable.iterator();
 
-        while(it.hasNext() && found == null) {
-            HashMap vars = (HashMap)it.next();
-            if(vars.containsKey(name)) {
-                found = (Label)vars.get(name);
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Map labelScope = (Map)it.next();
+            if(labelScope.containsKey(name)) {
+                return (Label)labelScope.get(name);
             }
         }
 
-        return found;
+        return (Label)null;
+    }
+
+    public void removeVar(VToken tok) {
+        ArrayDeque iterable = (ArrayDeque)this.levels.get(tok.macro);
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            Map scope = (Map)it.next();
+            if(scope.containsKey(tok.val)) {
+                scope.remove(tok.val);
+                return;
+            }
+        }
+
     }
 
     public Variable newVar(CodeAttr code, VToken tok, Type type) {
         boolean output = code != null;
-        String name = tok.val;
-        Variable var = output?code.addLocal(type.getRawType(), name):(Variable)null;
-        ((HashMap)((Map)((ArrayDeque)this.levels.get(tok.macro)).getFirst())).put(name, new Var(var, type));
+        Variable var = output?code.addLocal(type.getRawType(), tok.val):(Variable)null;
+        this.putVar(tok, new Var(var, type));
         return var;
+    }
+
+    public void putVar(VToken tok, AVar v) {
+        ((Map)((ArrayDeque)this.levels.get(tok.macro)).getFirst()).put(tok.val, v);
     }
 
     public Type getType(Token tok) {

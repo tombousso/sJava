@@ -23,6 +23,7 @@ import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.FileScope;
+import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
 import sjava.compiler.MyClassLoader;
@@ -160,7 +161,7 @@ public class ClassInfo {
             if(this.fs.locals.containsKey(fullName)) {
                 var10000 = (ClassType)this.fs.locals.get(fullName);
             } else {
-                if(!this.fs.classExists(fullName)) {
+                if(!this.fs.cs.classExists(fullName)) {
                     throw new RuntimeException();
                 }
 
@@ -173,12 +174,12 @@ public class ClassInfo {
                 String fullName1 = ((String)this.fs.starImports.get(i)).concat(name);
                 if(this.fs.locals.containsKey(fullName1)) {
                     type = (ClassType)this.fs.locals.get(fullName1);
-                } else if(this.fs.classExists(fullName1)) {
+                } else if(this.fs.cs.classExists(fullName1)) {
                     type = Type.getType(fullName1);
                 }
             }
 
-            var10000 = type == null && this.fs.classExists(name)?Type.getType(name):type;
+            var10000 = type == null && this.fs.cs.classExists(name)?Type.getType(name):type;
         }
 
         return (Type)var10000;
@@ -214,18 +215,18 @@ public class ClassInfo {
 
     public void compileDef(LexedParsedToken tok) {
         if(tok instanceof BlockToken) {
-            LexedParsedToken first = (LexedParsedToken)tok.toks.get(0);
+            LexedParsedToken first = (LexedParsedToken)((BlockToken)tok).toks.get(0);
             if(first instanceof BlockToken) {
                 LinkedHashMap scope = new LinkedHashMap();
-                Tuple2 tup = Main.extractModifiers(tok.toks, 2);
+                Tuple2 tup = Main.extractModifiers(((BlockToken)tok).toks, 2);
                 Integer mods = (Integer)tup._1;
                 Integer i = (Integer)tup._2;
                 int n = (mods.intValue() & Access.STATIC) == 0?1:0;
                 ClassType[] exceptions = (ClassType[])null;
 
                 ArrayList annotations;
-                for(annotations = new ArrayList(); i.intValue() != tok.toks.size() && (LexedParsedToken)tok.toks.get(i.intValue()) instanceof SingleQuoteToken; i = Integer.valueOf(i.intValue() + 1)) {
-                    List toks = ((LexedParsedToken)((LexedParsedToken)tok.toks.get(i.intValue())).toks.get(0)).toks;
+                for(annotations = new ArrayList(); i.intValue() != ((BlockToken)tok).toks.size() && (LexedParsedToken)((BlockToken)tok).toks.get(i.intValue()) instanceof SingleQuoteToken; i = Integer.valueOf(i.intValue() + 1)) {
+                    List toks = ((LexedParsedToken)((LexedParsedToken)((BlockToken)tok).toks.get(i.intValue())).toks.get(0)).toks;
                     VToken first1 = (VToken)((LexedParsedToken)toks.get(0));
                     if(!first1.val.equals("throws")) {
                         annotations.add(new AnnotationEntry((ClassType)this.getType((Token)first1)));
@@ -243,8 +244,8 @@ public class ClassInfo {
                     }
                 }
 
-                List types = Main.getParams(this, first, scope, 1, n);
-                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)first.toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)tok.toks.get(1))), mods.intValue(), tok.toks.subList(i.intValue(), tok.toks.size()), scope);
+                List types = Main.getParams(this, (BlockToken)first, scope, 1, n);
+                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)((BlockToken)tok).toks.get(1))), mods.intValue(), ((BlockToken)tok).toks.subList(i.intValue(), ((BlockToken)tok).toks.size()), scope);
                 if(exceptions != null) {
                     mi.method.setExceptions(exceptions);
                 }
@@ -258,10 +259,10 @@ public class ClassInfo {
             } else {
                 String name = ((VToken)first).val;
                 if(!name.endsWith("!")) {
-                    Tuple2 tup1 = Main.extractModifiers(tok.toks, 2);
+                    Tuple2 tup1 = Main.extractModifiers(((BlockToken)tok).toks, 2);
                     Integer mods1 = (Integer)tup1._1;
                     Integer i2 = (Integer)tup1._2;
-                    Type t = this.getType((Token)((LexedParsedToken)tok.toks.get(1)));
+                    Type t = this.getType((Token)((LexedParsedToken)((BlockToken)tok).toks.get(1)));
                     this.c.addField(name, t, mods1.intValue());
                 }
             }
@@ -304,7 +305,7 @@ public class ClassInfo {
     void runMethodMacros() {
         for(int i = 3; i != this.toks.size(); ++i) {
             LexedParsedToken tok = (LexedParsedToken)this.toks.get(i);
-            if(tok instanceof BlockToken && (LexedParsedToken)tok.toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)tok.toks.get(0))).val.endsWith("!")) {
+            if(tok instanceof BlockToken && (LexedParsedToken)((BlockToken)tok).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)tok).toks.get(0))).val.endsWith("!")) {
                 this.runMethodMacro((BlockToken)tok);
             }
         }
@@ -325,16 +326,16 @@ public class ClassInfo {
         }
 
         Method method = (Method)null;
-        ClassInfo ci = (ClassInfo)null;
+        Object ci = (ClassInfo)null;
 
         for(int i = 0; method == null; ++i) {
-            ci = (ClassInfo)((List)this.fs.methodMacroNames.get(name)).get(i);
-            MFilter filter = new MFilter(name, types, ci.c);
+            ci = (MacroInfo)((List)this.fs.methodMacroNames.get(name)).get(i);
+            MFilter filter = new MFilter(name, types, ((ClassInfo)ci).c);
             filter.searchDeclared();
             method = filter.getMethod();
         }
 
-        ci.compileMethods(GenHandler.inst);
+        ((ClassInfo)ci).compileMethods(GenHandler.inst);
         Type[] params = method.getGenericParameterTypes();
         Class[] out = new Class[params.length];
         Type[] array = params;
@@ -361,7 +362,7 @@ public class ClassInfo {
         args.addAll(var10001);
 
         try {
-            ci.getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());
+            ((ClassInfo)ci).getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());
         } catch (NoSuchMethodException var25) {
             throw new RuntimeException(var25);
         } catch (IllegalAccessException var26) {

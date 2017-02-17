@@ -380,8 +380,18 @@
 	)
 )
 
-(define-class MacroCallToken (Token) 'public
+(define-class MacroIncludeToken (Token) 'public
 	(ret Token 'public)
+	(name String 'public)
+	(toks List{Token} 'public)
+	((<init> line int name String toks List{Token}) void 'public
+		(super:<init> line)
+		(set this:name name)
+		(set this:toks toks)
+	)
+)
+
+(define-class MacroCallToken (Token) 'public
 	(name String 'public)
 	(toks List{Token} 'public)
 	((<init> line int name String toks List{Token}) void 'public

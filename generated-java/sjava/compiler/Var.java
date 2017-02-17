@@ -5,10 +5,10 @@ import gnu.bytecode.Type;
 import gnu.bytecode.Variable;
 import sjava.compiler.AVar;
 
-class Var extends AVar {
+public class Var extends AVar {
     Variable var;
 
-    Var(Variable var, Type type) {
+    public Var(Variable var, Type type) {
         super(type);
         this.var = var;
     }

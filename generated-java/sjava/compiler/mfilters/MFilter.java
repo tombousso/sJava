@@ -8,6 +8,7 @@ import gnu.bytecode.PrimType;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Map;
 import sjava.compiler.Main;
 import sjava.compiler.mfilters.AFilter;
@@ -27,96 +28,88 @@ public class MFilter extends AFilter {
     void select(Method method, Type generic) {
         ClassType c = method.getDeclaringClass();
         if(method.getName().equals(this.name) && (!c.isInterface() || ((ClassType)generic.getRawType()).isInterface() || !method.isAbstract()) && 0 == (method.getModifiers() & Access.SYNTHETIC)) {
-            boolean varargs = (method.getModifiers() & Access.TRANSIENT) != 0;
-            int na = this.types.length;
-            Type[] params = method.getGenericParameterTypes();
-            int np = params.length;
-            if(na == np || varargs && na >= np - 1) {
-                boolean arrayNeeded = varargs && (na == np - 1 || Main.arrayDim(params[np - 1]) != Main.arrayDim(this.types[np - 1]));
-                Type[] var10000;
-                if(arrayNeeded) {
-                    Type[] types = new Type[np];
-                    boolean var10 = na == np - 1;
-                    System.arraycopy(this.types, 0, types, 0, np - 1);
-                    types[np - 1] = (Type)(var10?params[np - 1]:new ArrayType(this.types[np - 1]));
-                    var10000 = types;
-                } else {
-                    var10000 = this.types;
-                }
-
-                Type[] reals = var10000;
-                TypeVariable[] var22;
-                if(this.name.equals("<init>")) {
-                    TypeVariable[] ctparams = ((ClassType)generic.getRawType()).getTypeParameters();
-                    TypeVariable[] mtparams = method.getTypeParameters();
-                    if(ctparams == null) {
-                        var22 = mtparams;
-                    } else if(mtparams == null) {
-                        var22 = ctparams;
-                    } else {
-                        TypeVariable[] o = new TypeVariable[ctparams.length + mtparams.length];
-                        System.arraycopy(ctparams, 0, o, 0, ctparams.length);
-                        System.arraycopy(mtparams, 0, o, ctparams.length, mtparams.length);
-                        var22 = o;
-                    }
-                } else {
-                    var22 = method.getTypeParameters();
-                }
-
-                TypeVariable[] tparams = var22;
-                Map tvs = Main.unresolveTvs(tparams, params, reals);
-                boolean stop = false;
-
-                for(int i = 0; !stop && i != this.types.length; ++i) {
-                    Type at = Main.resolveType(tvs, generic, arrayNeeded && i >= np - 1?((ArrayType)params[np - 1]).elements:params[i]);
-                    int level = Main.compare(at, this.types[i]);
-                    if(level < 0 || this.types[i] == Type.nullType && at instanceof PrimType) {
-                        stop = true;
-                    }
-                }
-
-                MethodCall mc = new MethodCall(method, generic, tvs);
-                if(!stop) {
-                    this.methods.add(mc);
-                }
+            MethodCall mc = isCompatible(method, generic, this.types);
+            if(mc != null) {
+                this.methods.add(mc);
             }
         }
 
     }
 
     public MethodCall getMethodCall() {
-        int n = this.methods.size();
-        if(n == 0) {
-            return null;
-        } else if(n == 1) {
-            return (MethodCall)this.methods.get(0);
-        } else {
-            MethodCall found = (MethodCall)null;
+        ArrayList iterable = this.methods;
+        Iterator it = iterable.iterator();
 
-            label38:
-            for(int i = 0; i < n; ++i) {
-                MethodCall a = (MethodCall)this.methods.get(i);
-
-                for(int j = 0; j < n; ++j) {
-                    MethodCall b = (MethodCall)this.methods.get(j);
-                    if(i != j && !a.moreSpecific(b)) {
-                        continue label38;
-                    }
-                }
-
-                if(found != null) {
-                    return null;
-                }
-
-                found = a;
+        for(int notused = 0; it.hasNext(); ++notused) {
+            MethodCall method = (MethodCall)it.next();
+            if(method.mostSpecific(this.methods)) {
+                return method;
             }
-
-            return found;
         }
+
+        return (MethodCall)null;
     }
 
     public Method getMethod() {
         MethodCall mc = this.getMethodCall();
         return mc == null?(Method)null:mc.m;
+    }
+
+    public static MethodCall isCompatible(Method method, Type generic, Type[] types) {
+        boolean varargs = (method.getModifiers() & Access.TRANSIENT) != 0;
+        int na = types.length;
+        Type[] params = method.getGenericParameterTypes();
+        int np = params.length;
+        MethodCall var21;
+        if(na != np && (!varargs || na < np - 1)) {
+            var21 = (MethodCall)null;
+        } else {
+            boolean arrayNeeded = varargs && (na == np - 1 || Main.arrayDim(params[np - 1]) != Main.arrayDim(types[np - 1]));
+            Type[] var10000;
+            if(arrayNeeded) {
+                Type[] ntypes = new Type[np];
+                boolean var9 = na == np - 1;
+                System.arraycopy(types, 0, ntypes, 0, np - 1);
+                ntypes[np - 1] = (Type)(var9?params[np - 1]:new ArrayType(types[np - 1]));
+                var10000 = ntypes;
+            } else {
+                var10000 = types;
+            }
+
+            Type[] reals = var10000;
+            TypeVariable[] var20;
+            if(method.getName().equals("<init>")) {
+                TypeVariable[] ctparams = ((ClassType)generic.getRawType()).getTypeParameters();
+                TypeVariable[] mtparams = method.getTypeParameters();
+                if(ctparams == null) {
+                    var20 = mtparams;
+                } else if(mtparams == null) {
+                    var20 = ctparams;
+                } else {
+                    TypeVariable[] o = new TypeVariable[ctparams.length + mtparams.length];
+                    System.arraycopy(ctparams, 0, o, 0, ctparams.length);
+                    System.arraycopy(mtparams, 0, o, ctparams.length, mtparams.length);
+                    var20 = o;
+                }
+            } else {
+                var20 = method.getTypeParameters();
+            }
+
+            TypeVariable[] tparams = var20;
+            Map tvs = Main.unresolveTvs(tparams, params, reals);
+            boolean stop = false;
+
+            for(int i = 0; !stop && i != types.length; ++i) {
+                Type at = Main.resolveType(tvs, generic, arrayNeeded && i >= np - 1?((ArrayType)params[np - 1]).elements:params[i]);
+                int level = Main.compare(at, types[i]);
+                if(level < 0 || types[i] == Type.nullType && at instanceof PrimType) {
+                    stop = true;
+                }
+            }
+
+            var21 = !stop?new MethodCall(method, generic, tvs, types):(MethodCall)null;
+        }
+
+        return var21;
     }
 }

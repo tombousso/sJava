@@ -6,16 +6,16 @@ import sjava.compiler.AMethodInfo;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.handlers.GenHandler;
 
-class Add1 extends Emitter {
+public class Add1 extends Emitter {
     Emitter e;
 
-    Add1(Emitter e) {
+    public Add1(Emitter e) {
         this.e = e;
     }
 
     public Type emit(GenHandler h, AMethodInfo mi, CodeAttr code, Type needed) {
         boolean output = code != null;
-        this.e.emit(h, mi, code, needed);
+        this.e.emit(h, mi, code, Type.intType);
         if(output) {
             code.emitPushInt(1);
         }

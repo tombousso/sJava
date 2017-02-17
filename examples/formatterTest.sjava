@@ -34,6 +34,6 @@
 		)
 	)
 	((printFormatted code String) void 'static
-		(println (sjava.compiler.Main:formatCode code) "---")
+		(println (sjava.compiler.Formatter:formatCode code) "---")
 	)
 )

@@ -75,7 +75,7 @@ task compiler2_3(type: JavaExec, dependsOn: [compiler2_2]) {
 task compiler(type: SJavaCompile, dependsOn: [compiler2_3]) {
 	doFirst { file("bin/main").deleteDir() }
 	inputs.files(STD_MACROS)
-	source = fileTree("compiler3") + fileTree("std")
+	source = fileTree("compiler3") + STD_LIB
 	destinationDir = file("bin/main")
 	compilerClasspath = files("bin/2-3")
 }

@@ -84,15 +84,15 @@
 	)
 )
 
-(define-class Add1 (Emitter)
+(define-class Add1 (Emitter) 'public
 	(e Emitter)
-	((<init> e Emitter) void
+	((<init> e Emitter) void 'public
 		(super:<init>)
 		(set this:e e)
 	)
 	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
 		(define output (!= code null))
-		(this:e:emit h mi code needed)
+		(this:e:emit h mi code Type:intType)
 		(if output (code:emitPushInt 1))
 		(if output (code:emitAdd Type:intType))
 		Type:intType
@@ -104,7 +104,7 @@
 	((<clinit>) void 'static
 		(set Nothing:inst (Nothing))
 	)
-	((<init>) void
+	((<init>) void 'private
 		(super:<init>)
 	)
 	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public

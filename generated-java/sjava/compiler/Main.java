@@ -32,7 +32,9 @@ import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
+import sjava.compiler.CompileScope;
 import sjava.compiler.FileScope;
+import sjava.compiler.Formatter;
 import sjava.compiler.Lexer;
 import sjava.compiler.Parser;
 import sjava.compiler.commands.BuildCommand;
@@ -55,7 +57,6 @@ import sjava.compiler.tokens.BlockToken2;
 import sjava.compiler.tokens.CallToken;
 import sjava.compiler.tokens.ClassToken;
 import sjava.compiler.tokens.ColonToken;
-import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.CompareToken;
 import sjava.compiler.tokens.ConstructorToken;
 import sjava.compiler.tokens.DefaultToken;
@@ -72,6 +73,7 @@ import sjava.compiler.tokens.LambdaFnToken;
 import sjava.compiler.tokens.LambdaToken;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.MacroCallToken;
+import sjava.compiler.tokens.MacroIncludeToken;
 import sjava.compiler.tokens.NumOpToken;
 import sjava.compiler.tokens.ObjectToken;
 import sjava.compiler.tokens.QuoteToken;
@@ -92,11 +94,9 @@ import sjava.std.Tuple2;
 import sjava.std.Tuple3;
 
 public class Main {
-    static int ML;
-    static int MP;
-    static String[][] precs;
-    static HashMap<String, Integer> s2prec;
-    public static HashMap<String, Character> specialChars;
+    public static Type unknownType = Type.getType("unknownType");
+    public static Type returnType = Type.getType("returnType");
+    public static Type throwType = Type.getType("throwType");
     public static HashMap<Type, Method> unboxMethods = new HashMap();
     static HashMap<String, Type> constTypes;
     static HashMap<String, Short> accessModifiers;
@@ -104,9 +104,11 @@ public class Main {
     public static HashMap<String, Integer> compare2Ops;
     public static HashMap<String, Integer> compare1Ops;
     static HashMap<String, String> oppositeOps;
-    public static Type unknownType = Type.getType("unknownType");
-    public static Type returnType = Type.getType("returnType");
-    public static Type throwType = Type.getType("throwType");
+    static String[][] precs;
+    public static HashMap<String, Character> specialChars;
+    static int MP;
+    static int ML;
+    static HashMap<String, Integer> s2prec;
     static Map<String, Command> commands;
 
     static {
@@ -266,13 +268,6 @@ public class Main {
         return parser.parseAll(lexer.lex(code));
     }
 
-    public static String formatCode(String code) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(formatToks(parse(code, new Lexer(), new Parser(false))));
-        sb.append('\n');
-        return sb.toString();
-    }
-
     public static void compile(Collection<File> files, String dir) {
         List iterable = compile(files);
         Iterator it = iterable.iterator();
@@ -312,7 +307,7 @@ public class Main {
                 throw new RuntimeException(var14);
             }
 
-            int line = checkFormatted(code);
+            int line = Formatter.checkFormatted(code);
             if(line != -1) {
                 PrintStream var10000 = System.out;
                 StringBuilder sb1 = new StringBuilder();
@@ -330,25 +325,8 @@ public class Main {
         return compile((HashMap)files1);
     }
 
-    public static int checkFormatted(String code) {
-        String formatted = formatCode(code);
-        int line = 1;
-        int len = Math.min(code.length(), formatted.length());
-
-        for(int i = 0; i < len; ++i) {
-            if(code.charAt(i) != formatted.charAt(i)) {
-                return line;
-            }
-
-            if(code.charAt(i) == 10) {
-                ++line;
-            }
-        }
-
-        return code.length() != formatted.length()?line:-1;
-    }
-
     public static List<FileScope> compile(HashMap<File, List<LexedParsedToken>> files) {
+        CompileScope cs = new CompileScope();
         HashMap locals = new HashMap();
         ArrayList fileScopes = new ArrayList();
         HashMap macroNames = new HashMap();
@@ -359,7 +337,7 @@ public class Main {
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
             List toks = (List)entry.getValue();
-            FileScope fs = new FileScope(((File)entry.getKey()).toString(), toks, locals);
+            FileScope fs = new FileScope(cs, ((File)entry.getKey()).toString(), toks, locals);
             fs.macroNames = macroNames;
             fs.methodMacroNames = methodMacroNames;
             fileScopes.add(fs);
@@ -377,14 +355,21 @@ public class Main {
 
         for(int notused2 = 0; it2.hasNext(); ++notused2) {
             FileScope fs2 = (FileScope)it2.next();
-            fs2.runMethodMacros();
+            fs2.compileMacros();
         }
 
         Iterator it3 = fileScopes.iterator();
 
         for(int notused3 = 0; it3.hasNext(); ++notused3) {
             FileScope fs3 = (FileScope)it3.next();
-            fs3.compileMethods(GenHandler.inst);
+            fs3.runMethodMacros();
+        }
+
+        Iterator it4 = fileScopes.iterator();
+
+        for(int notused4 = 0; it4.hasNext(); ++notused4) {
+            FileScope fs4 = (FileScope)it4.next();
+            fs4.compileMethods(GenHandler.inst);
         }
 
         return fileScopes;
@@ -406,7 +391,7 @@ public class Main {
                 }
             }
 
-            var10000 = map != null && map.containsKey((TypeVariable)t)?(Type)map.get((TypeVariable)t):(defaultToRaw?t.getRawType():(Type)null);
+            var10000 = map != null && map.containsKey((TypeVariable)t)?(Type)map.get((TypeVariable)t):(defaultToRaw?((TypeVariable)t).getRawType():(Type)null);
         } else if(t instanceof ArrayType) {
             var10000 = new ArrayType(resolveType(map, pt, ((ArrayType)t).elements, defaultToRaw));
         } else if(!(t instanceof ParameterizedType)) {
@@ -419,14 +404,14 @@ public class Main {
 
             while(true) {
                 if(i1 == array1.length) {
-                    var10000 = new ParameterizedType((ClassType)t.getRawType(), parameterized);
+                    var10000 = new ParameterizedType(((ParameterizedType)t).getRawType(), parameterized);
                     break;
                 }
 
                 Type type = array1[i1];
                 Type r = resolveType(map, pt, type, false);
                 if(r == null || 0 != ((ParameterizedType)t).getTypeArgumentBound(i1)) {
-                    return t.getRawType();
+                    return ((ParameterizedType)t).getRawType();
                 }
 
                 parameterized[i1] = r;
@@ -452,8 +437,8 @@ public class Main {
     static Type unresolveTv(TypeVariable tv, Type generic, Type real) {
         Type var10000;
         if(generic instanceof TypeVariable) {
-            var10000 = tv.equals(generic)?tryBox(real):(Type)null;
-        } else if(generic instanceof ParameterizedType && real instanceof ParameterizedType && generic.getRawType().equals(real.getRawType())) {
+            var10000 = tv.equals((TypeVariable)generic)?tryBox(real):(Type)null;
+        } else if(generic instanceof ParameterizedType && real instanceof ParameterizedType && ((ParameterizedType)generic).getRawType().equals(((ParameterizedType)real).getRawType())) {
             Type[] gtypes = ((ParameterizedType)generic).getTypeArgumentTypes();
             Type[] rtypes = ((ParameterizedType)real).getTypeArgumentTypes();
             Type[] array = gtypes;
@@ -513,7 +498,7 @@ public class Main {
     static boolean compileClassMod(LexedParsedToken tok, ClassType c) {
         boolean var10000;
         if(tok instanceof SingleQuoteToken) {
-            short nmod = ((Short)accessModifiers.get(((VToken)((LexedParsedToken)tok.toks.get(0))).val)).shortValue();
+            short nmod = ((Short)accessModifiers.get(((VToken)((LexedParsedToken)((SingleQuoteToken)tok).toks.get(0))).val)).shortValue();
             c.addModifiers(nmod);
             var10000 = true;
         } else {
@@ -541,10 +526,10 @@ public class Main {
         LexedParsedToken tok = (LexedParsedToken)((Token)block.toks.get(i));
         Token ntok = transformBlock(tok, mi, transform);
         block.toks.set(i, ntok);
-        if(transform && tok instanceof BlockToken && tok.toks.size() > 0 && (LexedParsedToken)tok.toks.get(0) instanceof VToken) {
-            String val = ((VToken)((LexedParsedToken)tok.toks.get(0))).val;
+        if(transform && tok instanceof BlockToken && ((BlockToken)tok).toks.size() > 0 && (LexedParsedToken)((BlockToken)tok).toks.get(0) instanceof VToken) {
+            String val = ((VToken)((LexedParsedToken)((BlockToken)tok).toks.get(0))).val;
             if(val.equals("label")) {
-                block.labels.put(((VToken)((LexedParsedToken)tok.toks.get(1))).val, new Label());
+                block.labels.put(((VToken)((LexedParsedToken)((BlockToken)tok).toks.get(1))).val, new Label());
             }
         }
 
@@ -637,7 +622,7 @@ public class Main {
                 }
 
                 if(mi.ci.fs.macroNames.containsKey(val)) {
-                    return new MacroCallToken(block.line, val, new ArrayList(rest));
+                    return new MacroIncludeToken(block.line, val, new ArrayList(rest));
                 }
 
                 if(val.equals("begin")) {
@@ -761,6 +746,10 @@ public class Main {
                     Token tok1 = block.toks.size() == 1?(Token)null:transformBlock((LexedParsedToken)block.toks.get(1), mi);
                     return new ReturnToken(block.line, tok1);
                 }
+
+                if(val.equals("macro")) {
+                    return new MacroCallToken(block.line, ((VToken)((LexedParsedToken)rest.get(0))).val, transformToks(rest.subList(1, rest.size()), mi));
+                }
             }
 
             return (Token)null;
@@ -788,7 +777,7 @@ public class Main {
                             rest = rest.subList(1, rest.size());
                         }
 
-                        return new ArrayConstructorToken(block1.line, type, len, transformToks(rest, mi));
+                        return new ArrayConstructorToken(block1.line, (ArrayType)type, len, transformToks(rest, mi));
                     } else {
                         return new ConstructorToken(block1.line, type, transformToks(rest, mi));
                     }
@@ -859,7 +848,7 @@ public class Main {
 
     public static boolean isNumeric(Type type) {
         Type unbox = tryUnbox(type);
-        return unbox instanceof PrimType && unbox != Type.voidType && unbox != Type.booleanType;
+        return unbox instanceof PrimType && (PrimType)unbox != Type.voidType && (PrimType)unbox != Type.booleanType;
     }
 
     public static boolean allNumeric(Type[] types) {
@@ -893,7 +882,6 @@ public class Main {
     }
 
     public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
-        boolean output = code != null;
         Type[] types = Emitter.emitAll(emitters, h, mi, (CodeAttr)null, unknownType);
         MFilter filter = new MFilter(name, types, type);
         if(special) {
@@ -902,7 +890,15 @@ public class Main {
             filter.searchAll();
         }
 
-        MethodCall mc = filter.getMethodCall();
+        return emitInvoke(h, filter.getMethodCall(), emitters, mi, code, needed, special);
+    }
+
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
+        return emitInvoke(h, name, type, emitters, mi, code, needed, false);
+    }
+
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
+        boolean output = code != null;
         Method method = mc.m;
         TypeVariable[] typeParameters = method.getTypeParameters();
         Type[] params = method.getGenericParameterTypes();
@@ -910,7 +906,7 @@ public class Main {
         int j = 0;
 
         int n;
-        for(n = !varargs || types.length >= params.length && arrayDim(params[params.length - 1]) == arrayDim(types[params.length - 1])?0:1; j != params.length - n; ++j) {
+        for(n = !varargs || mc.types.length >= params.length && arrayDim(params[params.length - 1]) == arrayDim(mc.types[params.length - 1])?0:1; j != params.length - n; ++j) {
             ((Emitter)emitters.get(j)).emit(h, mi, code, resolveType(mc.tvs, mc.t, params[j]));
         }
 
@@ -918,14 +914,14 @@ public class Main {
             ArrayType at = (ArrayType)params[params.length - 1];
             Type et = resolveType(mc.tvs, mc.t, at.elements);
             if(output) {
-                code.emitPushInt(1 + (types.length - params.length));
+                code.emitPushInt(1 + (mc.types.length - params.length));
             }
 
             if(output) {
                 code.emitNewArray(at.elements.getRawType());
             }
 
-            for(int oj = j; j != types.length; ++j) {
+            for(int oj = j; j != mc.types.length; ++j) {
                 if(output) {
                     code.emitDup();
                 }
@@ -957,8 +953,8 @@ public class Main {
         return new Tuple2(h.castMaybe(out, needed), mc);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
-        return emitInvoke(h, name, type, emitters, mi, code, needed, false);
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
+        return emitInvoke(h, mc, emitters, mi, code, needed, false);
     }
 
     public static Type compareType(Type[] types) {
@@ -1007,9 +1003,7 @@ public class Main {
 
     public static int compare(Type a, Type b) {
         int var10000;
-        if(!(a instanceof ClassType) && !(a instanceof ParameterizedType) || !(b instanceof ClassType) && !(b instanceof ParameterizedType)) {
-            var10000 = a.compare(b);
-        } else {
+        if((a instanceof ClassType || a instanceof ParameterizedType) && (b instanceof ClassType || b instanceof ParameterizedType)) {
             if(a instanceof ClassType && b instanceof ParameterizedType && ((ClassType)a).getTypeParameters() != null && ((ClassType)a).getTypeParameters().length != 0) {
                 b = b.getRawType();
             }
@@ -1018,7 +1012,9 @@ public class Main {
                 a = a.getRawType();
             }
 
-            var10000 = Type.isSame(a, b)?0:(superTypes(b).contains(a)?1:-1);
+            var10000 = Type.isSame(a, b)?0:(a.toString().equals(b.toString())?0:(superTypes(b).contains(a)?1:-1));
+        } else {
+            var10000 = a.compare(b);
         }
 
         return var10000;
@@ -1122,41 +1118,45 @@ public class Main {
         boolean aReturns = a == returnType || a == throwType;
         boolean bReturns = b == returnType || b == throwType;
         Object var10000;
-        if(aReturns && bReturns) {
-            var10000 = Type.voidType;
-        } else if(aReturns) {
-            var10000 = b;
-        } else if(bReturns) {
-            var10000 = a;
-        } else if(a == Type.nullType) {
-            var10000 = tryBox(b);
-        } else if(b == Type.nullType) {
-            var10000 = tryBox(a);
-        } else if(Type.isSame(a, b)) {
-            var10000 = a;
-        } else if(isNumeric(a) && isNumeric(b)) {
-            a = tryUnbox(a);
-            b = tryUnbox(b);
-            List l = Arrays.asList(new Type[]{a, b});
-            if(Type.isSame(a, b)) {
+        if(a != Type.voidType && b != Type.voidType) {
+            if(aReturns && bReturns) {
+                var10000 = Type.voidType;
+            } else if(aReturns) {
+                var10000 = b;
+            } else if(bReturns) {
                 var10000 = a;
-            } else if(l.contains(Type.doubleType)) {
-                var10000 = Type.doubleType;
-            } else if(l.contains(Type.floatType)) {
-                var10000 = Type.floatType;
-            } else if(l.contains(Type.longType)) {
-                var10000 = Type.longType;
-            } else if(l.contains(Type.intType)) {
-                var10000 = Type.intType;
-            } else {
-                if(!l.contains(Type.shortType) || !l.contains(Type.booleanType)) {
-                    throw new RuntimeException();
-                }
+            } else if(a == Type.nullType) {
+                var10000 = tryBox(b);
+            } else if(b == Type.nullType) {
+                var10000 = tryBox(a);
+            } else if(Type.isSame(a, b)) {
+                var10000 = a;
+            } else if(isNumeric(a) && isNumeric(b)) {
+                a = tryUnbox(a);
+                b = tryUnbox(b);
+                List l = Arrays.asList(new Type[]{a, b});
+                if(Type.isSame(a, b)) {
+                    var10000 = a;
+                } else if(l.contains(Type.doubleType)) {
+                    var10000 = Type.doubleType;
+                } else if(l.contains(Type.floatType)) {
+                    var10000 = Type.floatType;
+                } else if(l.contains(Type.longType)) {
+                    var10000 = Type.longType;
+                } else if(l.contains(Type.intType)) {
+                    var10000 = Type.intType;
+                } else {
+                    if(!l.contains(Type.shortType) || !l.contains(Type.booleanType)) {
+                        throw new RuntimeException();
+                    }
 
-                var10000 = Type.shortType;
+                    var10000 = Type.shortType;
+                }
+            } else {
+                var10000 = tryUnbox(a) == Type.booleanType && tryUnbox(b) == Type.booleanType?Type.booleanType:superType(a, b);
             }
         } else {
-            var10000 = tryUnbox(a) == Type.booleanType && tryUnbox(b) == Type.booleanType?Type.booleanType:superType(a, b);
+            var10000 = Type.voidType;
         }
 
         return (Type)var10000;
@@ -1195,124 +1195,6 @@ public class Main {
         return ClassType.make(sb.toString());
     }
 
-    static int formatTok(LexedParsedToken tok, int line, int toLine, int tabs, StringBuffer sb) {
-        for(int i = toLine - line; i > 0; --i) {
-            sb.append("\n");
-        }
-
-        if(toLine != line) {
-            for(int i1 = tabs; i1 > 0; --i1) {
-                sb.append("\t");
-            }
-        }
-
-        line = tok.line;
-        if(tok instanceof BlockToken) {
-            BlockToken tok1 = (BlockToken)tok;
-            formatToks(tok1, tabs, "(", ")", sb);
-        } else if(tok instanceof GenericToken) {
-            GenericToken tok2 = (GenericToken)tok;
-            formatTok((LexedParsedToken)tok2.toks.get(0), line, line, tabs, sb);
-            formatToks(tok2, tabs, "{", "}", sb, tok2.toks.subList(1, tok2.toks.size()));
-        } else if(tok instanceof ArrayToken) {
-            ArrayToken tok3 = (ArrayToken)tok;
-            formatTok((LexedParsedToken)tok3.toks.get(0), line, line, tabs, sb);
-            formatToks(tok3, tabs, "[", "]", sb, tok3.toks.subList(1, tok3.toks.size()));
-        } else if(tok instanceof ColonToken) {
-            ColonToken tok4 = (ColonToken)tok;
-            line = formatTok((LexedParsedToken)tok4.toks.get(0), line, line, tabs, sb);
-            sb.append(":");
-            formatTok((LexedParsedToken)tok4.toks.get(1), line, line, tabs, sb);
-        } else if(tok instanceof SingleQuoteToken) {
-            SingleQuoteToken tok5 = (SingleQuoteToken)tok;
-            sb.append("\'");
-            formatTok((LexedParsedToken)tok5.toks.get(0), line, line, tabs, sb);
-        } else if(tok instanceof QuoteToken) {
-            QuoteToken tok6 = (QuoteToken)tok;
-            sb.append("`");
-            formatTok((LexedParsedToken)tok6.toks.get(0), line, line, tabs, sb);
-        } else if(tok instanceof UnquoteToken) {
-            UnquoteToken tok7 = (UnquoteToken)tok;
-            sb.append(tok7.var?",$":",");
-            formatTok((LexedParsedToken)tok7.toks.get(0), line, line, tabs, sb);
-        } else if(tok instanceof CommentToken) {
-            CommentToken tok8 = (CommentToken)tok;
-            sb.append(";");
-            sb.append(tok8.val);
-        } else {
-            if(tok.toks != null) {
-                throw new RuntimeException();
-            }
-
-            sb.append(tok.toString());
-        }
-
-        return tok.endLine;
-    }
-
-    static int formatToks(LexedParsedToken block, int tabs, String before, String after, StringBuffer sb, List<LexedParsedToken> toks) {
-        sb.append(before);
-        int line = 0;
-        boolean cont = true;
-        Iterator it = toks.iterator();
-
-        for(int i = 0; it.hasNext(); ++i) {
-            LexedParsedToken tok = (LexedParsedToken)it.next();
-            boolean indent = false;
-            int toLine = tok.line;
-            boolean multiline = tok.firstLine() != tok.lastLine();
-            if(i == 0) {
-                if(multiline) {
-                    toLine = line + 1;
-                    indent = true;
-                } else {
-                    toLine = line;
-                }
-            } else if(tok.line == line && multiline) {
-                toLine = tok.line + 1;
-                indent = true;
-            } else {
-                if(tok.line == line) {
-                    sb.append(" ");
-                }
-
-                indent = tok.line != block.line;
-            }
-
-            line = formatTok(tok, line, toLine, tabs + (indent?1:0), sb);
-        }
-
-        if(block.firstLine() != block.lastLine()) {
-            sb.append("\n");
-
-            for(int i1 = tabs; i1 > 0; --i1) {
-                sb.append("\t");
-            }
-        }
-
-        sb.append(after);
-        line = block.endLine;
-        return line;
-    }
-
-    static int formatToks(LexedParsedToken block, int tabs, String before, String after, StringBuffer sb) {
-        return formatToks(block, tabs, before, after, sb, block.toks);
-    }
-
-    static String formatToks(List<LexedParsedToken> toks) {
-        StringBuffer sb = new StringBuffer();
-        int line = toks.size() != 0?((LexedParsedToken)toks.get(0)).line:1;
-        Iterator it = toks.iterator();
-
-        for(int i = 0; it.hasNext(); ++i) {
-            LexedParsedToken tok = (LexedParsedToken)it.next();
-            int off = tok.line == line && i != 0?1:0;
-            line = formatTok(tok, line, tok.line + off, 0, sb);
-        }
-
-        return sb.toString();
-    }
-
     public static List<Emitter> toEmitters(List l) {
         return l;
     }
@@ -1349,11 +1231,11 @@ public class Main {
         int mods;
         for(mods = 0; i < toks.size(); ++i) {
             LexedParsedToken tok = (LexedParsedToken)toks.get(i);
-            if(!(tok instanceof SingleQuoteToken) || !((LexedParsedToken)tok.toks.get(0) instanceof VToken)) {
+            if(!(tok instanceof SingleQuoteToken) || !((LexedParsedToken)((SingleQuoteToken)tok).toks.get(0) instanceof VToken)) {
                 return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
             }
 
-            mods |= ((Short)accessModifiers.get(((VToken)((LexedParsedToken)tok.toks.get(0))).val)).shortValue();
+            mods |= ((Short)accessModifiers.get(((VToken)((LexedParsedToken)((SingleQuoteToken)tok).toks.get(0))).val)).shortValue();
         }
 
         return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
