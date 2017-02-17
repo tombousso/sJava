@@ -4,7 +4,6 @@ import gnu.bytecode.Access;
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Field;
 import gnu.bytecode.Type;
-import java.util.ArrayDeque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import sjava.compiler.AMethodInfo;
@@ -50,7 +49,7 @@ class CaptureVHandler extends GenHandler {
 
             VCaptured vcaptured = new VCaptured(outer, (Field)null);
             this.assignField(vcaptured, mi, super.code);
-            ((Map)((ArrayDeque)mi.levels.get(tok.macro)).getLast()).put(tok.val, vcaptured);
+            mi.putVarOuter(tok, vcaptured);
             var10001 = vcaptured.load(super.code);
         } else {
             var10001 = found.load(super.code);

@@ -805,7 +805,6 @@ public class GenHandler extends Handler {
                 ArrayList toks = new ArrayList(tok1.toks);
                 if(tok1.t == null) {
                     MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, mi.ci.fs), (List)null, (Method)null, scope);
-                    fakemi.ensureLevels(mi.levels.size() - 1);
                     BlockToken2 beginTok = Main.transformBlockToks(new BeginToken(0, toks), mi);
                     tok1.ret = Main.tryBox(captureH.compile(beginTok, fakemi, (CodeAttr)null, Main.unknownType));
                     generics.add(tok1.ret);
@@ -844,14 +843,6 @@ public class GenHandler extends Handler {
             }
 
             if(output) {
-                List iterable1 = ci.methods;
-                Iterator it1 = iterable1.iterator();
-
-                for(int notused1 = 0; it1.hasNext(); ++notused1) {
-                    AMethodInfo omi = (AMethodInfo)it1.next();
-                    omi.ensureLevels(mi.levels.size() - 1);
-                }
-
                 ci.compileMethods(captureH);
                 tok.captured = captureH.captured.keySet();
                 this.createCtor(ci.c, Emitter.emitAll(emitters, captureH, mi, (CodeAttr)null, Main.unknownType), captureH.captured.values());
@@ -861,11 +852,11 @@ public class GenHandler extends Handler {
         if(output) {
             this.code.emitNew(ci.c);
             this.code.emitDup();
-            Collection iterable2 = tok.captured;
-            Iterator it2 = iterable2.iterator();
+            Collection iterable1 = tok.captured;
+            Iterator it1 = iterable1.iterator();
 
-            for(int notused2 = 0; it2.hasNext(); ++notused2) {
-                AVar v = (AVar)it2.next();
+            for(int notused1 = 0; it1.hasNext(); ++notused1) {
+                AVar v = (AVar)it1.next();
                 emitters.add(new LoadAVar(v));
             }
 
@@ -901,7 +892,7 @@ public class GenHandler extends Handler {
         ArrayList emitters = new ArrayList(Arrays.asList(new Emitter[]{new LoadAVar(new Arg(Main.getCompilerType("AMethodInfo"), 0, 0)), new Add1(new LoadAVar(new Arg(Type.intType, 1, 0))), new LoadAVar(new Arg(Main.getCompilerType("handlers.GenHandler"), 2, 0))}));
         emitters.addAll(tok.toks);
         Main.emitInvoke(this, mc, emitters, mi, this.code, Main.unknownType);
-        return this.castMaybe(Main.getCompilerType("LexedParsedToken"), needed);
+        return this.castMaybe(Main.getCompilerType("tokens.LexedParsedToken"), needed);
     }
 
     public Type compile(MacroIncludeToken tok, AMethodInfo mi, Type needed) {

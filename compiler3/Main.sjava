@@ -2081,8 +2081,10 @@
 	(firstScope Map{String Arg})
 	(labels ArrayDeque{Map{String Label}})
 	(compiled bool)
+	(numLevels Deque{Integer})
 	((<init> ci ClassInfo toks List{LexedParsedToken} method Method firstScope LinkedHashMap{String Arg}) void
 		(super:<init>)
+		(set this:numLevels (ArrayDeque{Integer}))
 		(set this:ci ci)
 		(if (&& (!= toks null) (!= (toks:size) 0))
 			(set this:block (BeginToken (toks:get 0):line (ArrayList{Token} toks)))
@@ -2091,13 +2093,7 @@
 		(set this:levels (ArrayList))
 		(this:ensureLevels 0)
 		(forEach entry (firstScope:entrySet)
-			(this:ensureLevels (entry:getValue):level)
-			(define level (this:levels:get (entry:getValue):level))
-			(if (= (level:size) 0)
-				(level:add (LinkedHashMap))
-			)
-			(define scope (level:getFirst))
-			(scope:put (entry:getKey) (entry:getValue))
+			(this:putVar (entry:getKey) (entry:getValue) (entry:getValue):level)
 		)
 		(set this:firstScope firstScope)
 		(set this:labels (ArrayDeque))
@@ -2120,20 +2116,27 @@
 		;(if output (code:popScope))
 	)
 	((pushLevel) void 'public
-		(this:levels:add (ArrayDeque))
+		(this:numLevels:push (this:levels:size))
 	)
 	((popLevel) void 'public
-		(this:levels:remove (- (this:levels:size) 1))
+		(define i (this:numLevels:pop))
+		(while (> (this:levels:size) i)
+			(this:levels:remove (- (this:levels:size) 1))
+		)
 	)
-	((ensureLevels n int) void 'public
-		(while (<= (this:levels:size) n)
-			(this:pushLevel)
+	((ensureLevels level int) void 'private
+		(while (<= (this:levels:size) level)
+			(define ad (ArrayDeque))
+			(ad:push (LinkedHashMap))
+			(this:levels:add ad)
 		)
 	)
 	((getVar tok VToken) AVar 'public
-		(forEach scope (this:levels:get tok:macro)
-			(if (scope:containsKey tok:val)
-				(return (scope:get tok:val))
+		(if (< tok:macro (this:levels:size))
+			(forEach scope (this:levels:get tok:macro)
+				(if (scope:containsKey tok:val)
+					(return (scope:get tok:val))
+				)
 			)
 		)
 		null
@@ -2163,7 +2166,18 @@
 		var
 	)
 	((putVar tok VToken v AVar) void 'public
-		(((this:levels:get tok:macro):getFirst):put tok:val v)
+		(this:putVar tok:val v tok:macro)
+	)
+	((putVar name String v AVar level int) void 'public
+		(this:ensureLevels level)
+		(((this:levels:get level):getFirst):put name v)
+	)
+	((putVarOuter tok VToken v AVar) void 'public
+		(this:putVarOuter tok:val v tok:macro)
+	)
+	((putVarOuter name String v AVar level int) void 'public
+		(this:ensureLevels level)
+		(((this:levels:get level):getLast):put name v)
 	)
 	((getType tok Token) Type 'public
 		(this:ci:getType tok)

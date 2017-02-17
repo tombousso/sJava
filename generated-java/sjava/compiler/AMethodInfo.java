@@ -7,6 +7,7 @@ import gnu.bytecode.Type;
 import gnu.bytecode.Variable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -34,6 +35,7 @@ public class AMethodInfo {
     Map<String, Arg> firstScope;
     ArrayDeque<Map<String, Label>> labels;
     boolean compiled;
+    Deque<Integer> numLevels = new ArrayDeque();
 
     AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, Arg> firstScope) {
         this.ci = ci;
@@ -49,14 +51,7 @@ public class AMethodInfo {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
-            this.ensureLevels(((Arg)entry.getValue()).level);
-            ArrayDeque level = (ArrayDeque)this.levels.get(((Arg)entry.getValue()).level);
-            if(level.size() == 0) {
-                level.add(new LinkedHashMap());
-            }
-
-            Map scope = (Map)level.getFirst();
-            scope.put((String)entry.getKey(), (Arg)entry.getValue());
+            this.putVar((String)entry.getKey(), (Arg)entry.getValue(), ((Arg)entry.getValue()).level);
         }
 
         this.firstScope = firstScope;
@@ -91,28 +86,37 @@ public class AMethodInfo {
     }
 
     public void pushLevel() {
-        this.levels.add(new ArrayDeque());
+        this.numLevels.push(Integer.valueOf(this.levels.size()));
     }
 
     public void popLevel() {
-        this.levels.remove(this.levels.size() - 1);
+        Integer i = (Integer)this.numLevels.pop();
+
+        while(this.levels.size() > i.intValue()) {
+            this.levels.remove(this.levels.size() - 1);
+        }
+
     }
 
-    public void ensureLevels(int n) {
-        while(this.levels.size() <= n) {
-            this.pushLevel();
+    private void ensureLevels(int level) {
+        while(this.levels.size() <= level) {
+            ArrayDeque ad = new ArrayDeque();
+            ad.push(new LinkedHashMap());
+            this.levels.add(ad);
         }
 
     }
 
     public AVar getVar(VToken tok) {
-        ArrayDeque iterable = (ArrayDeque)this.levels.get(tok.macro);
-        Iterator it = iterable.iterator();
+        if(tok.macro < this.levels.size()) {
+            ArrayDeque iterable = (ArrayDeque)this.levels.get(tok.macro);
+            Iterator it = iterable.iterator();
 
-        for(int notused = 0; it.hasNext(); ++notused) {
-            Map scope = (Map)it.next();
-            if(scope.containsKey(tok.val)) {
-                return (AVar)scope.get(tok.val);
+            for(int notused = 0; it.hasNext(); ++notused) {
+                Map scope = (Map)it.next();
+                if(scope.containsKey(tok.val)) {
+                    return (AVar)scope.get(tok.val);
+                }
             }
         }
 
@@ -155,7 +159,21 @@ public class AMethodInfo {
     }
 
     public void putVar(VToken tok, AVar v) {
-        ((Map)((ArrayDeque)this.levels.get(tok.macro)).getFirst()).put(tok.val, v);
+        this.putVar(tok.val, v, tok.macro);
+    }
+
+    public void putVar(String name, AVar v, int level) {
+        this.ensureLevels(level);
+        ((Map)((ArrayDeque)this.levels.get(level)).getFirst()).put(name, v);
+    }
+
+    public void putVarOuter(VToken tok, AVar v) {
+        this.putVarOuter(tok.val, v, tok.macro);
+    }
+
+    public void putVarOuter(String name, AVar v, int level) {
+        this.ensureLevels(level);
+        ((Map)((ArrayDeque)this.levels.get(level)).getLast()).put(name, v);
     }
 
     public Type getType(Token tok) {

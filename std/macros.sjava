@@ -307,7 +307,7 @@
 				(out:add
 					`(if ,(tag:toks:get 1)
 						,(mapA tok (tag:toks:subList 2 (tag:toks:size))
-							`(sb:append (xml ,tok))
+							`(sb:append ,(macro xml tok))
 						)
 					)
 				)
@@ -330,13 +330,13 @@
 						(if (= (tok:toks:size) 1)
 							`(begin
 								(sb:append " ")
-								(sb:append (tokString ,(tok:toks:get 0)))
+								(sb:append ,(macro tokString (tok:toks:get 0)))
 							)
 							`(begin
 								(sb:append " ")
-								(sb:append (tokString ,(tok:toks:get 0)))
+								(sb:append ,(macro tokString (tok:toks:get 0)))
 								(sb:append "=\"")
-								(sb:append (tokString ,(tok:toks:get 1)))
+								(sb:append ,(macro tokString (tok:toks:get 1)))
 								(sb:append "\"")
 							)
 						)
@@ -345,15 +345,15 @@
 				(define children (ArrayList{LexedParsedToken}))
 				(forEach tok (tag:toks:subList i size)
 					(if (instance? tok BlockToken)
-						(children:add `(sb:append (xml ,tok)))
-						(children:add `(sb:append (tokString ,tok)))
+						(children:add `(sb:append ,(macro xml tok)))
+						(children:add `(sb:append ,(macro tokString tok)))
 					)
 				)
 				(if (&& selfClose (!= (children:size) 0)) (throw (RuntimeException)))
 				(out:add
 					`(begin
 						(sb:append "<")
-						(sb:append (tokString ,(tag:toks:get 0)))
+						(sb:append ,(macro tokString (tag:toks:get 0)))
 						,props
 						(sb:append ">")
 						,children
@@ -361,7 +361,7 @@
 							`()
 							`(begin
 								(sb:append "</")
-								(sb:append (tokString ,(tag:toks:get 0)))
+								(sb:append ,(macro tokString (tag:toks:get 0)))
 								(sb:append ">")
 							)
 						)
@@ -370,7 +370,7 @@
 				)
 			)
 			(true
-				(out:add `(sb:append (tokString ,tag)))
+				(out:add `(sb:append ,(macro tokString tag)))
 			)
 		)
 	)

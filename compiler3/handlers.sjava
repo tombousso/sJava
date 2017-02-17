@@ -669,7 +669,6 @@
 						(if (= tok:t null)
 							(begin
 								(define fakemi (MethodInfo (ClassInfo (as ClassType null) mi:ci:fs) null null scope))
-								(fakemi:ensureLevels (- (mi:levels:size) 1))
 								(define beginTok (Main:transformBlockToks (BeginToken 0 toks) mi))
 								(set tok:ret (Main:tryBox (captureH:compile beginTok fakemi null Main:unknownType)))
 								(generics:add tok:ret)
@@ -709,9 +708,6 @@
 				)
 				(if output
 					(begin
-						(forEach omi ci:methods
-							(omi:ensureLevels (- (mi:levels:size) 1))
-						)
 						(ci:compileMethods captureH)
 						(set tok:captured (captureH:captured:keySet))
 						(this:createCtor ci:c (Emitter:emitAll emitters captureH mi null Main:unknownType) (captureH:captured:values))
@@ -759,7 +755,7 @@
 		)
 		(emitters:addAll tok:toks)
 		(Main:emitInvoke this mc emitters mi this:code Main:unknownType)
-		(this:castMaybe (Main:getCompilerType "LexedParsedToken") needed)
+		(this:castMaybe (Main:getCompilerType "tokens.LexedParsedToken") needed)
 	)
 	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
@@ -1200,7 +1196,7 @@
 					(if (= outer null) (throw (RuntimeException (tok:toString))))
 					(define vcaptured (VCaptured outer null))
 					(this:assignField vcaptured mi this:code)
-					(((mi:levels:get tok:macro):getLast):put tok:val vcaptured)
+					(mi:putVarOuter tok vcaptured)
 					(vcaptured:load this:code)
 				)
 				(found:load this:code)
