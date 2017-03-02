@@ -49,7 +49,7 @@ class CaptureVHandler extends GenHandler {
 
             VCaptured vcaptured = new VCaptured(outer, (Field)null);
             this.assignField(vcaptured, mi, super.code);
-            mi.putVarOuter(tok, vcaptured);
+            mi.putCapturedVar(tok, vcaptured);
             var10001 = vcaptured.load(super.code);
         } else {
             var10001 = found.load(super.code);

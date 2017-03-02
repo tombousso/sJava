@@ -60,7 +60,6 @@
 	((compile tok CallToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ConstructorToken mi AMethodInfo needed Type) Type 'public 'abstract)
-	((compile tok MacroCallToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ArrayConstructorToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok Token mi AMethodInfo needed Type) Type 'public
 		(doubleDispatch (this:compile _ mi needed) tok)
@@ -233,6 +232,7 @@
 				(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed skipL trueL falseL)
 			)
 			(true
+				(define trueL (Label))
 				(define cast Tuple2{VToken Type} null)
 				(define isFalseGoto (&& (instance? trueE Nothing) (instance? falseE Goto)))
 				(define falseLabel
@@ -266,11 +266,36 @@
 						(if (&& (> (toks:size) 2) (compare:equals "!="))
 							(throw (RuntimeException))
 						)
-						(for ((j 0)) (!= (+ j 1) (toks:size)) (inc j)
-							(define types (this:compileAll toks j (+ j 2) mi null Main:unknownType))
-							(define otype (Main:compareType types))
-							(this:compileAll toks j (+ j 2) mi otype)
+						(define types (this:compileAll toks 0 (toks:size) mi null Main:unknownType))
+						(define otype (Main:compareType types))
+						(define special (&& inv (> (toks:size) 2)))
+						(define vars (Variable[] len:(- (toks:size) 2)))
+						(for ((j 1)) (< (+ j 1) (toks:size)) (inc j)
+							(this:compile (toks:get j) mi otype)
+							(if output
+								(begin
+									(define v (this:code:addLocal otype))
+									(this:code:emitStore v)
+									(aset vars (- j 1) v)
+								)
+							)
+						)
+						(this:compile (toks:get 0) mi otype)
+						(for ((i 0)) (< i (alen vars)) (inc i)
+							(if output (this:code:emitLoad (aget vars i)))
+							(if special
+								(Main:emitGotoIf otype compare compare trueL this:code)
+								(Main:emitGotoIf otype invCompare compare falseLabel this:code)
+							)
+							(if output (this:code:emitLoad (aget vars i)))
+						)
+						(this:compile (toks:get (- (toks:size) 1)) mi otype)
+						(if special
+							(Main:emitGotoIf otype compare compare trueL this:code)
 							(Main:emitGotoIf otype invCompare compare falseLabel this:code)
+						)
+						(if special
+							(if output (this:code:emitGoto falseLabel))
 						)
 					)
 				)
@@ -282,6 +307,7 @@
 				)
 				(cond
 					(isFalseGoto
+						(if output (trueL:define this:code))
 						(Tuple3 Type:voidType trueCasts falseCasts)
 					)
 					(true
@@ -298,7 +324,7 @@
 								Collections:EMPTY_LIST
 							)
 						)
-						(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed (Label) (Label) falseLabel)
+						(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed (Label) trueL falseLabel)
 					)
 				)
 			)
@@ -403,7 +429,7 @@
 		(define result Type
 			(instanceCond o
 				(UnquoteToken
-					(define tok (Main:transformBlock (o:toks:get 0) mi))
+					(define tok (mi:transformBlock (o:toks:get 0)))
 					(define t (this:compile tok mi null Main:unknownType))
 					(cond
 						((= t (Type:getType "gnu.bytecode.Type"))
@@ -595,7 +621,7 @@
 				(mi:ci:fs:compileInclude tok)
 				(try
 					(set tok:ret
-						(Main:transformBlock
+						(mi:transformBlock
 							(as LexedParsedToken
 								(
 									((mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
@@ -607,7 +633,6 @@
 									):invoke null (Object[] mi 0 this)
 								)
 							)
-							mi
 						)
 					)
 					(e NoSuchMethodException (throw (RuntimeException e)))
@@ -669,7 +694,7 @@
 						(if (= tok:t null)
 							(begin
 								(define fakemi (MethodInfo (ClassInfo (as ClassType null) mi:ci:fs) null null scope))
-								(define beginTok (Main:transformBlockToks (BeginToken 0 toks) mi))
+								(define beginTok (mi:transformBlockToks (BeginToken 0 toks)))
 								(set tok:ret (Main:tryBox (captureH:compile beginTok fakemi null Main:unknownType)))
 								(generics:add tok:ret)
 								(define agenerics (Type[] len:(generics:size)))
@@ -727,36 +752,6 @@
 		)
 		(this:castMaybe tok:t needed)
 	)
-	((compile tok MacroCallToken mi AMethodInfo needed Type) Type 'public
-		(define output (!= this:code null))
-		(define o 3)
-		(define l (tok:toks:size))
-		(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") Type:intType (Main:getCompilerType "handlers.GenHandler")))
-		(for ((j 0)) (!= j l) (inc j)
-			(aset types (+ o j) (Main:getCompilerType "tokens.LexedParsedToken"))
-		)
-		(define mc MethodCall null)
-		(for ((i 0)) (= mc null) (inc i)
-			(define ci ((mi:ci:fs:macroNames:get tok:name):get i))
-			(define filter (MFilter tok:name types ci:c))
-			(filter:searchDeclared)
-			(set mc (filter:getMethodCall))
-		)
-		(define emitters
-			(ArrayList
-				(Arrays:asList
-					(Emitter[]
-						(LoadAVar (Arg (Main:getCompilerType "AMethodInfo") 0 0))
-						(Add1 (LoadAVar (Arg Type:intType 1 0)))
-						(LoadAVar (Arg (Main:getCompilerType "handlers.GenHandler") 2 0))
-					)
-				)
-			)
-		)
-		(emitters:addAll tok:toks)
-		(Main:emitInvoke this mc emitters mi this:code Main:unknownType)
-		(this:castMaybe (Main:getCompilerType "tokens.LexedParsedToken") needed)
-	)
 	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(if (= tok:ret null)
@@ -797,12 +792,7 @@
 						(define clazz (ci:getClazz))
 						(define method (clazz:getMethod tok:name classes))
 						(define ret (as LexedParsedToken (method:invoke null (args:toArray))))
-						(set tok:ret
-							(Main:transformBlock
-								ret
-								mi
-							)
-						)
+						(set tok:ret (mi:transformBlock ret))
 					)
 					(e NoSuchMethodException (throw (RuntimeException e)))
 					(e IllegalAccessException (throw (RuntimeException e)))
@@ -810,9 +800,7 @@
 				)
 			)
 		)
-		(mi:pushLevel)
 		(define out (this:compile tok:ret mi this:code needed))
-		(mi:popLevel)
 		(this:castMaybe out needed)
 	)
 	((compile tok BeginToken mi AMethodInfo needed Type) Type 'public
@@ -916,19 +904,19 @@
 	)
 	((compile tok ASetToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(define type ArrayType (this:compile (tok:toks:get 1) mi this:code Main:unknownType))
-		(this:compile (tok:toks:get 2) mi this:code Main:unknownType)
-		(this:compile (tok:toks:get 3) mi this:code type:elements)
+		(define type ArrayType (this:compile tok:array mi this:code Main:unknownType))
+		(this:compile tok:index mi this:code Type:intType)
+		(this:compile tok:el mi this:code type:elements)
 		(if output (this:code:emitArrayStore))
 		Type:voidType
 	)
 	((compile tok AGetToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(define type ArrayType (this:compile (tok:toks:get 1) mi this:code Main:unknownType))
-		(for ((i 2)) (< i (tok:toks:size)) (inc i)
+		(define type ArrayType (this:compile (tok:toks:get 0) mi this:code Main:unknownType))
+		(for ((i 1)) (< i (tok:toks:size)) (inc i)
 			(this:compile (tok:toks:get i) mi this:code Type:intType)
 			(if output (this:code:emitArrayLoad))
-			(if (!= i 2) (set type (as ArrayType type:elements)))
+			(if (!= i 1) (set type (as ArrayType type:elements))) ;multi-dim arrays
 		)
 		(this:castMaybe type:elements needed)
 	)
@@ -982,7 +970,7 @@
 	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(mi:pushScope this:code tok:labels)
-		(define start Label (Label))
+		(define start (Label))
 		(if output (start:define this:code))
 		(this:emitIf false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi Type:voidType)
 		(mi:popScope this:code)
@@ -1028,12 +1016,10 @@
 	)
 	((compile tok TypeToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
-		(if output (this:code:emitLoad (this:code:getArg 0)))
-		(if output (this:code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "pushLevel" 0)))
 		(if output (this:code:emitLoad (this:code:getArg 2)))
-		(this:compile tok:tok mi this:code Main:unknownType)
 		(if output (this:code:emitLoad (this:code:getArg 0)))
-		(if output (this:code:emitInvoke ((Main:getCompilerType "Main"):getDeclaredMethod "transformBlock" 2)))
+		(this:compile tok:tok mi this:code Main:unknownType)
+		(if output (this:code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "transformBlock" 1)))
 		(if output (this:code:emitLoad (this:code:getArg 0)))
 		(if output (this:code:emitPushNull))
 		(if output (this:code:emitGetStatic ((Main:getCompilerType "Main"):getField "unknownType")))
@@ -1049,8 +1035,6 @@
 				)
 			)
 		)
-		(if output (this:code:emitLoad (this:code:getArg 0)))
-		(if output (this:code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "popLevel" 0)))
 		(this:castMaybe (Type:getType "gnu.bytecode.Type") needed)
 	)
 	((compile tok ReturnToken mi AMethodInfo needed Type) Type 'public
@@ -1196,7 +1180,7 @@
 					(if (= outer null) (throw (RuntimeException (tok:toString))))
 					(define vcaptured (VCaptured outer null))
 					(this:assignField vcaptured mi this:code)
-					(mi:putVarOuter tok vcaptured)
+					(mi:putCapturedVar tok vcaptured)
 					(vcaptured:load this:code)
 				)
 				(found:load this:code)

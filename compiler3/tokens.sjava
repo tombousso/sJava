@@ -391,16 +391,6 @@
 	)
 )
 
-(define-class MacroCallToken (Token) 'public
-	(name String 'public)
-	(toks List{Token} 'public)
-	((<init> line int name String toks List{Token}) void 'public
-		(super:<init> line)
-		(set this:name name)
-		(set this:toks toks)
-	)
-)
-
 (define-class BeginToken (BlockToken2) 'public
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line toks)
@@ -466,10 +456,14 @@
 )
 
 (define-class ASetToken (Token) 'public
-	(toks List{Token} 'public)
-	((<init> line int toks List{Token}) void 'public
+	(array Token 'public)
+	(index Token 'public)
+	(el Token 'public)
+	((<init> line int array Token index Token el Token) void 'public
 		(super:<init> line)
-		(set this:toks toks)
+		(set this:array array)
+		(set this:index index)
+		(set this:el el)
 	)
 )
 

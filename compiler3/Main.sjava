@@ -375,345 +375,6 @@
 		)
 		types
 	)
-	((transformBlockTok block BlockToken2 mi AMethodInfo transform bool i int) Token 'public 'static
-		(define tok LexedParsedToken (block:toks:get i))
-		(define ntok (Main:transformBlock tok mi transform))
-		(block:toks:set i ntok)
-		(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
-			(begin
-				(define val (as VToken (tok:toks:get 0)):val)
-				(if (val:equals "label")
-					(block:labels:put (as VToken (tok:toks:get 1)):val (Label))
-				)
-			)
-		)
-		ntok
-	)
-	((transformBlockToks block BlockToken2 mi AMethodInfo transform bool i int) BlockToken2 'public 'static
-		(if (! block:isTransformed)
-			(begin
-				(while (!= i (block:toks:size))
-					(Main:transformBlockTok block mi transform i)
-					(inc i)
-				)
-				(set block:isTransformed true)
-			)
-		)
-		block
-	)
-	((transformBlockToks block BlockToken2 mi AMethodInfo transform bool) BlockToken2 'public 'static
-		(Main:transformBlockToks block mi transform 0)
-	)
-	((transformBlockToks block BlockToken2 mi AMethodInfo) BlockToken2 'public 'static
-		(Main:transformBlockToks block mi true)
-	)
-	((transformToks l List{LexedParsedToken} mi AMethodInfo transform bool) List{Token} 'public 'static
-		(define out (ArrayList{Token}))
-		(forEach t l
-			(out:add
-				(Main:transformBlock t mi
-					(||
-						transform
-						(instance? t UnquoteToken)
-					)
-				)
-			)
-		)
-		out
-	)
-	((transformToks l List{LexedParsedToken} mi AMethodInfo) List{Token} 'public 'static
-		(Main:transformToks l mi true)
-	)
-	((transformForm block LexedParsedToken mi AMethodInfo transform bool) Token 'public 'static
-		(define val (as VToken (block:toks:get 0)):val)
-		(define rest (block:toks:subList 1 (block:toks:size)))
-		(cond
-			((val:equals "unquote")
-				(return (Main:transformBlock (UnquoteToken block:line (ArrayList rest) false) mi))
-			)
-			((val:equals "varunquote")
-				(return (Main:transformBlock (UnquoteToken block:line (ArrayList rest) true) mi))
-			)
-			((val:equals "include")
-				(return (IncludeToken block:line (ArrayList rest)))
-			)
-		)
-		(if transform
-			(cond
-				((val:equals "quote")
-					(return (Main:transformBlock (QuoteToken block:line (ArrayList rest)) mi))
-				)
-				((val:equals "object")
-					(define superTok (rest:get 0))
-					(return (ObjectToken block:line (mi:getType (superTok:toks:get 0)) (superTok:toks:subList 1 (superTok:toks:size)) (rest:subList 1 (rest:size))))
-				)
-				((val:equals "lambda")
-					(define scope (LinkedHashMap))
-					(define FunctionN (instance? (rest:get 0) BlockToken))
-					(if FunctionN
-						(begin
-							(define params (Main:getParams mi:ci (rest:get 0) scope 0 1))
-							(return (LambdaFnToken block:line null scope params (rest:subList 1 (rest:size))))
-						)
-						(begin
-							(define t (mi:getType (rest:get 0)))
-							(define sam ((as ClassType (t:getRawType)):checkSingleAbstractMethod))
-							(define args (rest:get 1))
-							(define params (ArrayList{Type} (args:toks:size)))
-							(forEachI arg args:toks i
-								(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
-								(scope:put (as VToken arg):val (Arg param (+ i 1) 0))
-								(params:add param)
-							)
-							(return (LambdaToken block:line (mi:getType (rest:get 0)) scope params (rest:subList 2 (rest:size)) sam))
-						)
-					)
-				)
-				((mi:ci:fs:macroNames:containsKey val)
-					(return (MacroIncludeToken block:line val (ArrayList rest)))
-				)
-				((val:equals "begin")
-					;(if (= (block:toks:size) 2)
-					;	(return (Main:transformBlock (block:toks:get 1) mi))
-					(return (Main:transformBlockToks (BeginToken block:line (ArrayList rest)) mi))
-					;)
-				)
-				((val:equals "label")
-					(return (LabelToken block:line (as VToken (block:toks:get 1)):val))
-				)
-				((val:equals "goto")
-					(return (GotoToken block:line (as VToken (block:toks:get 1)):val))
-				)
-				((val:equals "define")
-					(define type (mi:getType (rest:get 1)))
-					(define tok Token
-						(cond
-							((&& (= type null) (= (rest:size) 2))
-								(Main:transformBlock (rest:get 1) mi)
-							)
-							((&& (!= type null) (= (rest:size) 3))
-								(Main:transformBlock (rest:get 2) mi)
-							)
-							((&& (!= type null) (= (rest:size) 2))
-								null
-							)
-							(true
-								(throw (RuntimeException (block:toString)))
-							)
-						)
-					)
-					(define name (as VToken (rest:get 0)))
-					(if (= type null) (set type Main:unknownType))
-					(return (DefineToken block:line name type tok))
-				)
-				((val:equals "try")
-					(define hasFinally
-						(&&
-							(!= (rest:size) 1)
-							(instance? ((rest:get (- (rest:size) 1)):toks:get 0) VToken)
-							((as VToken ((rest:get (- (rest:size) 1)):toks:get 0)):val:equals "finally")
-						)
-					)
-					(define finallyToks List{Token} null)
-					(if hasFinally
-						(begin
-							(define finallyToks (rest:get (- (rest:size) 1)):toks)
-							(set finallyToks (Main:transformToks (finallyToks:subList 1 (finallyToks:size)) mi))
-							(set rest (rest:subList 0 (- (rest:size) 1)))
-						)
-					)
-					(define catches
-						(mapA catch (rest:subList 1 (rest:size))
-							(Tuple3
-								(as VToken (catch:toks:get 0))
-								(mi:getType (catch:toks:get 1))
-								(Main:transformToks (catch:toks:subList 2 (catch:toks:size)) mi)
-							)
-						)
-					)
-					(return (TryToken block:line (Main:transformBlock (rest:get 0) mi) (Arrays:asList catches) finallyToks))
-				)
-				((val:equals "instance?")
-					(return (InstanceToken block:line (Main:transformBlock (block:toks:get 1) mi) (mi:getType (block:toks:get 2))))
-				)
-				((val:equals "set")
-					(return (SetToken block:line (Main:transformToks block:toks mi)))
-				)
-				((val:equals "aset")
-					(return (ASetToken block:line (Main:transformToks block:toks mi)))
-				)
-				((val:equals "aget")
-					(return (AGetToken block:line (Main:transformToks block:toks mi)))
-				)
-				((val:equals "alen")
-					(return (ALenToken block:line (Main:transformBlock (block:toks:get 1) mi)))
-				)
-				((val:equals "as")
-					(return (AsToken block:line (mi:getType (block:toks:get 1)) (Main:transformBlock (block:toks:get 2) mi)))
-				)
-				((Main:binOps:containsKey val)
-					(return (NumOpToken block:line val (Main:transformToks rest mi)))
-				)
-				((|| (val:equals ">>") (val:equals "<<"))
-					(return (ShiftToken block:line (Main:transformBlock (rest:get 0) mi) (Main:transformBlock (rest:get 1) mi) (val:equals ">>")))
-				)
-				((val:equals "if")
-					(return (IfToken block:line (Main:transformToks block:toks mi)))
-				)
-				((val:equals "while")
-					(return (Main:transformBlockToks (WhileToken block:line (ArrayList block:toks)) mi))
-				)
-				((Main:isCompare val)
-					(return (CompareToken block:line val (Main:transformToks rest mi)))
-				)
-				((val:equals "throw")
-					(return (ThrowToken block:line (Main:transformBlock (block:toks:get 1) mi)))
-				)
-				((val:equals "class")
-					(return (ClassToken block:line (mi:getType (block:toks:get 1))))
-				)
-				((val:equals "synchronized")
-					(return (Main:transformBlockToks (SynchronizedToken block:line (ArrayList block:toks)) mi))
-				)
-				((val:equals "type")
-					(return (TypeToken block:line (Main:transformBlock (block:toks:get 1) mi)))
-				)
-				((val:equals "return")
-					(define tok (if (= (block:toks:size) 1) null (Main:transformBlock (block:toks:get 1) mi)))
-					(return (ReturnToken block:line tok))
-				)
-				((val:equals "macro")
-					(return (MacroCallToken block:line (as VToken (rest:get 0)):val (Main:transformToks (rest:subList 1 (rest:size)) mi)))
-				)
-			)
-		)
-		null
-	)
-	((transformBlock_ block LexedParsedToken mi AMethodInfo transform bool) Token 'static
-		(instanceCond block
-			(BlockToken
-				(cond
-					((= (block:toks:size) 0)
-						(if transform
-							(return (EmptyToken block:line))
-							(return (BlockToken block:line Collections:EMPTY_LIST))
-						)
-					)
-					(true
-						(define rest (block:toks:subList 1 (block:toks:size)))
-						(define type (if transform (mi:getType (block:toks:get 0)) null))
-						(if (&& transform (!= type null))
-							(if (instance? type ArrayType)
-								(begin
-									(define len Token null)
-									(if
-										(&&
-											(!= (rest:size) 0)
-											(instance? (rest:get 0) ColonToken)
-											(instance? ((as ColonToken (rest:get 0)):toks:get 0) VToken)
-											((as VToken ((as ColonToken (rest:get 0)):toks:get 0)):val:equals "len")
-										)
-										(begin
-											(set len (Main:transformBlock ((as ColonToken (rest:get 0)):toks:get 1) mi))
-											(set rest (rest:subList 1 (rest:size)))
-										)
-									)
-									(if
-										(&&
-											(!= (rest:size) 0)
-											(instance? (rest:get 0) SingleQuoteToken)
-										)
-										(begin
-											(set len (Main:transformBlock ((as SingleQuoteToken (rest:get 0)):toks:get 0) mi))
-											(set rest (rest:subList 1 (rest:size)))
-										)
-									)
-									(return (ArrayConstructorToken block:line type len (Main:transformToks rest mi)))
-								)
-								(return (ConstructorToken block:line type (Main:transformToks rest mi)))
-							)
-						)
-						(cond
-							((instance? (block:toks:get 0) VToken)
-								(define o (Main:transformForm block mi transform))
-								(if (!= o null) (return o))
-							)
-							((&& transform (instance? (block:toks:get 0) ColonToken))
-								(define first ColonToken (block:toks:get 0))
-								(define out
-									(CallToken
-										block:line
-										(Main:transformBlock (first:toks:get 0) mi true)
-										(as VToken (first:toks:get 1)):val
-										(Main:transformToks (block:toks:subList 1 (block:toks:size)) mi)
-									)
-								)
-								(return out)
-							)
-						)
-						(if transform
-							(return (DefaultToken block:line (Main:transformToks block:toks mi)))
-							(return (BlockToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi false))))
-						)
-					)
-				)
-			)
-			(ColonToken
-				(if transform
-					(return
-						(FieldToken block:line
-							(Main:transformBlock (block:toks:get 0) mi)
-							(as VToken (block:toks:get 1)):val
-						)
-					)
-					(return (ColonToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi transform))))
-				)
-			)
-			(QuoteToken
-				(if transform
-					(return
-						(QuoteToken2 block:line
-							(Main:transformBlock
-								(block:toks:get 0)
-								mi
-								(instance? (block:toks:get 0) UnquoteToken)
-							)
-						)
-					)
-					(return (QuoteToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi false))))
-				)
-			)
-			(UnquoteToken
-				(return (UnquoteToken block:line (ArrayList block:toks) block:var))
-			)
-			(GenericToken
-				(if transform
-					(throw (RuntimeException))
-					(return (GenericToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi transform))))
-				)
-			)
-			(ArrayToken
-				(if transform
-					(throw (RuntimeException))
-					(return (ArrayToken block:line (Main:toLexedParsed (Main:transformToks block:toks mi transform))))
-				)
-			)
-		)
-		block
-	)
-	((transformBlock block LexedParsedToken mi AMethodInfo transform bool) Token 'static 'public
-		(if (!= block:transformed null)
-			block:transformed
-			(begin
-				(define out (Main:transformBlock_ block mi transform))
-				(set block:transformed out)
-				out
-			)
-		)
-	)
-	((transformBlock block LexedParsedToken mi AMethodInfo) Token 'static 'public
-		(Main:transformBlock block mi true)
-	)
 	((numericOpType types Type[]) Type 'static 'public
 		(define l (Arrays:asList types))
 		(cond
@@ -935,6 +596,7 @@
 		(for ((superA Type a)) (!= superA null) (set superA (Main:getGenericSuperclass superA))
 			(o:add superA)
 		)
+		(o:add Type:javalangObjectType)
 		o
 	)
 	((superIntfs sc LinkedHashSet{Type}) LinkedHashSet{Type} 'public 'static
@@ -2078,20 +1740,19 @@
 	(block BeginToken 'public)
 	(method Method 'public)
 	(levels ArrayList{ArrayDeque{Map{String AVar}}} 'public)
+	(capturedLevels ArrayList{Map{String AVar}} 'public)
 	(firstScope Map{String Arg})
 	(labels ArrayDeque{Map{String Label}})
 	(compiled bool)
-	(numLevels Deque{Integer})
 	((<init> ci ClassInfo toks List{LexedParsedToken} method Method firstScope LinkedHashMap{String Arg}) void
 		(super:<init>)
-		(set this:numLevels (ArrayDeque{Integer}))
 		(set this:ci ci)
 		(if (&& (!= toks null) (!= (toks:size) 0))
 			(set this:block (BeginToken (toks:get 0):line (ArrayList{Token} toks)))
 		)
 		(set this:method method)
 		(set this:levels (ArrayList))
-		(this:ensureLevels 0)
+		(set this:capturedLevels (ArrayList))
 		(forEach entry (firstScope:entrySet)
 			(this:putVar (entry:getKey) (entry:getValue) (entry:getValue):level)
 		)
@@ -2109,20 +1770,16 @@
 	)
 	((popScope code CodeAttr) void 'public
 		(define output (!= code null))
-		(forEach level this:levels
-			(level:pop)
+		(define it (this:levels:iterator))
+		(while (it:hasNext)
+			(define level (it:next))
+			(if (= (level:size) 0)
+				(it:remove)
+				(level:pop)
+			)
 		)
 		(this:labels:pop)
 		;(if output (code:popScope))
-	)
-	((pushLevel) void 'public
-		(this:numLevels:push (this:levels:size))
-	)
-	((popLevel) void 'public
-		(define i (this:numLevels:pop))
-		(while (> (this:levels:size) i)
-			(this:levels:remove (- (this:levels:size) 1))
-		)
 	)
 	((ensureLevels level int) void 'private
 		(while (<= (this:levels:size) level)
@@ -2130,6 +1787,12 @@
 			(ad:push (LinkedHashMap))
 			(this:levels:add ad)
 		)
+	)
+	((putCapturedVar tok VToken v AVar) void 'public
+		(while (<= (this:capturedLevels:size) tok:macro)
+			(this:capturedLevels:add (LinkedHashMap))
+		)
+		((this:capturedLevels:get tok:macro):put tok:val v)
 	)
 	((getVar tok VToken) AVar 'public
 		(if (< tok:macro (this:levels:size))
@@ -2139,7 +1802,10 @@
 				)
 			)
 		)
-		null
+		(if (< tok:macro (this:capturedLevels:size))
+			((this:capturedLevels:get tok:macro):get tok:val)
+			null
+		)
 	)
 	((getLabel name String) Label 'public
 		(forEach labelScope this:labels
@@ -2172,20 +1838,13 @@
 		(this:ensureLevels level)
 		(((this:levels:get level):getFirst):put name v)
 	)
-	((putVarOuter tok VToken v AVar) void 'public
-		(this:putVarOuter tok:val v tok:macro)
-	)
-	((putVarOuter name String v AVar level int) void 'public
-		(this:ensureLevels level)
-		(((this:levels:get level):getLast):put name v)
-	)
 	((getType tok Token) Type 'public
 		(this:ci:getType tok)
 	)
 	((compileMethodBody h GenHandler) void 'public
 		(if (&& (! this:compiled) (! (this:method:isAbstract)))
 			(begin
-				(Main:transformBlockToks this:block this)
+				(this:transformBlockToks this:block)
 				(h:compile this:block this null (this:method:getReturnType))
 
 				(define filter (BridgeFilter this:method))
@@ -2211,6 +1870,358 @@
 	)
 	((toString) String 'public
 		(concat (super:toString) ":" this:method)
+	)
+	((transformBlockTok block BlockToken2 transform bool i int) Token 'public
+		(define tok LexedParsedToken (block:toks:get i))
+		(define ntok (this:transformBlock tok transform))
+		(block:toks:set i ntok)
+		(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
+			(begin
+				(define val (as VToken (tok:toks:get 0)):val)
+				(if (val:equals "label")
+					(block:labels:put (as VToken (tok:toks:get 1)):val (Label))
+				)
+			)
+		)
+		ntok
+	)
+	((transformBlockToks block BlockToken2 transform bool i int) BlockToken2 'public
+		(if (! block:isTransformed)
+			(begin
+				(while (!= i (block:toks:size))
+					(this:transformBlockTok block transform i)
+					(inc i)
+				)
+				(set block:isTransformed true)
+			)
+		)
+		block
+	)
+	((transformBlockToks block BlockToken2 transform bool) BlockToken2 'public
+		(this:transformBlockToks block transform 0)
+	)
+	((transformBlockToks block BlockToken2) BlockToken2 'public
+		(this:transformBlockToks block true)
+	)
+	((transformToks l List{LexedParsedToken} transform bool) List{Token} 'public
+		(define out (ArrayList{Token}))
+		(forEach t l
+			(out:add
+				(this:transformBlock t
+					(||
+						transform
+						(instance? t UnquoteToken)
+					)
+				)
+			)
+		)
+		out
+	)
+	((transformToks l List{LexedParsedToken}) List{Token} 'public
+		(this:transformToks l true)
+	)
+	((transformForm block LexedParsedToken transform bool) Token 'public
+		(define val (as VToken (block:toks:get 0)):val)
+		(define rest (block:toks:subList 1 (block:toks:size)))
+		(cond
+			((val:equals "unquote")
+				(return (this:transformBlock (UnquoteToken block:line (ArrayList rest) false)))
+			)
+			((val:equals "varunquote")
+				(return (this:transformBlock (UnquoteToken block:line (ArrayList rest) true)))
+			)
+			((val:equals "include")
+				(return (IncludeToken block:line (ArrayList rest)))
+			)
+		)
+		(if transform
+			(cond
+				((val:equals "quote")
+					(return (this:transformBlock (QuoteToken block:line (ArrayList rest))))
+				)
+				((val:equals "object")
+					(define superTok (rest:get 0))
+					(return (ObjectToken block:line (this:getType (superTok:toks:get 0)) (superTok:toks:subList 1 (superTok:toks:size)) (rest:subList 1 (rest:size))))
+				)
+				((val:equals "lambda")
+					(define scope (LinkedHashMap))
+					(define FunctionN (instance? (rest:get 0) BlockToken))
+					(if FunctionN
+						(begin
+							(define params (Main:getParams this:ci (rest:get 0) scope 0 1))
+							(return (LambdaFnToken block:line null scope params (rest:subList 1 (rest:size))))
+						)
+						(begin
+							(define t (this:getType (rest:get 0)))
+							(define sam ((as ClassType (t:getRawType)):checkSingleAbstractMethod))
+							(define args (rest:get 1))
+							(define params (ArrayList{Type} (args:toks:size)))
+							(forEachI arg args:toks i
+								(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
+								(scope:put (as VToken arg):val (Arg param (+ i 1) 0))
+								(params:add param)
+							)
+							(return (LambdaToken block:line (this:getType (rest:get 0)) scope params (rest:subList 2 (rest:size)) sam))
+						)
+					)
+				)
+				((this:ci:fs:macroNames:containsKey val)
+					(return (MacroIncludeToken block:line val (ArrayList rest)))
+				)
+				((val:equals "begin")
+					(return (this:transformBlockToks (BeginToken block:line (ArrayList rest))))
+				)
+				((val:equals "label")
+					(return (LabelToken block:line (as VToken (block:toks:get 1)):val))
+				)
+				((val:equals "goto")
+					(return (GotoToken block:line (as VToken (block:toks:get 1)):val))
+				)
+				((val:equals "define")
+					(define type (this:getType (rest:get 1)))
+					(define tok Token
+						(cond
+							((&& (= type null) (= (rest:size) 2))
+								(this:transformBlock (rest:get 1))
+							)
+							((&& (!= type null) (= (rest:size) 3))
+								(this:transformBlock (rest:get 2))
+							)
+							((&& (!= type null) (= (rest:size) 2))
+								null
+							)
+							(true
+								(throw (RuntimeException (block:toString)))
+							)
+						)
+					)
+					(define name (as VToken (rest:get 0)))
+					(if (= type null) (set type Main:unknownType))
+					(return (DefineToken block:line name type tok))
+				)
+				((val:equals "try")
+					(define hasFinally
+						(&&
+							(!= (rest:size) 1)
+							(instance? ((rest:get (- (rest:size) 1)):toks:get 0) VToken)
+							((as VToken ((rest:get (- (rest:size) 1)):toks:get 0)):val:equals "finally")
+						)
+					)
+					(define finallyToks List{Token} null)
+					(if hasFinally
+						(begin
+							(define finallyToks (rest:get (- (rest:size) 1)):toks)
+							(set finallyToks (this:transformToks (finallyToks:subList 1 (finallyToks:size))))
+							(set rest (rest:subList 0 (- (rest:size) 1)))
+						)
+					)
+					(define catches
+						(mapA catch (rest:subList 1 (rest:size))
+							(Tuple3
+								(as VToken (catch:toks:get 0))
+								(this:getType (catch:toks:get 1))
+								(this:transformToks (catch:toks:subList 2 (catch:toks:size)))
+							)
+						)
+					)
+					(return (TryToken block:line (this:transformBlock (rest:get 0)) (Arrays:asList catches) finallyToks))
+				)
+				((val:equals "instance?")
+					(return (InstanceToken block:line (this:transformBlock (block:toks:get 1)) (this:getType (block:toks:get 2))))
+				)
+				((val:equals "set")
+					(return (SetToken block:line (this:transformToks block:toks)))
+				)
+				((val:equals "aset")
+					(define arrayN (- (rest:size) 2))
+					(define array
+						(if (= arrayN 1)
+							(this:transformBlock (rest:get 0))
+							(AGetToken block:line (this:transformToks (rest:subList 0 arrayN)))
+						)
+					)
+					(return (ASetToken block:line array (this:transformBlock (rest:get arrayN)) (this:transformBlock (rest:get (+ arrayN 1)))))
+				)
+				((val:equals "aget")
+					(return (AGetToken block:line (this:transformToks rest)))
+				)
+				((val:equals "alen")
+					(return (ALenToken block:line (this:transformBlock (block:toks:get 1))))
+				)
+				((val:equals "as")
+					(return (AsToken block:line (this:getType (block:toks:get 1)) (this:transformBlock (block:toks:get 2))))
+				)
+				((Main:binOps:containsKey val)
+					(return (NumOpToken block:line val (this:transformToks rest)))
+				)
+				((|| (val:equals ">>") (val:equals "<<"))
+					(return (ShiftToken block:line (this:transformBlock (rest:get 0)) (this:transformBlock (rest:get 1)) (val:equals ">>")))
+				)
+				((val:equals "if")
+					(return (IfToken block:line (this:transformToks block:toks)))
+				)
+				((val:equals "while")
+					(return (this:transformBlockToks (WhileToken block:line (ArrayList block:toks))))
+				)
+				((Main:isCompare val)
+					(return (CompareToken block:line val (this:transformToks rest)))
+				)
+				((val:equals "throw")
+					(return (ThrowToken block:line (this:transformBlock (block:toks:get 1))))
+				)
+				((val:equals "class")
+					(return (ClassToken block:line (this:getType (block:toks:get 1))))
+				)
+				((val:equals "synchronized")
+					(return (this:transformBlockToks (SynchronizedToken block:line (ArrayList block:toks))))
+				)
+				((val:equals "type")
+					(return (TypeToken block:line (this:transformBlock (block:toks:get 1))))
+				)
+				((val:equals "return")
+					(define tok (if (= (block:toks:size) 1) null (this:transformBlock (block:toks:get 1))))
+					(return (ReturnToken block:line tok))
+				)
+				((val:equals "macro")
+					(define l
+						(Arrays:asList
+							(mapAI tok rest i
+								(if (= i 0)
+									tok
+									(UnquoteToken tok:line (Arrays:asList (LexedParsedToken[] tok)) false)
+								)
+							)
+						)
+					)
+					(return (QuoteToken2 block:line (BlockToken block:line l)))
+				)
+			)
+		)
+		null
+	)
+	((transformBlock_ block LexedParsedToken transform bool) Token
+		(instanceCond block
+			(BlockToken
+				(cond
+					((= (block:toks:size) 0)
+						(if transform
+							(return (EmptyToken block:line))
+							(return (BlockToken block:line Collections:EMPTY_LIST))
+						)
+					)
+					(true
+						(define rest (block:toks:subList 1 (block:toks:size)))
+						(define type (if transform (this:getType (block:toks:get 0)) null))
+						(if (&& transform (!= type null))
+							(if (instance? type ArrayType)
+								(begin
+									(define len Token null)
+									(if
+										(&&
+											(!= (rest:size) 0)
+											(instance? (rest:get 0) ColonToken)
+											(instance? ((as ColonToken (rest:get 0)):toks:get 0) VToken)
+											((as VToken ((as ColonToken (rest:get 0)):toks:get 0)):val:equals "len")
+										)
+										(begin
+											(set len (this:transformBlock ((as ColonToken (rest:get 0)):toks:get 1)))
+											(set rest (rest:subList 1 (rest:size)))
+										)
+									)
+									(if
+										(&&
+											(!= (rest:size) 0)
+											(instance? (rest:get 0) SingleQuoteToken)
+										)
+										(begin
+											(set len (this:transformBlock ((as SingleQuoteToken (rest:get 0)):toks:get 0)))
+											(set rest (rest:subList 1 (rest:size)))
+										)
+									)
+									(return (ArrayConstructorToken block:line type len (this:transformToks rest)))
+								)
+								(return (ConstructorToken block:line type (this:transformToks rest)))
+							)
+						)
+						(cond
+							((instance? (block:toks:get 0) VToken)
+								(define o (this:transformForm block transform))
+								(if (!= o null) (return o))
+							)
+							((&& transform (instance? (block:toks:get 0) ColonToken))
+								(define first ColonToken (block:toks:get 0))
+								(define out
+									(CallToken
+										block:line
+										(this:transformBlock (first:toks:get 0) true)
+										(as VToken (first:toks:get 1)):val
+										(this:transformToks (block:toks:subList 1 (block:toks:size)))
+									)
+								)
+								(return out)
+							)
+						)
+						(if transform
+							(return (DefaultToken block:line (this:transformToks block:toks)))
+							(return (BlockToken block:line (Main:toLexedParsed (this:transformToks block:toks false))))
+						)
+					)
+				)
+			)
+			(ColonToken
+				(if transform
+					(return
+						(FieldToken block:line
+							(this:transformBlock (block:toks:get 0))
+							(as VToken (block:toks:get 1)):val
+						)
+					)
+					(return (ColonToken block:line (Main:toLexedParsed (this:transformToks block:toks transform))))
+				)
+			)
+			(QuoteToken
+				(if transform
+					(return
+						(QuoteToken2 block:line
+							(this:transformBlock
+								(block:toks:get 0)
+								(instance? (block:toks:get 0) UnquoteToken)
+							)
+						)
+					)
+					(return (QuoteToken block:line (Main:toLexedParsed (this:transformToks block:toks false))))
+				)
+			)
+			(UnquoteToken
+				(return (UnquoteToken block:line (ArrayList block:toks) block:var))
+			)
+			(GenericToken
+				(if transform
+					(throw (RuntimeException))
+					(return (GenericToken block:line (Main:toLexedParsed (this:transformToks block:toks transform))))
+				)
+			)
+			(ArrayToken
+				(if transform
+					(throw (RuntimeException))
+					(return (ArrayToken block:line (Main:toLexedParsed (this:transformToks block:toks transform))))
+				)
+			)
+		)
+		block
+	)
+	((transformBlock block LexedParsedToken transform bool) Token 'public
+		(if (!= block:transformed null)
+			block:transformed
+			(begin
+				(define out (this:transformBlock_ block transform))
+				(set block:transformed out)
+				out
+			)
+		)
+	)
+	((transformBlock block LexedParsedToken) Token 'public
+		(this:transformBlock block true)
 	)
 )
 

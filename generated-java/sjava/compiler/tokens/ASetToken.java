@@ -1,13 +1,16 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
 import sjava.compiler.tokens.Token;
 
 public class ASetToken extends Token {
-    public List<Token> toks;
+    public Token array;
+    public Token index;
+    public Token el;
 
-    public ASetToken(int line, List<Token> toks) {
+    public ASetToken(int line, Token array, Token index, Token el) {
         super(line);
-        this.toks = toks;
+        this.array = array;
+        this.index = index;
+        this.el = el;
     }
 }
