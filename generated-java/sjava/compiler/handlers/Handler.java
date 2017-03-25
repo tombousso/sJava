@@ -33,13 +33,13 @@ import sjava.compiler.tokens.ReturnToken;
 import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.SetToken;
 import sjava.compiler.tokens.ShiftToken;
+import sjava.compiler.tokens.SpecialBeginToken;
 import sjava.compiler.tokens.SynchronizedToken;
 import sjava.compiler.tokens.ThrowToken;
 import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.TryToken;
 import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.VToken;
-import sjava.compiler.tokens.WhileToken;
 
 public abstract class Handler {
     public Type[] compileAll(List<Token> toks, int i, int e, AMethodInfo mi, Object needed) {
@@ -77,6 +77,8 @@ public abstract class Handler {
 
     public abstract Type compile(BeginToken var1, AMethodInfo var2, Type var3);
 
+    public abstract Type compile(SpecialBeginToken var1, AMethodInfo var2, Type var3);
+
     public abstract Type compile(LabelToken var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(GotoToken var1, AMethodInfo var2, Type var3);
@@ -102,8 +104,6 @@ public abstract class Handler {
     public abstract Type compile(ShiftToken var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(IfToken var1, AMethodInfo var2, Type var3);
-
-    public abstract Type compile(WhileToken var1, AMethodInfo var2, Type var3);
 
     public abstract Type compile(CompareToken var1, AMethodInfo var2, Type var3);
 
@@ -151,6 +151,8 @@ public abstract class Handler {
             var10000 = this.compile((MacroIncludeToken)tok, mi, needed);
         } else if(tok instanceof BeginToken) {
             var10000 = this.compile((BeginToken)tok, mi, needed);
+        } else if(tok instanceof SpecialBeginToken) {
+            var10000 = this.compile((SpecialBeginToken)tok, mi, needed);
         } else if(tok instanceof LabelToken) {
             var10000 = this.compile((LabelToken)tok, mi, needed);
         } else if(tok instanceof GotoToken) {
@@ -177,8 +179,6 @@ public abstract class Handler {
             var10000 = this.compile((ShiftToken)tok, mi, needed);
         } else if(tok instanceof IfToken) {
             var10000 = this.compile((IfToken)tok, mi, needed);
-        } else if(tok instanceof WhileToken) {
-            var10000 = this.compile((WhileToken)tok, mi, needed);
         } else if(tok instanceof CompareToken) {
             var10000 = this.compile((CompareToken)tok, mi, needed);
         } else if(tok instanceof ThrowToken) {

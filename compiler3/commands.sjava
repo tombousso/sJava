@@ -110,7 +110,7 @@
 					(forEach name fileNames
 						(define f (File name))
 						(define in (org.apache.commons.io.FileUtils:readFileToString f))
-						(define out (Formatter:formatCode in))
+						(define out (sjava.compiler.Formatter:formatCode in))
 						(if (! (in:equals out))
 							(begin
 								(println "Overwriting " name)

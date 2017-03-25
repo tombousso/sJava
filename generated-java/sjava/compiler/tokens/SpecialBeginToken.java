@@ -4,8 +4,8 @@ import java.util.List;
 import sjava.compiler.tokens.BlockToken2;
 import sjava.compiler.tokens.Token;
 
-public class WhileToken extends BlockToken2 {
-    public WhileToken(int line, List<Token> toks) {
+public class SpecialBeginToken extends BlockToken2 {
+    public SpecialBeginToken(int line, List<Token> toks) {
         super(line, toks);
     }
 }

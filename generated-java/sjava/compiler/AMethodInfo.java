@@ -60,7 +60,7 @@ import sjava.compiler.tokens.QuoteToken2;
 import sjava.compiler.tokens.ReturnToken;
 import sjava.compiler.tokens.SetToken;
 import sjava.compiler.tokens.ShiftToken;
-import sjava.compiler.tokens.SingleQuoteToken;
+import sjava.compiler.tokens.SpecialBeginToken;
 import sjava.compiler.tokens.SynchronizedToken;
 import sjava.compiler.tokens.ThrowToken;
 import sjava.compiler.tokens.Token;
@@ -68,7 +68,6 @@ import sjava.compiler.tokens.TryToken;
 import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
-import sjava.compiler.tokens.WhileToken;
 import sjava.std.Tuple3;
 
 public class AMethodInfo {
@@ -359,6 +358,10 @@ public class AMethodInfo {
                     return this.transformBlockToks(new BeginToken(block.line, new ArrayList(rest)));
                 }
 
+                if(val.equals("sbegin")) {
+                    return this.transformBlockToks(new SpecialBeginToken(block.line, new ArrayList(rest)));
+                }
+
                 if(val.equals("label")) {
                     return new LabelToken(block.line, ((VToken)((LexedParsedToken)block.toks.get(1))).val);
                 }
@@ -450,10 +453,6 @@ public class AMethodInfo {
                     return new IfToken(block.line, this.transformToks(block.toks));
                 }
 
-                if(val.equals("while")) {
-                    return this.transformBlockToks(new WhileToken(block.line, new ArrayList(block.toks)));
-                }
-
                 if(Main.isCompare(val)) {
                     return new CompareToken(block.line, val, this.transformToks(rest));
                 }
@@ -498,29 +497,60 @@ public class AMethodInfo {
     }
 
     Token transformBlock_(LexedParsedToken block, boolean transform) {
-        if(block instanceof BlockToken) {
+        if(!(block instanceof BlockToken)) {
+            if(block instanceof ColonToken) {
+                ColonToken block2 = (ColonToken)block;
+                return (Token)(transform?new FieldToken(block2.line, this.transformBlock((LexedParsedToken)block2.toks.get(0)), ((VToken)((LexedParsedToken)block2.toks.get(1))).val):new ColonToken(block2.line, Main.toLexedParsed(this.transformToks(block2.toks, transform))));
+            } else if(block instanceof QuoteToken) {
+                QuoteToken block3 = (QuoteToken)block;
+                return (Token)(transform?new QuoteToken2(block3.line, this.transformBlock((LexedParsedToken)block3.toks.get(0), (LexedParsedToken)block3.toks.get(0) instanceof UnquoteToken)):new QuoteToken(block3.line, Main.toLexedParsed(this.transformToks(block3.toks, false))));
+            } else if(block instanceof UnquoteToken) {
+                UnquoteToken block4 = (UnquoteToken)block;
+                return new UnquoteToken(block4.line, new ArrayList(block4.toks), block4.var);
+            } else if(block instanceof GenericToken) {
+                GenericToken block5 = (GenericToken)block;
+                if(transform) {
+                    throw new RuntimeException();
+                } else {
+                    return new GenericToken(block5.line, Main.toLexedParsed(this.transformToks(block5.toks, transform)));
+                }
+            } else if(block instanceof ArrayToken) {
+                ArrayToken block6 = (ArrayToken)block;
+                if(transform) {
+                    throw new RuntimeException();
+                } else {
+                    return new ArrayToken(block6.line, Main.toLexedParsed(this.transformToks(block6.toks, transform)));
+                }
+            } else {
+                return block;
+            }
+        } else {
             BlockToken block1 = (BlockToken)block;
             if(block1.toks.size() == 0) {
                 return (Token)(transform?new EmptyToken(block1.line):new BlockToken(block1.line, Collections.EMPTY_LIST));
             } else {
                 List rest = block1.toks.subList(1, block1.toks.size());
                 Type type = transform?this.getType((LexedParsedToken)block1.toks.get(0)):(Type)null;
-                if(transform && type != null) {
-                    if(type instanceof ArrayType) {
+                if(type != null) {
+                    if(!(type instanceof ArrayType)) {
+                        return new ConstructorToken(block1.line, type, this.transformToks(rest));
+                    } else {
                         Token len = (Token)null;
                         if(rest.size() != 0 && (LexedParsedToken)rest.get(0) instanceof ColonToken && (LexedParsedToken)((ColonToken)((LexedParsedToken)rest.get(0))).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((ColonToken)((LexedParsedToken)rest.get(0))).toks.get(0))).val.equals("len")) {
                             len = this.transformBlock((LexedParsedToken)((ColonToken)((LexedParsedToken)rest.get(0))).toks.get(1));
                             rest = rest.subList(1, rest.size());
-                        }
+                        } else {
+                            ArrayToken tok;
+                            for(tok = (ArrayToken)((LexedParsedToken)block1.toks.get(0)); (LexedParsedToken)tok.toks.get(0) instanceof ArrayToken; tok = (ArrayToken)((LexedParsedToken)tok.toks.get(0))) {
+                                ;
+                            }
 
-                        if(rest.size() != 0 && (LexedParsedToken)rest.get(0) instanceof SingleQuoteToken) {
-                            len = this.transformBlock((LexedParsedToken)((SingleQuoteToken)((LexedParsedToken)rest.get(0))).toks.get(0));
-                            rest = rest.subList(1, rest.size());
+                            if(tok.toks.size() > 1) {
+                                len = this.transformBlock((LexedParsedToken)tok.toks.get(1));
+                            }
                         }
 
                         return new ArrayConstructorToken(block1.line, (ArrayType)type, len, this.transformToks(rest));
-                    } else {
-                        return new ConstructorToken(block1.line, type, this.transformToks(rest));
                     }
                 } else {
                     if((LexedParsedToken)block1.toks.get(0) instanceof VToken) {
@@ -537,31 +567,6 @@ public class AMethodInfo {
                     return (Token)(transform?new DefaultToken(block1.line, this.transformToks(block1.toks)):new BlockToken(block1.line, Main.toLexedParsed(this.transformToks(block1.toks, false))));
                 }
             }
-        } else if(block instanceof ColonToken) {
-            ColonToken block2 = (ColonToken)block;
-            return (Token)(transform?new FieldToken(block2.line, this.transformBlock((LexedParsedToken)block2.toks.get(0)), ((VToken)((LexedParsedToken)block2.toks.get(1))).val):new ColonToken(block2.line, Main.toLexedParsed(this.transformToks(block2.toks, transform))));
-        } else if(block instanceof QuoteToken) {
-            QuoteToken block3 = (QuoteToken)block;
-            return (Token)(transform?new QuoteToken2(block3.line, this.transformBlock((LexedParsedToken)block3.toks.get(0), (LexedParsedToken)block3.toks.get(0) instanceof UnquoteToken)):new QuoteToken(block3.line, Main.toLexedParsed(this.transformToks(block3.toks, false))));
-        } else if(block instanceof UnquoteToken) {
-            UnquoteToken block4 = (UnquoteToken)block;
-            return new UnquoteToken(block4.line, new ArrayList(block4.toks), block4.var);
-        } else if(block instanceof GenericToken) {
-            GenericToken block5 = (GenericToken)block;
-            if(transform) {
-                throw new RuntimeException();
-            } else {
-                return new GenericToken(block5.line, Main.toLexedParsed(this.transformToks(block5.toks, transform)));
-            }
-        } else if(block instanceof ArrayToken) {
-            ArrayToken block6 = (ArrayToken)block;
-            if(transform) {
-                throw new RuntimeException();
-            } else {
-                return new ArrayToken(block6.line, Main.toLexedParsed(this.transformToks(block6.toks, transform)));
-            }
-        } else {
-            return block;
         }
     }
 

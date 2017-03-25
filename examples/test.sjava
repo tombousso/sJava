@@ -155,6 +155,8 @@
 				(remove 2)
 			)
 		)
+
+		(println (int[3] 99))
 	)
 	((toggle1 x int) int 'static
 		(cond

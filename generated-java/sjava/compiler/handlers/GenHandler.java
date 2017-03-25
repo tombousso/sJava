@@ -32,7 +32,6 @@ import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
 import sjava.compiler.MethodMacroInfo;
 import sjava.compiler.emitters.Emitter;
-import sjava.compiler.emitters.Emitters;
 import sjava.compiler.emitters.Goto;
 import sjava.compiler.emitters.LoadAVar;
 import sjava.compiler.emitters.Nothing;
@@ -74,6 +73,7 @@ import sjava.compiler.tokens.ReturnToken;
 import sjava.compiler.tokens.SToken;
 import sjava.compiler.tokens.SetToken;
 import sjava.compiler.tokens.ShiftToken;
+import sjava.compiler.tokens.SpecialBeginToken;
 import sjava.compiler.tokens.SynchronizedToken;
 import sjava.compiler.tokens.ThrowToken;
 import sjava.compiler.tokens.Token;
@@ -81,7 +81,6 @@ import sjava.compiler.tokens.TryToken;
 import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
-import sjava.compiler.tokens.WhileToken;
 import sjava.std.Tuple2;
 import sjava.std.Tuple3;
 
@@ -437,7 +436,7 @@ public class GenHandler extends Handler {
     public Type compile(NToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         Number val = tok.val;
-        PrimType var10001;
+        Object var10001;
         if(val instanceof Double) {
             Double val1 = (Double)val;
             if(output) {
@@ -458,22 +457,23 @@ public class GenHandler extends Handler {
             }
 
             Integer val3 = (Integer)val;
-            if(!(needed instanceof PrimType)) {
+            if(Main.isNumeric(needed)) {
+                Type prim = Main.tryUnbox(needed);
+                if(output) {
+                    this.code.emitPushConstant(val3.intValue(), prim);
+                }
+
+                var10001 = prim;
+            } else {
                 if(output) {
                     this.code.emitPushInt(val3.intValue());
                 }
 
                 var10001 = Type.intType;
-            } else {
-                if(output) {
-                    this.code.emitPushConstant(val3.intValue(), (PrimType)needed);
-                }
-
-                var10001 = (PrimType)needed;
             }
         }
 
-        return this.castMaybe(var10001, needed);
+        return this.castMaybe((Type)var10001, needed);
     }
 
     public Type compile(FieldToken tok, AMethodInfo mi, Type needed) {
@@ -981,6 +981,12 @@ public class GenHandler extends Handler {
         return type;
     }
 
+    public Type compile(SpecialBeginToken tok, AMethodInfo mi, Type needed) {
+        boolean output = this.code != null;
+        this.compileAll(tok.toks, 0, tok.toks.size() - 1, mi, this.code, Type.voidType);
+        return this.compile((Token)tok.toks.get(tok.toks.size() - 1), mi, this.code, needed);
+    }
+
     public Type compile(LabelToken tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         Label label = mi.getLabel(tok.label);
@@ -1205,19 +1211,6 @@ public class GenHandler extends Handler {
         boolean output = this.code != null;
         boolean hasElse = tok.toks.size() == 4;
         return (Type)this.emitIf(false, (Token)tok.toks.get(1), (Token)tok.toks.get(2), (Emitter)(hasElse?(Token)tok.toks.get(3):Nothing.inst), mi, (Type)(hasElse?needed:Type.voidType))._1;
-    }
-
-    public Type compile(WhileToken tok, AMethodInfo mi, Type needed) {
-        boolean output = this.code != null;
-        mi.pushScope(this.code, tok.labels);
-        Label start = new Label();
-        if(output) {
-            start.define(this.code);
-        }
-
-        this.emitIf(false, (Token)tok.toks.get(1), new Emitters(new Emitter[]{new Emitters(tok.toks.subList(2, tok.toks.size())), new Goto(start)}), Nothing.inst, mi, Type.voidType);
-        mi.popScope(this.code);
-        return Type.voidType;
     }
 
     public Type compile(CompareToken tok, AMethodInfo mi, Type needed) {

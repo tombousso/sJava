@@ -644,7 +644,9 @@ public class Main {
 
     public static int compare(Type a, Type b) {
         int var10000;
-        if((a instanceof ClassType || a instanceof ParameterizedType) && (b instanceof ClassType || b instanceof ParameterizedType)) {
+        if(!(a instanceof ClassType) && !(a instanceof ParameterizedType) || !(b instanceof ClassType) && !(b instanceof ParameterizedType)) {
+            var10000 = a.compare(b);
+        } else {
             if(a instanceof ClassType && b instanceof ParameterizedType && ((ClassType)a).getTypeParameters() != null && ((ClassType)a).getTypeParameters().length != 0) {
                 b = b.getRawType();
             }
@@ -653,9 +655,23 @@ public class Main {
                 a = a.getRawType();
             }
 
-            var10000 = Type.isSame(a, b)?0:(a.toString().equals(b.toString())?0:(superTypes(b).contains(a)?1:-1));
-        } else {
-            var10000 = a.compare(b);
+            if(Type.isSame(a, b)) {
+                var10000 = 0;
+            } else if(a.toString().equals(b.toString())) {
+                var10000 = 0;
+            } else {
+                LinkedHashSet iterable = superTypes(b);
+                Iterator it = iterable.iterator();
+
+                for(int notused = 0; it.hasNext(); ++notused) {
+                    Type var5 = (Type)it.next();
+                    if(var5 != b && compare(a, var5) == 0) {
+                        return 1;
+                    }
+                }
+
+                var10000 = -1;
+            }
         }
 
         return var10000;

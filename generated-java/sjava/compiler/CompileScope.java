@@ -1,6 +1,7 @@
 package sjava.compiler;
 
 import java.util.HashMap;
+import sjava.compiler.Main;
 import sjava.compiler.MyClassLoader;
 
 public class CompileScope {
@@ -15,9 +16,11 @@ public class CompileScope {
         } else {
             boolean b;
             try {
-                Class.forName(name);
+                Main.class.getClassLoader().loadClass(name);
                 b = true;
-            } catch (Throwable var4) {
+            } catch (ClassNotFoundException var5) {
+                b = false;
+            } catch (NoClassDefFoundError var6) {
                 b = false;
             }
 

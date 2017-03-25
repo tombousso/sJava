@@ -168,18 +168,32 @@ public class ClassInfo {
                 var10000 = Type.getType(fullName);
             }
         } else {
-            Object type = (Type)null;
+            ArrayList matches = new ArrayList();
+            ArrayList iterable = this.fs.starImports;
+            Iterator it = iterable.iterator();
 
-            for(int i = 0; !abs && type == null && i != this.fs.starImports.size(); ++i) {
-                String fullName1 = ((String)this.fs.starImports.get(i)).concat(name);
+            for(int notused = 0; it.hasNext(); ++notused) {
+                String starImport = (String)it.next();
+                String fullName1 = starImport.concat(name);
                 if(this.fs.locals.containsKey(fullName1)) {
-                    type = (ClassType)this.fs.locals.get(fullName1);
+                    matches.add((ClassType)this.fs.locals.get(fullName1));
                 } else if(this.fs.cs.classExists(fullName1)) {
-                    type = Type.getType(fullName1);
+                    matches.add(Type.getType(fullName1));
                 }
             }
 
-            var10000 = type == null && this.fs.cs.classExists(name)?Type.getType(name):type;
+            if(matches.size() == 1) {
+                var10000 = (Type)matches.get(0);
+            } else {
+                if(matches.size() > 1) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Too many types match: ");
+                    sb.append(matches);
+                    throw new RuntimeException(sb.toString());
+                }
+
+                var10000 = this.fs.cs.classExists(name)?Type.getType(name):(Type)null;
+            }
         }
 
         return (Type)var10000;

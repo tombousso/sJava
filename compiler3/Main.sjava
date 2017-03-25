@@ -562,10 +562,14 @@
 						0
 					)
 					;return 1 if "a" is supertype of "b"
-					(((Main:superTypes b):contains a)
-						1
+					(true
+						(forEach super (Main:superTypes b)
+							(if (&& (!= super b) (= (Main:compare a super) 0))
+								(return 1)
+							)
+						)
+						-1
 					)
-					(true -1)
 				)
 			)
 			(true
@@ -1206,10 +1210,11 @@
 				(define b
 					(try
 						(begin
-							(Class:forName name)
+							(((class Main):getClassLoader):loadClass name)
 							true
 						)
-						(e Throwable false)
+						(e ClassNotFoundException false)
+						(e NoClassDefFoundError false)
 					)
 				)
 				(this:found:put name b)
@@ -1519,19 +1524,27 @@
 				)
 			)
 			(true
-				(define type Type null)
-				(for ((i 0)) (&& (! abs) (= type null) (!= i (this:fs:starImports:size))) (inc i)
-					(define fullName ((this:fs:starImports:get i):concat name))
+				(define matches (ArrayList{Type}))
+				(forEach starImport this:fs:starImports
+					(define fullName (starImport:concat name))
 					(if (this:fs:locals:containsKey fullName)
-						(set type (this:fs:locals:get fullName))
+						(matches:add (this:fs:locals:get fullName))
 						(if (this:fs:cs:classExists fullName)
-							(set type (Type:getType fullName))
+							(matches:add (Type:getType fullName))
 						)
 					)
 				)
-				(if (&& (= type null) (this:fs:cs:classExists name))
-					(Type:getType name)
-					type
+				(cond
+					((= (matches:size) 1)
+						(matches:get 0)
+					)
+					((> (matches:size) 1)
+						(throw (RuntimeException (concat "Too many types match: " matches)))
+					)
+					((this:fs:cs:classExists name)
+						(Type:getType name)
+					)
+					(true null)
 				)
 			)
 		)
@@ -1971,6 +1984,9 @@
 				((val:equals "begin")
 					(return (this:transformBlockToks (BeginToken block:line (ArrayList rest))))
 				)
+				((val:equals "sbegin")
+					(return (this:transformBlockToks (SpecialBeginToken block:line (ArrayList rest))))
+				)
 				((val:equals "label")
 					(return (LabelToken block:line (as VToken (block:toks:get 1)):val))
 				)
@@ -2060,9 +2076,6 @@
 				((val:equals "if")
 					(return (IfToken block:line (this:transformToks block:toks)))
 				)
-				((val:equals "while")
-					(return (this:transformBlockToks (WhileToken block:line (ArrayList block:toks))))
-				)
 				((Main:isCompare val)
 					(return (CompareToken block:line val (this:transformToks rest)))
 				)
@@ -2112,7 +2125,7 @@
 					(true
 						(define rest (block:toks:subList 1 (block:toks:size)))
 						(define type (if transform (this:getType (block:toks:get 0)) null))
-						(if (&& transform (!= type null))
+						(if (!= type null)
 							(if (instance? type ArrayType)
 								(begin
 									(define len Token null)
@@ -2127,15 +2140,14 @@
 											(set len (this:transformBlock ((as ColonToken (rest:get 0)):toks:get 1)))
 											(set rest (rest:subList 1 (rest:size)))
 										)
-									)
-									(if
-										(&&
-											(!= (rest:size) 0)
-											(instance? (rest:get 0) SingleQuoteToken)
-										)
 										(begin
-											(set len (this:transformBlock ((as SingleQuoteToken (rest:get 0)):toks:get 0)))
-											(set rest (rest:subList 1 (rest:size)))
+											(define tok ArrayToken (block:toks:get 0))
+											(while (instance? (tok:toks:get 0) ArrayToken)
+												(set tok (tok:toks:get 0))
+											)
+											(if (> (tok:toks:size) 1)
+												(set len (this:transformBlock (tok:toks:get 1)))
+											)
 										)
 									)
 									(return (ArrayConstructorToken block:line type len (this:transformToks rest)))

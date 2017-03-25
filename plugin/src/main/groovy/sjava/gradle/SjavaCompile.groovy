@@ -7,7 +7,7 @@ import org.gradle.api.file.*
 class SjavaCompile extends DefaultTask {
 	@InputFiles
 	File getSjavaJar() {
-		return new File(project.sjava.home.toString() + "/sjava.jar")
+		return new File(project.ext.sjavaHome.toString() + "/sjava.jar")
 	}
 
 	@InputFiles

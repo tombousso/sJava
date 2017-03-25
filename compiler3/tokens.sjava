@@ -397,6 +397,12 @@
 	)
 )
 
+(define-class SpecialBeginToken (BlockToken2) 'public
+	((<init> line int toks List{Token}) void 'public
+		(super:<init> line toks)
+	)
+)
+
 (define-class LabelToken (Token) 'public
 	(label String 'public)
 	((<init> line int label String) void 'public
@@ -520,12 +526,6 @@
 	((<init> line int toks List{Token}) void 'public
 		(super:<init> line)
 		(set this:toks toks)
-	)
-)
-
-(define-class WhileToken (BlockToken2) 'public
-	((<init> line int toks List{Token}) void 'public
-		(super:<init> line toks)
 	)
 )
 

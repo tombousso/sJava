@@ -7,7 +7,6 @@ buildscript {
 }
 
 apply plugin: 'sjava'
-sjava.home = sjavaHome
 
 configurations {
 	compile

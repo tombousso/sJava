@@ -37,6 +37,7 @@
 	((compile tok ObjectToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok BeginToken mi AMethodInfo needed Type) Type 'public 'abstract)
+	((compile tok SpecialBeginToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok LabelToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok GotoToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok DefineToken mi AMethodInfo needed Type) Type 'public 'abstract)
@@ -50,7 +51,6 @@
 	((compile tok NumOpToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ShiftToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok IfToken mi AMethodInfo needed Type) Type 'public 'abstract)
-	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ThrowToken mi AMethodInfo needed Type) Type 'public 'abstract)
 	((compile tok ClassToken mi AMethodInfo needed Type) Type 'public 'abstract)
@@ -377,14 +377,15 @@
 					Type:floatType
 				)
 				(Integer
-					(if (! (instance? needed PrimType))
+					(if (Main:isNumeric needed)
+						(begin
+							(define prim (Main:tryUnbox needed))
+							(if output (this:code:emitPushConstant val prim))
+							prim
+						)
 						(begin
 							(if output (this:code:emitPushInt val))
 							Type:intType
-						)
-						(begin
-							(if output (this:code:emitPushConstant val needed))
-							needed
 						)
 					)
 				)
@@ -811,6 +812,12 @@
 		(mi:popScope this:code)
 		type
 	)
+	((compile tok SpecialBeginToken mi AMethodInfo needed Type) Type 'public
+		(define output (!= this:code null))
+		;tok:labels
+		(this:compileAll tok:toks 0 (- (tok:toks:size) 1) mi this:code Type:voidType)
+		(this:compile (tok:toks:get (- (tok:toks:size) 1)) mi this:code needed)
+	)
 	((compile tok LabelToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
 		(define label (mi:getLabel tok:label))
@@ -966,15 +973,6 @@
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
 		(this:emitIf false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi (if hasElse needed Type:voidType)):_1
-	)
-	((compile tok WhileToken mi AMethodInfo needed Type) Type 'public
-		(define output (!= this:code null))
-		(mi:pushScope this:code tok:labels)
-		(define start (Label))
-		(if output (start:define this:code))
-		(this:emitIf false (tok:toks:get 1) (Emitters (Emitter[] (Emitters (tok:toks:subList 2 (tok:toks:size))) (Goto start))) Nothing:inst mi Type:voidType)
-		(mi:popScope this:code)
-		Type:voidType
 	)
 	((compile tok CompareToken mi AMethodInfo needed Type) Type 'public
 		(define output (!= this:code null))
