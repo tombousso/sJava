@@ -43,12 +43,12 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 * a collection of useful "standard" macros (forEach, concat(enate), inc(rement), etc.)
 * most other things you'd except from a Java-like langauge
 
-##Walkthrough!
+## Walkthrough!
 
-###Requirements
+### Requirements
 Java 8 - `java`
 
-###Hierarchy (optional)
+### Hierarchy (optional)
 ####`compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
 
 	├── build.gradle (Gradle build script for the compilers and examples)
@@ -80,7 +80,7 @@ Java 8 - `java`
 	├── sjava.bat (Windows script for *sjava.jar*)
 	└── generated-java/ (Auto generated Java version of compiler3 using fernflower)
 
-###Steps
+### Steps
 Once you've downloaded/cloned this repo open a terminal in its root directory.  
 (On Windows use `sjava` instead of `./sjava`):
 
@@ -162,7 +162,7 @@ The most interesting macro is called on line 28, `doubleDispatch`. This macro ro
 `cond` itself is actually a macro.  
 All of these macros are defined in `std/macros.sjava`.
 
-###More on macros
+### More on macros
 In Java for-each loops and string concatenation are built in to the compiler. In sJava features like these are implemented as "standard macros" (`forEach` and `concat`) in `std/macros.sjava`, and they are available to all programs.
 
 Compile-time macros in sJava are very powerful. For example the `forEach` macro is able to ask the compiler at compile-time about the type of the object which the user is trying to iterate over. It checks if the type is an `ArrayType`, and if so it will create code which loops by incrementing a counter. Otherwise it will assume the user is trying to iterate over an `Iterable` and try to create an `Iterator`.
@@ -194,7 +194,7 @@ More features can be found in `examples/test.sjava`, in other examples, and in `
 
 If you've followed the walkthrough all the way until here, congrats! Let me know if you have any thoughts. The compiler still has some bugs I'm sure but overall it works reasonably well. If there's an error in compilation it will at least tell you which line is problematic, but parsing errors aren't handled right now.
 
-###Just for fun
+### Just for fun
 `fernflower.jar` is a crazy decompiler which can actually convert the bytecode of `compiler3` into proper Java code!
 
 	> ./gradlew java_sources
@@ -205,7 +205,7 @@ And now that the Java files have been created:
 
 If there are no errors then the diff ran successfully meaning that the Java version of `compiler3` successfully compiled `compiler3`.
 
-##More explanations
+## More explanations
 
 ### Kawa
 sJava borrows a lot from Kawa which is a Scheme implementation for the JVM. [Kawa](http://www.gnu.org/software/kawa/) is a really cool dynamic language (first class functions, macros, etc.) which can interact with traditional statically typed Java code. The first compiler for sJava was written in Kawa (`compiler1.scm`).  `compiler2` and `compiler3` are written in sJava.
