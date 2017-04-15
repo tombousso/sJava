@@ -49,7 +49,7 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 Java 8 - `java`
 
 ### Hierarchy (optional)
-####`compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
+#### `compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
 
 	├── build.gradle (Gradle build script for the compilers and examples)
 	├── compiler3/ (The main compiler)
