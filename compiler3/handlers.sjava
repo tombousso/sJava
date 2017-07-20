@@ -389,6 +389,10 @@
 						)
 					)
 				)
+				(Long
+					(if output (this:code:emitPushLong val))
+					Type:longType
+				)
 				(true (throw (RuntimeException)))
 			)
 			needed
@@ -652,7 +656,7 @@
 		(define n (alen (superCons:getGenericParameterTypes)))
 		(define params (Type[] len:(+ n (fields:size))))
 		(System:arraycopy (superCons:getGenericParameterTypes) 0 params 0 n)
-		(forEachI field fields i
+		(forEach (field i) fields
 			(aset params (+ n i) (field:getType))
 		)
 		(define cons (c:addMethod "<init>" params Type:voidType 0))
@@ -662,7 +666,7 @@
 			(ncode:emitLoad (ncode:getArg (+ i 1)))
 		)
 		(ncode:emitInvoke superCons)
-		(forEachI field fields i
+		(forEach (field i) fields
 			(ncode:emitPushThis)
 			(ncode:emitLoad (ncode:getArg (+ n i 1)))
 			(ncode:emitPutField field)

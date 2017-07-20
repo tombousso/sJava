@@ -40,7 +40,7 @@
 		(System:out:println (((l:iterator):next):concat "a"))
 		(forEach s l (System:out:println s))
 		(forEach s (l:toArray) (System:out:println s))
-		(forEachI s l i (println i ":" s))
+		(forEach (s i) l (println i ":" s))
 
 		(define n (Ref{Integer} 0 4000 ""))
 		(define i (Integer 4000))

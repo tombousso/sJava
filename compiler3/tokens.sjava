@@ -34,7 +34,7 @@
 	)
 	((toksString l List{LexedParsedToken}) String
 		(define s (StringBuffer))
-		(forEachI tok l i
+		(forEach (tok i) l
 			(s:append tok)
 			(if (!= i (- (l:size) 1))
 				(s:append " ")

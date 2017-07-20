@@ -21,7 +21,19 @@
 		)
 	)
 )
-(define-macro (forEachI item iterable index @block)
+(define-macro (forEach vars iterable @block)
+	(define item
+		(if (instance? vars VToken)
+			vars
+			(vars:toks:get 0)
+		)
+	)
+	(define index
+		(if (instance? vars VToken)
+			`notused
+			(vars:toks:get 1)
+		)
+	)
 	(if (instance? (type iterable) ArrayType)
 		`(begin
 			(define array ,iterable)
@@ -44,16 +56,13 @@
 		)
 	)
 )
-(define-macro (forEach item iterable @block)
-	`(forEachI ,item ,iterable notused ,block)
-)
 (define-macro (print @objects)
 	`(System:out:print (concat ,objects))
 )
 (define-macro (println @objects)
 	`(System:out:println (concat ,objects))
 )
-(define-macro (mapAI item collection i @block)
+(define-macro (mapA vars collection @block)
 	(define t (type collection))
 	(define itemT
 		(if (instance? t ArrayType)
@@ -72,17 +81,26 @@
 			`(collection:size)
 		)
 	)
+	(define item Token
+		(if (instance? vars VToken)
+			vars
+			(vars:toks:get 0)
+		)
+	)
+	(define i Token
+		(if (instance? vars VToken)
+			`i
+			(vars:toks:get 1)
+		)
+	)
 	(define arrElement `(begin (define ,item ,$(itemT:getName)) (define ,i int) ,block))
 	(define o (type arrElement))
 	`(begin
 		(define collection ,collection)
 		(define out (,$((o:getName):concat "[]") len:,len))
-		(forEachI ,item collection ,i (aset out ,i (begin ,block)))
+		(forEach (,item ,i) collection (aset out ,i (begin ,block)))
 		out
 	)
-)
-(define-macro (mapA item iterable @block)
-	`(mapAI ,item ,iterable i ,block)
 )
 (define-macro (concat @objects)
 	(define appends

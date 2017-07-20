@@ -127,7 +127,7 @@
 
 		(set Main:s2prec (HashMap{String Integer}))
 
-		(forEachI a Main:precs i
+		(forEach (a i) Main:precs
 			(forEach b a
 				(Main:s2prec:put b i)
 			)
@@ -252,7 +252,7 @@
 					(begin
 						(define tvs ((as ClassType ((as ParameterizedType pt):getRawType)):getTypeParameters))
 						(define s String ((as TypeVariable t):getName))
-						(forEachI tv tvs i
+						(forEach (tv i) tvs
 							(if ((tv:getName):equals s)
 								(return ((as ParameterizedType pt):getTypeArgumentType i))
 							)
@@ -273,7 +273,7 @@
 			((instance? t ParameterizedType)
 				(define types ((as ParameterizedType t):getTypeArgumentTypes))
 				(define parameterized (Type[] len:(alen types)))
-				(forEachI type types i
+				(forEach (type i) types
 					(define r (Main:resolveType map pt type false))
 					(if (|| (= r null) (!= 0 (as int ((as ParameterizedType t):getTypeArgumentBound i))))
 						(return (t:getRawType))
@@ -312,7 +312,7 @@
 				)
 				(define gtypes ((as ParameterizedType generic):getTypeArgumentTypes))
 				(define rtypes ((as ParameterizedType real):getTypeArgumentTypes))
-				(forEachI gtype gtypes i
+				(forEach (gtype i) gtypes
 					(define ret (Main:unresolveTv tv gtype (aget rtypes i)))
 					(if (!= ret null)
 						(return ret)
@@ -773,6 +773,9 @@
 		)
 		(Tuple2 mods i)
 	)
+	((getClassLoader) ArrayClassLoader 'public 'static
+		(ArrayClassLoader)
+	)
 )
 
 (define-class Formatter () 'public
@@ -783,7 +786,7 @@
 		(sb:append before)
 		(define line 0)
 		(define cont true)
-		(forEachI tok toks i
+		(forEach (tok i) toks
 			(define indent false)
 			(define toLine tok:line)
 			(define multiline (!= (tok:firstLine) (tok:lastLine)))
@@ -824,7 +827,7 @@
 	((formatToks toks List{LexedParsedToken}) String 'static
 		(define sb (StringBuffer))
 		(define line (if (!= (toks:size) 0) (toks:get 0):line 1))
-		(forEachI tok toks i
+		(forEach (tok i) toks
 			(define off (if (&& (= tok:line line) (!= i 0)) 1 0))
 			(set line (Formatter:formatTok tok line (+ tok:line off) 0 sb))
 		)
@@ -1194,12 +1197,12 @@
 )
 
 (define-class CompileScope () 'public
-	(mcl MyClassLoader)
+	(mcl ArrayClassLoader)
 	(found HashMap{String Boolean})
 	(macroIndex int)
 	((<init>) void
 		(super:<init>)
-		(set this:mcl (MyClassLoader))
+		(set this:mcl (Main:getClassLoader))
 		(set this:found (HashMap{String Boolean}))
 		(set this:macroIndex 0)
 	)
@@ -1268,10 +1271,11 @@
 		(set this:methodMacros (ArrayList))
 	)
 	((compileMacros) void
-		(forEach macros this:macros
-			(macros:compileMethods GenHandler:inst)
-			(macros:addToClassLoader this:cs:mcl)
-			(set macros:rc (macros:getClazz this:cs:mcl))
+		(forEach macro this:macros
+			(macro:compileMethods GenHandler:inst)
+			;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
+			(macro:addToClassLoader this:cs:mcl)
+			(set macro:rc (macro:getClazz this:cs:mcl))
 		)
 	)
 	((getNewType tok Token) ClassType
@@ -1279,8 +1283,8 @@
 			(GenericToken
 				(define c (ClassType (this:package_:concat (as VToken (tok:toks:get 0)):val)))
 				(define params (tok:toks:subList 1 (tok:toks:size)))
-				(define tparams (Type[] len:(params:size)))
-				(forEachI param params i
+				(define tparams (TypeVariable[] len:(params:size)))
+				(forEach (param i) params
 					(define name (as VToken param):val)
 					(define tv (TypeVariable name))
 					(aset tparams i tv)
@@ -1302,7 +1306,7 @@
 	((getMacroParams out List{Type} params BlockToken scope Map) bool
 		(define varargs false)
 		(define o (out:size))
-		(forEachI tok (params:toks:subList 1 (params:toks:size)) i
+		(forEach (tok i) (params:toks:subList 1 (params:toks:size))
 			(define t Object (Main:getCompilerType "tokens.LexedParsedToken"))
 			(define name (as VToken tok):val)
 			(if (name:contains "@")
@@ -1407,7 +1411,6 @@
 			(ci:runMethodMacros)
 		)
 	)
-	;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
 	((compileMethods h GenHandler) void 'public
 		(forEach newClass this:newClasses
 			(newClass:compileMethods h)
@@ -1466,13 +1469,13 @@
 		)
 		this:classfile
 	)
-	((addToClassLoader cl MyClassLoader) void 'public
+	((addToClassLoader cl ArrayClassLoader) void 'public
 		(cl:addClass (this:c:getName) (this:getClassfile))
 		(forEach anon this:anonClasses
 			(anon:addToClassLoader cl)
 		)
 	)
-	((getClazz cl MyClassLoader) Class 'public
+	((getClazz cl ArrayClassLoader) Class 'public
 		(define c Class null)
 		(try (set c (cl:loadClass (this:c:getName))) (e ClassNotFoundException (throw (RuntimeException e))))
 		c
@@ -1480,7 +1483,7 @@
 	((getClazz) Class 'public
 		(if (= this:rc null)
 			(begin
-				(define cl (MyClassLoader))
+				(define cl (Main:getClassLoader))
 				(this:addToClassLoader cl)
 				(set this:rc (this:getClazz cl))
 			)
@@ -1498,7 +1501,7 @@
 			(anon:writeFiles dir)
 		)
 	)
-	((getType name String) Type
+	((getType name String allowNew bool) Type
 		(define abs (name:contains "."))
 		(cond
 			((&& (!= this:tvs null) (this:tvs:containsKey name))
@@ -1507,15 +1510,15 @@
 			((Main:constTypes:containsKey name)
 				(Main:constTypes:get name)
 			)
-			((this:fs:locals:containsKey name)
+			((&& allowNew (this:fs:locals:containsKey name))
 				(this:fs:locals:get name)
 			)
-			((&& (! abs) (this:fs:locals:containsKey (this:fs:package_:concat name)))
+			((&& allowNew (! abs) (this:fs:locals:containsKey (this:fs:package_:concat name)))
 				(this:fs:locals:get (this:fs:package_:concat name))
 			)
 			((this:fs:imports:containsKey name)
 				(define fullName (this:fs:imports:get name))
-				(if (this:fs:locals:containsKey fullName)
+				(if (&& allowNew (this:fs:locals:containsKey fullName))
 					(this:fs:locals:get fullName)
 					(if (this:fs:cs:classExists fullName)
 						(Type:getType fullName)
@@ -1527,7 +1530,7 @@
 				(define matches (ArrayList{Type}))
 				(forEach starImport this:fs:starImports
 					(define fullName (starImport:concat name))
-					(if (this:fs:locals:containsKey fullName)
+					(if (&& allowNew (this:fs:locals:containsKey fullName))
 						(matches:add (this:fs:locals:get fullName))
 						(if (this:fs:cs:classExists fullName)
 							(matches:add (Type:getType fullName))
@@ -1549,26 +1552,29 @@
 			)
 		)
 	)
-	((getType tok Token) Type 'public
+	((getType tok Token allowNew bool) Type 'public
 		(instanceCond tok
 			(GenericToken
-				(define c ClassType ((this:getType (as VToken (tok:toks:get 0)):val):getRawType))
+				(define c ClassType ((this:getType (as VToken (tok:toks:get 0)):val allowNew):getRawType))
 				(define params (tok:toks:subList 1 (tok:toks:size)))
 				(define tparams
 					(mapA param params
-						(this:getType param)
+						(this:getType param allowNew)
 					)
 				)
 				(ParameterizedType c tparams)
 			)
 			(ArrayToken
-				(ArrayType (this:getType (tok:toks:get 0)))
+				(ArrayType (this:getType (tok:toks:get 0) allowNew))
 			)
 			(VToken
-				(this:getType tok:val)
+				(this:getType tok:val allowNew)
 			)
 			(true null)
 		)
+	)
+	((getType tok Token) Type 'public
+		(this:getType tok true)
 	)
 	((compileDef tok LexedParsedToken) void 'public
 		(if (instance? tok BlockToken)
@@ -1734,11 +1740,8 @@
 	((<init> name String fs FileScope) void
 		(super:<init> name fs)
 	)
-	((getType name String) Type
-		(if (name:startsWith "sjava.compiler.")
-			(Type:getType name)
-			(super:getType name)
-		)
+	((getType tok Token) Type 'public
+		(super:getType tok false)
 	)
 )
 
@@ -1765,6 +1768,7 @@
 		)
 		(set this:method method)
 		(set this:levels (ArrayList))
+		(this:ensureLevels 0)
 		(set this:capturedLevels (ArrayList))
 		(forEach entry (firstScope:entrySet)
 			(this:putVar (entry:getKey) (entry:getValue) (entry:getValue):level)
@@ -1969,7 +1973,7 @@
 							(define sam ((as ClassType (t:getRawType)):checkSingleAbstractMethod))
 							(define args (rest:get 1))
 							(define params (ArrayList{Type} (args:toks:size)))
-							(forEachI arg args:toks i
+							(forEach (arg i) args:toks
 								(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
 								(scope:put (as VToken arg):val (Arg param (+ i 1) 0))
 								(params:add param)
@@ -2098,7 +2102,7 @@
 				((val:equals "macro")
 					(define l
 						(Arrays:asList
-							(mapAI tok rest i
+							(mapA (tok i) rest
 								(if (= i 0)
 									tok
 									(UnquoteToken tok:line (Arrays:asList (LexedParsedToken[] tok)) false)
@@ -2240,14 +2244,5 @@
 (define-class MethodInfo (AMethodInfo) 'public
 	((<init> ci ClassInfo toks List{LexedParsedToken} method Method scope LinkedHashMap) void 'public
 		(super:<init> ci toks method scope)
-	)
-)
-
-(define-class MyClassLoader (ClassLoader) 'public
-	((<init>) void 'public
-		(super:<init> ((class Main):getClassLoader))
-	)
-	((addClass s String bytes byte[]) Class 'public
-		(this:defineClass s bytes 0 (alen bytes))
 	)
 )

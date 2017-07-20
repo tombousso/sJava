@@ -74,7 +74,7 @@
 						)
 					)
 					(define fileScopes (Main:compile files))
-					(define cl (MyClassLoader))
+					(define cl (Main:getClassLoader))
 					(define found ClassInfo null)
 					(forEach fs fileScopes
 						(forEach ci fs:newClasses
