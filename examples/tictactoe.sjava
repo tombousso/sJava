@@ -11,25 +11,25 @@
 (import javafx.animation.*)
 (import javafx.event.*)
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(set App:userPlayer 1)
 		(Application:launch (class App))
 	)
 )
 
-(define-class App (Application) 'public
-	(gc GraphicsContext 'static)
-	(mouseX int 'static)
-	(mouseY int 'static)
-	(board int[][] 'static)
-	(wh int 'static)
-	(cell int 'static)
-	(turn int 'static)
-	(userPlayer int 'static)
-	(win bool 'static)
-	(turns int 'static)
-	((<init>) void 'public
+(define-class App (Application) public
+	(gc GraphicsContext static)
+	(mouseX int static)
+	(mouseY int static)
+	(board int[][] static)
+	(wh int static)
+	(cell int static)
+	(turn int static)
+	(userPlayer int static)
+	(win bool static)
+	(turns int static)
+	((<init>) void public
 		(super:<init>)
 	)
 	((start stage Stage) void
@@ -111,7 +111,7 @@
 		)
 		(stage:show)
 	)
-	((draw cx int cy int w int) void 'static
+	((draw cx int cy int w int) void static
 		(App:gc:setLineWidth 10)
 		(define hcell (/ App:cell 2))
 		(define ox (+ (* cx App:cell) hcell))
@@ -127,10 +127,10 @@
 			(App:gc:strokeOval (- ox off) (- oy off) (* off 2) (* off 2))
 		)
 	)
-	((good a int b int c int) bool 'static
+	((good a int b int c int) bool static
 		(&& (!= a 0) (= a b c))
 	)
-	((check) int 'static
+	((check) int static
 		(cond
 			((App:good (aget App:board 0 0) (aget App:board 0 1) (aget App:board 0 2))
 				(aget App:board 0 0)
@@ -159,7 +159,7 @@
 			(true 0)
 		)
 	)
-	((minimax player int depth int a int b int) int 'static
+	((minimax player int depth int a int b int) int static
 		(define n (App:check))
 		(define max (= player App:turn))
 		(cond
@@ -207,7 +207,7 @@
 			)
 		)
 	)
-	((bestMove) void 'static
+	((bestMove) void static
 		(define best -9999)
 		(define bx 0)
 		(define by 0)
@@ -233,7 +233,7 @@
 			(App:play bx by)
 		)
 	)
-	((reset) void 'static
+	((reset) void static
 		(set App:win false)
 		(set App:board (int[][] (int[] 0 0 0) (int[] 0 0 0) (int[] 0 0 0)))
 		(set App:turn 1)
@@ -242,7 +242,7 @@
 			(App:bestMove)
 		)
 	)
-	((play x int y int) void 'static
+	((play x int y int) void static
 		(aset App:board x y App:turn)
 		(set App:turn (if (= App:turn 1) 2 1))
 		(inc App:turns)

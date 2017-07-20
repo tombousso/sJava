@@ -1,7 +1,7 @@
 (package examples.doubledispatch)
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(define objects (Object[] "a" "b" 1 2))
 
 		(define v1 (Visitor1))
@@ -18,12 +18,12 @@
 	)
 )
 
-(define-class Visitor () 'abstract
+(define-class Visitor () abstract
 	((<init>) void
 		(super:<init>)
 	)
-	((visit s String) void 'abstract)
-	((visit n Integer) void 'abstract)
+	((visit s String) void abstract)
+	((visit n Integer) void abstract)
 	((visit o Object) void
 		(doubleDispatch (this:visit _) o)
 	)

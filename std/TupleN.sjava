@@ -1,20 +1,20 @@
 (package sjava.std)
 
-(define-class Tuple2{A B} () 'public
-	(_1 A 'public)
-	(_2 B 'public)
-	((<init> _1 A _2 B) void 'public
+(define-class Tuple2{A B} () public
+	(_1 A public)
+	(_2 B public)
+	((<init> _1 A _2 B) void public
 		(super:<init>)
 		(set this:_1 _1)
 		(set this:_2 _2)
 	)
 )
 
-(define-class Tuple3{A B C} () 'public
-	(_1 A 'public)
-	(_2 B 'public)
-	(_3 C 'public)
-	((<init> _1 A _2 B _3 C) void 'public
+(define-class Tuple3{A B C} () public
+	(_1 A public)
+	(_2 B public)
+	(_3 C public)
+	((<init> _1 A _2 B _3 C) void public
 		(super:<init>)
 		(set this:_1 _1)
 		(set this:_2 _2)

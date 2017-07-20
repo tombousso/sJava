@@ -1,45 +1,45 @@
 (package sjava.std)
 
-(define-class Function0{R} () 'public 'interface 'abstract
-	((apply) R 'public 'abstract)
+(define-class Function0{R} () public interface abstract
+	((apply) R public abstract)
 )
 
-(define-class Function1{A R} () 'public 'interface 'abstract
-	((apply a A) R 'public 'abstract)
+(define-class Function1{A R} () public interface abstract
+	((apply a A) R public abstract)
 )
 
-(define-class Function2{A B R} () 'public 'interface 'abstract
-	((apply a A b B) R 'public 'abstract)
+(define-class Function2{A B R} () public interface abstract
+	((apply a A b B) R public abstract)
 )
 
-(define-class Function3{A B C R} () 'public 'interface 'abstract
-	((apply a A b B c C) R 'public 'abstract)
+(define-class Function3{A B C R} () public interface abstract
+	((apply a A b B c C) R public abstract)
 )
 
-(define-class Function4{A B C D R} () 'public 'interface 'abstract
-	((apply a A b B c C d D) R 'public 'abstract)
+(define-class Function4{A B C D R} () public interface abstract
+	((apply a A b B c C d D) R public abstract)
 )
 
-(define-class Function5{A B C D E R} () 'public 'interface 'abstract
-	((apply a A b B c C d D e E) R 'public 'abstract)
+(define-class Function5{A B C D E R} () public interface abstract
+	((apply a A b B c C d D e E) R public abstract)
 )
 
-(define-class Function6{A B C D E F R} () 'public 'interface 'abstract
-	((apply a A b B c C d D e E f F) R 'public 'abstract)
+(define-class Function6{A B C D E F R} () public interface abstract
+	((apply a A b B c C d D e E f F) R public abstract)
 )
 
-(define-class Function7{A B C D E F G R} () 'public 'interface 'abstract
-	((apply a A b B c C d D e E f F g G) R 'public 'abstract)
+(define-class Function7{A B C D E F G R} () public interface abstract
+	((apply a A b B c C d D e E f F g G) R public abstract)
 )
 
-(define-class Function8{A B C D E F G H R} () 'public 'interface 'abstract
-	((apply a A b B c C d D e E f F g G h H) R 'public 'abstract)
+(define-class Function8{A B C D E F G H R} () public interface abstract
+	((apply a A b B c C d D e E f F g G h H) R public abstract)
 )
 
-(define-class Function9{A B C D E F G H I R} () 'public 'interface 'abstract
-	((apply a A b B c C d D e E f F g G h H i I) R 'public 'abstract)
+(define-class Function9{A B C D E F G H I R} () public interface abstract
+	((apply a A b B c C d D e E f F g G h H i I) R public abstract)
 )
 
-(define-class Function10{A B C D E F G H I J R} () 'public 'interface 'abstract
-	((apply a A b B c C d D e E f F g G h H i I j J) R 'public 'abstract)
+(define-class Function10{A B C D E F G H I J R} () public interface abstract
+	((apply a A b B c C d D e E f F g G h H i I j J) R public abstract)
 )

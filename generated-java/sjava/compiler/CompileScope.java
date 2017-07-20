@@ -1,11 +1,11 @@
 package sjava.compiler;
 
+import gnu.bytecode.ArrayClassLoader;
 import java.util.HashMap;
 import sjava.compiler.Main;
-import sjava.compiler.MyClassLoader;
 
 public class CompileScope {
-    MyClassLoader mcl = new MyClassLoader();
+    ArrayClassLoader mcl = Main.getClassLoader();
     HashMap<String, Boolean> found = new HashMap();
     int macroIndex = 0;
 

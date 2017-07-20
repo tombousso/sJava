@@ -5,11 +5,11 @@
 (import java.util.*)
 (import gnu.bytecode.*)
 
-(define-class MethodCall () 'public
-	(m Method 'public)
-	(t Type 'public)
-	(tvs Map{TypeVariable Type} 'public)
-	(types Type[] 'public)
+(define-class MethodCall () public
+	(m Method public)
+	(t Type public)
+	(tvs Map{TypeVariable Type} public)
+	(types Type[] public)
 	((<init> m Method t Type tvs Map{TypeVariable Type} types Type[]) void
 		(super:<init>)
 		(set this:m m)
@@ -46,12 +46,12 @@
 		)
 		true
 	)
-	((toString) String 'public
+	((toString) String public
 		(this:m:toString)
 	)
 )
 
-(define-class AFilter () 'public 'abstract
+(define-class AFilter () public abstract
 	(pt Type)
 	(foundSigs HashSet{String})
 	((<init> pt Type) void
@@ -59,7 +59,7 @@
 		(set this:pt pt)
 		(set this:foundSigs (HashSet))
 	)
-	((select method Method generic Type) void 'abstract)
+	((select method Method generic Type) void abstract)
 	((search t Type) void
 		(define m ((as ClassType (t:getRawType)):getDeclaredMethods))
 		(while (!= m null)
@@ -73,7 +73,7 @@
 			(set m (m:getNext))
 		)
 	)
-	((searchAll) void 'public
+	((searchAll) void public
 		(if (instance? this:pt ArrayType)
 			(this:searchArray)
 			(forEach t (Main:superTypes this:pt)
@@ -81,7 +81,7 @@
 			)
 		)
 	)
-	((searchDeclared) void 'public
+	((searchDeclared) void public
 		(this:search this:pt)
 	)
 	((searchArray) void
@@ -89,9 +89,9 @@
 	)
 )
 
-(define-class BridgeFilter (AFilter) 'public
+(define-class BridgeFilter (AFilter) public
 	(m Method)
-	((<init> m Method) void 'public
+	((<init> m Method) void public
 		(super:<init> (m:getDeclaringClass))
 		(set this:m m)
 	)
@@ -128,11 +128,11 @@
 	)
 )
 
-(define-class MFilter (AFilter) 'public
+(define-class MFilter (AFilter) public
 	(methods ArrayList{MethodCall})
 	(name String)
 	(types Type[])
-	((<init> name String types Type[] pt Type) void 'public
+	((<init> name String types Type[] pt Type) void public
 		(super:<init> pt)
 		(set this:methods (ArrayList))
 		(set this:name name)
@@ -158,7 +158,7 @@
 			)
 		)
 	)
-	((getMethodCall) MethodCall 'public
+	((getMethodCall) MethodCall public
 		(forEach method this:methods
 			(if (method:mostSpecific this:methods)
 				(return method)
@@ -166,14 +166,14 @@
 		)
 		null
 	)
-	((getMethod) Method 'public
+	((getMethod) Method public
 		(define mc (this:getMethodCall))
 		(if (= mc null)
 			null
 			mc:m
 		)
 	)
-	((isCompatible method Method generic Type types Type[]) MethodCall 'public 'static
+	((isCompatible method Method generic Type types Type[]) MethodCall public static
 		(define varargs (!= (& (method:getModifiers) Access:TRANSIENT) 0))
 		(define na (alen types))
 		(define params (method:getGenericParameterTypes))

@@ -2,6 +2,7 @@ package sjava.compiler;
 
 import gnu.bytecode.Access;
 import gnu.bytecode.AnnotationEntry;
+import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.Method;
@@ -26,7 +27,6 @@ import sjava.compiler.FileScope;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
-import sjava.compiler.MyClassLoader;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.tokens.ArrayToken;
@@ -84,7 +84,7 @@ public class ClassInfo {
         return this.classfile;
     }
 
-    public void addToClassLoader(MyClassLoader cl) {
+    public void addToClassLoader(ArrayClassLoader cl) {
         cl.addClass(this.c.getName(), this.getClassfile());
         List iterable = this.anonClasses;
         Iterator it = iterable.iterator();
@@ -96,7 +96,7 @@ public class ClassInfo {
 
     }
 
-    public Class getClazz(MyClassLoader cl) {
+    public Class getClazz(ArrayClassLoader cl) {
         Class c = (Class)null;
 
         try {
@@ -109,7 +109,7 @@ public class ClassInfo {
 
     public Class getClazz() {
         if(this.rc == null) {
-            MyClassLoader cl = new MyClassLoader();
+            ArrayClassLoader cl = Main.getClassLoader();
             this.addToClassLoader(cl);
             this.rc = this.getClazz(cl);
         }
@@ -145,20 +145,20 @@ public class ClassInfo {
 
     }
 
-    Type getType(String name) {
+    Type getType(String name, boolean allowNew) {
         boolean abs = name.contains(".");
         Object var10000;
         if(this.tvs != null && this.tvs.containsKey(name)) {
             var10000 = (TypeVariable)this.tvs.get(name);
         } else if(Main.constTypes.containsKey(name)) {
             var10000 = (Type)Main.constTypes.get(name);
-        } else if(this.fs.locals.containsKey(name)) {
+        } else if(allowNew && this.fs.locals.containsKey(name)) {
             var10000 = (ClassType)this.fs.locals.get(name);
-        } else if(!abs && this.fs.locals.containsKey(this.fs.package_.concat(name))) {
+        } else if(allowNew && !abs && this.fs.locals.containsKey(this.fs.package_.concat(name))) {
             var10000 = (ClassType)this.fs.locals.get(this.fs.package_.concat(name));
         } else if(this.fs.imports.containsKey(name)) {
             String fullName = (String)this.fs.imports.get(name);
-            if(this.fs.locals.containsKey(fullName)) {
+            if(allowNew && this.fs.locals.containsKey(fullName)) {
                 var10000 = (ClassType)this.fs.locals.get(fullName);
             } else {
                 if(!this.fs.cs.classExists(fullName)) {
@@ -175,7 +175,7 @@ public class ClassInfo {
             for(int notused = 0; it.hasNext(); ++notused) {
                 String starImport = (String)it.next();
                 String fullName1 = starImport.concat(name);
-                if(this.fs.locals.containsKey(fullName1)) {
+                if(allowNew && this.fs.locals.containsKey(fullName1)) {
                     matches.add((ClassType)this.fs.locals.get(fullName1));
                 } else if(this.fs.cs.classExists(fullName1)) {
                     matches.add(Type.getType(fullName1));
@@ -199,32 +199,36 @@ public class ClassInfo {
         return (Type)var10000;
     }
 
-    public Type getType(Token tok) {
+    public Type getType(Token tok, boolean allowNew) {
         Object var10000;
         if(tok instanceof GenericToken) {
             GenericToken tok1 = (GenericToken)tok;
-            ClassType c = (ClassType)this.getType(((VToken)((LexedParsedToken)tok1.toks.get(0))).val).getRawType();
+            ClassType c = (ClassType)this.getType(((VToken)((LexedParsedToken)tok1.toks.get(0))).val, allowNew).getRawType();
             List params = tok1.toks.subList(1, tok1.toks.size());
             Type[] out = new Type[params.size()];
             Iterator it = params.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {
                 LexedParsedToken param = (LexedParsedToken)it.next();
-                out[i] = this.getType((Token)param);
+                out[i] = this.getType((Token)param, allowNew);
             }
 
             var10000 = new ParameterizedType(c, out);
         } else if(tok instanceof ArrayToken) {
             ArrayToken tok2 = (ArrayToken)tok;
-            var10000 = new ArrayType(this.getType((Token)((LexedParsedToken)tok2.toks.get(0))));
+            var10000 = new ArrayType(this.getType((Token)((LexedParsedToken)tok2.toks.get(0)), allowNew));
         } else if(tok instanceof VToken) {
             VToken tok3 = (VToken)tok;
-            var10000 = this.getType(tok3.val);
+            var10000 = this.getType(tok3.val, allowNew);
         } else {
             var10000 = (Type)null;
         }
 
         return (Type)var10000;
+    }
+
+    public Type getType(Token tok) {
+        return this.getType(tok, true);
     }
 
     public void compileDef(LexedParsedToken tok) {
@@ -243,7 +247,7 @@ public class ClassInfo {
                     List toks = ((LexedParsedToken)((LexedParsedToken)((BlockToken)tok).toks.get(i.intValue())).toks.get(0)).toks;
                     VToken first1 = (VToken)((LexedParsedToken)toks.get(0));
                     if(!first1.val.equals("throws")) {
-                        annotations.add(new AnnotationEntry((ClassType)this.getType((Token)first1)));
+                        annotations.add(new AnnotationEntry((ClassType)this.getType(first1)));
                     } else {
                         List collection = toks.subList(1, toks.size());
                         ClassType[] out = new ClassType[collection.size()];
@@ -251,7 +255,7 @@ public class ClassInfo {
 
                         for(int i1 = 0; it.hasNext(); ++i1) {
                             LexedParsedToken tok1 = (LexedParsedToken)it.next();
-                            out[i1] = (ClassType)this.getType((Token)tok1);
+                            out[i1] = (ClassType)this.getType(tok1);
                         }
 
                         exceptions = out;
@@ -259,7 +263,7 @@ public class ClassInfo {
                 }
 
                 List types = Main.getParams(this, (BlockToken)first, scope, 1, n);
-                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((Token)((LexedParsedToken)((BlockToken)tok).toks.get(1))), mods.intValue(), ((BlockToken)tok).toks.subList(i.intValue(), ((BlockToken)tok).toks.size()), scope);
+                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((LexedParsedToken)((BlockToken)tok).toks.get(1)), mods.intValue(), ((BlockToken)tok).toks.subList(i.intValue(), ((BlockToken)tok).toks.size()), scope);
                 if(exceptions != null) {
                     mi.method.setExceptions(exceptions);
                 }
@@ -276,7 +280,7 @@ public class ClassInfo {
                     Tuple2 tup1 = Main.extractModifiers(((BlockToken)tok).toks, 2);
                     Integer mods1 = (Integer)tup1._1;
                     Integer i2 = (Integer)tup1._2;
-                    Type t = this.getType((Token)((LexedParsedToken)((BlockToken)tok).toks.get(1)));
+                    Type t = this.getType((LexedParsedToken)((BlockToken)tok).toks.get(1));
                     this.c.addField(name, t, mods1.intValue());
                 }
             }
@@ -291,7 +295,7 @@ public class ClassInfo {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             LexedParsedToken var6 = (LexedParsedToken)it.next();
-            Type related = this.getType((Token)var6);
+            Type related = this.getType(var6);
             if(related.isInterface()) {
                 c.addInterface(related);
             } else {

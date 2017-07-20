@@ -4,76 +4,76 @@
 
 (import gnu.bytecode.*)
 
-(define-class AVar () 'public
-	(type Type 'public)
+(define-class AVar () public
+	(type Type public)
 	((<init> type Type) void (super:<init>) (set this:type type))
-	((load code CodeAttr) Type 'public this:type)
-	((store code CodeAttr) void 'public ())
+	((load code CodeAttr) Type public this:type)
+	((store code CodeAttr) void public ())
 )
 
-(define-class CastVar (AVar) 'public
-	(v AVar 'public)
-	((<init> v AVar t Type) void 'public
+(define-class CastVar (AVar) public
+	(v AVar public)
+	((<init> v AVar t Type) void public
 		(super:<init> t)
 		(set this:v v)
 	)
-	((load code CodeAttr) Type 'public
+	((load code CodeAttr) Type public
 		(GenHandler:castMaybe code (this:v:load code) this:type)
 	)
-	((store code CodeAttr) void 'public
+	((store code CodeAttr) void public
 		(this:v:store code)
 	)
 )
 
-(define-class Var (AVar) 'public
+(define-class Var (AVar) public
 	(var Variable)
-	((<init> var Variable type Type) void 'public (super:<init> type) (set this:var var))
-	((load code CodeAttr) Type 'public
+	((<init> var Variable type Type) void public (super:<init> type) (set this:var var))
+	((load code CodeAttr) Type public
 		(define output (!= code null))
 		(if output (code:emitLoad this:var))
 		this:type
 	)
-	((store code CodeAttr) void 'public
+	((store code CodeAttr) void public
 		(define output (!= code null))
 		(if output (code:emitStore this:var))
 	)
 )
 
-(define-class Arg (AVar) 'public
-	(n int 'public)
-	(level int 'public)
-	((<init> type Type n int level int) void 'public
+(define-class Arg (AVar) public
+	(n int public)
+	(level int public)
+	((<init> type Type n int level int) void public
 		(super:<init> type)
 		(set this:n n)
 		(set this:level level)
 	)
-	((load code CodeAttr) Type 'public
+	((load code CodeAttr) Type public
 		(define output (!= code null))
 		(if output (code:emitLoad (code:getArg this:n)))
 		(if output (code:emitCheckcast (this:type:getRawType)))
 		this:type
 	)
-	((store code CodeAttr) void 'public
+	((store code CodeAttr) void public
 		(define output (!= code null))
 		(if output (code:emitStore (code:getArg this:n)))
 	)
 )
 
-(define-class VCaptured (AVar) 'public
-	(field Field 'public)
-	(avar AVar 'public)
-	((<init> avar AVar field Field) void 'public
+(define-class VCaptured (AVar) public
+	(field Field public)
+	(avar AVar public)
+	((<init> avar AVar field Field) void public
 		(super:<init> avar:type)
 		(set this:avar avar)
 		(set this:field field)
 	)
-	((load code CodeAttr) Type 'public
+	((load code CodeAttr) Type public
 		(define output (!= code null))
 		(if output (code:emitPushThis))
 		(if output (code:emitGetField this:field))
 		this:type
 	)
-	((store code CodeAttr) void 'public
+	((store code CodeAttr) void public
 		(throw (RuntimeException))
 	)
 )

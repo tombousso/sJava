@@ -1,6 +1,7 @@
 package sjava.compiler;
 
 import gnu.bytecode.Access;
+import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.CodeAttr;
@@ -48,8 +49,6 @@ import sjava.compiler.mfilters.MethodCall;
 import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.LexedParsedToken;
-import sjava.compiler.tokens.SingleQuoteToken;
-import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 import sjava.std.Tuple2;
 
@@ -457,8 +456,8 @@ public class Main {
 
     static boolean compileClassMod(LexedParsedToken tok, ClassType c) {
         boolean var10000;
-        if(tok instanceof SingleQuoteToken) {
-            short nmod = ((Short)accessModifiers.get(((VToken)((LexedParsedToken)((SingleQuoteToken)tok).toks.get(0))).val)).shortValue();
+        if(tok instanceof VToken) {
+            short nmod = ((Short)accessModifiers.get(((VToken)tok).val)).shortValue();
             c.addModifiers(nmod);
             var10000 = true;
         } else {
@@ -474,7 +473,7 @@ public class Main {
 
         for(int j = 0; j != n; ++j) {
             VToken arg = (VToken)((LexedParsedToken)tok.toks.get(j * 2 + i));
-            Type type = ci.getType((Token)((LexedParsedToken)tok.toks.get(j * 2 + i + 1)));
+            Type type = ci.getType((LexedParsedToken)tok.toks.get(j * 2 + i + 1));
             types.add(type);
             scope.put(arg.val, new Arg(type, o + j, arg.macro));
         }
@@ -889,13 +888,17 @@ public class Main {
         int mods;
         for(mods = 0; i < toks.size(); ++i) {
             LexedParsedToken tok = (LexedParsedToken)toks.get(i);
-            if(!(tok instanceof SingleQuoteToken) || !((LexedParsedToken)((SingleQuoteToken)tok).toks.get(0) instanceof VToken)) {
+            if(!(tok instanceof VToken) || !accessModifiers.containsKey(((VToken)tok).val)) {
                 return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
             }
 
-            mods |= ((Short)accessModifiers.get(((VToken)((LexedParsedToken)((SingleQuoteToken)tok).toks.get(0))).val)).shortValue();
+            mods |= ((Short)accessModifiers.get(((VToken)tok).val)).shortValue();
         }
 
         return new Tuple2(Integer.valueOf(mods), Integer.valueOf(i));
+    }
+
+    public static ArrayClassLoader getClassLoader() {
+        return new ArrayClassLoader();
     }
 }

@@ -32,8 +32,8 @@
 	(set! val)
 )
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(define l (AlString))
 		(l:add "ABC")
 		(l:add "DEF")
@@ -55,7 +55,7 @@
 
 		(define runnable
 			(object (Runnable)
-				((run) void 'public
+				((run) void public
 					(System:out:println (concat x " == " 3))
 					(System:out:println "AA")
 				)
@@ -96,7 +96,7 @@
 
 		(define sub
 			(object (BinOp)
-				((calc c int d int) int 'public
+				((calc c int d int) int public
 					(- c d)
 				)
 			)
@@ -158,7 +158,7 @@
 
 		(println (int[3] 99))
 	)
-	((toggle1 x int) int 'static
+	((toggle1 x int) int static
 		(cond
 			((= x 0)
 				1
@@ -171,7 +171,7 @@
 			)
 		)
 	)
-	((toggle2 x int) int 'static
+	((toggle2 x int) int static
 		(cond
 			((= x 0)
 				(set x 1)
@@ -184,6 +184,6 @@
 	)
 )
 
-(define-class BinOp () 'public 'interface 'abstract
-	((calc a int b int) int 'public 'abstract)
+(define-class BinOp () public interface abstract
+	((calc a int b int) int public abstract)
 )

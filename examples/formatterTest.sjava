@@ -1,7 +1,7 @@
 (package examples.formatterTest)
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(Main:printFormatted
 			"""
 
@@ -33,7 +33,7 @@
 		"""
 		)
 	)
-	((printFormatted code String) void 'static
+	((printFormatted code String) void static
 		(println (sjava.compiler.Formatter:formatCode code) "---")
 	)
 )

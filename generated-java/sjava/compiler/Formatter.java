@@ -26,7 +26,7 @@ public class Formatter {
     static int formatToks(LexedParsedToken block, int tabs, String before, String after, StringBuffer sb, List<LexedParsedToken> toks) {
         sb.append(before);
         int line = 0;
-        boolean cont = true;
+        boolean prevMultiline = false;
         Iterator it = toks.iterator();
 
         for(int i = 0; it.hasNext(); ++i) {
@@ -46,13 +46,18 @@ public class Formatter {
                 indent = true;
             } else {
                 if(tok.line == line) {
-                    sb.append(" ");
+                    if(prevMultiline) {
+                        ++toLine;
+                    } else {
+                        sb.append(" ");
+                    }
                 }
 
                 indent = tok.line != block.line;
             }
 
             line = formatTok(tok, line, toLine, tabs + (indent?1:0), sb);
+            prevMultiline = multiline;
         }
 
         if(block.firstLine() != block.lastLine()) {

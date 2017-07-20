@@ -6,11 +6,11 @@
 (import java.util.*)
 (import gnu.bytecode.*)
 
-(define-class Emitter () 'public
-	((<init>) void 'public
+(define-class Emitter () public
+	((<init>) void public
 		(super:<init>)
 	)
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
 		(define types (this:emitAll h mi code needed))
 		(if (= types null)
 			Type:voidType
@@ -23,10 +23,10 @@
 			)
 		)
 	)
-	((emitAll h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
+	((emitAll h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] public
 		(Type[] (this:emit h mi code (as Type needed)))
 	)
-	((emitAll emitters List{Emitter} h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public 'static
+	((emitAll emitters List{Emitter} h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] public static
 		(define types (Type[] len:(emitters:size)))
 		(forEach (emitter i) emitters
 			(if (!= emitter null)
@@ -46,10 +46,10 @@
 	)
 )
 
-(define-class Goto (Emitter) 'public
-	(label Label 'public)
-	((<init> label Label) void 'public (super:<init>) (set this:label label))
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
+(define-class Goto (Emitter) public
+	(label Label public)
+	((<init> label Label) void public (super:<init>) (set this:label label))
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
 		(define output (!= code null))
 		(if (&& output (code:reachableHere)) (code:emitGoto this:label))
 		Type:voidType
@@ -58,39 +58,39 @@
 
 (define-class Null (Emitter)
 	((<init>) void (super:<init>))
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
 		(if (!= code null) (code:emitPushNull))
 		Type:nullType
 	)
 )
 
-(define-class LoadAVar (Emitter) 'public
+(define-class LoadAVar (Emitter) public
 	(avar AVar)
-	((<init> avar AVar) void 'public
+	((<init> avar AVar) void public
 		(super:<init>)
 		(set this:avar avar)
 	)
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
 		(this:avar:load code)
 	)
 )
 
-(define-class Emitters (Emitter) 'public
-	(emitters List{Emitter} 'public)
-	((<init> emitters Emitter[]) void 'public (super:<init>) (set this:emitters (Arrays:asList emitters)))
-	((<init> emitters List) void 'public (super:<init>) (set this:emitters emitters))
-	((emitAll h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] 'public
+(define-class Emitters (Emitter) public
+	(emitters List{Emitter} public)
+	((<init> emitters Emitter[]) void public (super:<init>) (set this:emitters (Arrays:asList emitters)))
+	((<init> emitters List) void public (super:<init>) (set this:emitters emitters))
+	((emitAll h GenHandler mi AMethodInfo code CodeAttr needed Object) Type[] public
 		(Emitter:emitAll this:emitters h mi code needed)
 	)
 )
 
-(define-class Add1 (Emitter) 'public
+(define-class Add1 (Emitter) public
 	(e Emitter)
-	((<init> e Emitter) void 'public
+	((<init> e Emitter) void public
 		(super:<init>)
 		(set this:e e)
 	)
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
 		(define output (!= code null))
 		(this:e:emit h mi code Type:intType)
 		(if output (code:emitPushInt 1))
@@ -99,15 +99,15 @@
 	)
 )
 
-(define-class Nothing (Emitter) 'public
-	(inst Nothing 'static 'public)
-	((<clinit>) void 'static
+(define-class Nothing (Emitter) public
+	(inst Nothing static public)
+	((<clinit>) void static
 		(set Nothing:inst (Nothing))
 	)
-	((<init>) void 'private
+	((<init>) void private
 		(super:<init>)
 	)
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type 'public
+	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
 		Type:voidType
 	)
 )

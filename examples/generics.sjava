@@ -1,8 +1,8 @@
 (package examples.generics)
 
 (import java.util.*)
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(define al (ArrayList{Integer})) ;constructor
 		(al:add 3)
 		(al:add 4)

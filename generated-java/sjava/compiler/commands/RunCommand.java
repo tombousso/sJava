@@ -1,5 +1,6 @@
 package sjava.compiler.commands;
 
+import gnu.bytecode.ArrayClassLoader;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.Arrays;
@@ -10,7 +11,6 @@ import org.apache.commons.cli.CommandLine;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.FileScope;
 import sjava.compiler.Main;
-import sjava.compiler.MyClassLoader;
 import sjava.compiler.commands.Command;
 
 public class RunCommand extends Command {
@@ -38,7 +38,7 @@ public class RunCommand extends Command {
 
                 List files = Arrays.asList(out);
                 List fileScopes = Main.compile((Collection)files);
-                MyClassLoader cl = new MyClassLoader();
+                ArrayClassLoader cl = Main.getClassLoader();
                 ClassInfo found = (ClassInfo)null;
                 Iterator it1 = fileScopes.iterator();
 

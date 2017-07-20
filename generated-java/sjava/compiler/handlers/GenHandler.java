@@ -451,11 +451,7 @@ public class GenHandler extends Handler {
             }
 
             var10001 = Type.floatType;
-        } else {
-            if(!(val instanceof Integer)) {
-                throw new RuntimeException();
-            }
-
+        } else if(val instanceof Integer) {
             Integer val3 = (Integer)val;
             if(Main.isNumeric(needed)) {
                 Type prim = Main.tryUnbox(needed);
@@ -471,6 +467,17 @@ public class GenHandler extends Handler {
 
                 var10001 = Type.intType;
             }
+        } else {
+            if(!(val instanceof Long)) {
+                throw new RuntimeException();
+            }
+
+            Long val4 = (Long)val;
+            if(output) {
+                this.code.emitPushLong(val4.longValue());
+            }
+
+            var10001 = Type.longType;
         }
 
         return this.castMaybe((Type)var10001, needed);

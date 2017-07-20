@@ -1,0 +1,9 @@
+language: java
+
+jdk:
+  - oraclejdk8
+
+os:
+  - linux
+
+script: ./gradlew diff tester java_sources java_compile

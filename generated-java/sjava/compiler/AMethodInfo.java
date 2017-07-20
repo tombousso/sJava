@@ -88,6 +88,7 @@ public class AMethodInfo {
 
         this.method = method;
         this.levels = new ArrayList();
+        this.ensureLevels(0);
         this.capturedLevels = new ArrayList();
         Set iterable = firstScope.entrySet();
         Iterator it = iterable.iterator();

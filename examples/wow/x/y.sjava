@@ -1,11 +1,11 @@
 (package examples.wow.x)
 
-(define-class y () 'public
-	((wow) void 'public 'static
+(define-class y () public
+	((wow) void public static
 		(System:out:println "abc")
 		(y:wow2)
 	)
-	((wow2) void 'public 'static
+	((wow2) void public static
 		(System:out:println ".")
 	)
 )

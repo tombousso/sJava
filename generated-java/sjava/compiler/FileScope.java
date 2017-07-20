@@ -65,10 +65,10 @@ public class FileScope {
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
-            MacroInfo macros = (MacroInfo)it.next();
-            macros.compileMethods(GenHandler.inst);
-            macros.addToClassLoader(this.cs.mcl);
-            macros.rc = macros.getClazz(this.cs.mcl);
+            MacroInfo macro = (MacroInfo)it.next();
+            macro.compileMethods(GenHandler.inst);
+            macro.addToClassLoader(this.cs.mcl);
+            macro.rc = macro.getClazz(this.cs.mcl);
         }
 
     }
@@ -79,7 +79,7 @@ public class FileScope {
             GenericToken tok1 = (GenericToken)tok;
             ClassType c = new ClassType(this.package_.concat(((VToken)((LexedParsedToken)tok1.toks.get(0))).val));
             List params = tok1.toks.subList(1, tok1.toks.size());
-            Type[] tparams = new Type[params.size()];
+            TypeVariable[] tparams = new TypeVariable[params.size()];
             Iterator it = params.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {

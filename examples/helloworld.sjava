@@ -1,7 +1,7 @@
 (package examples.helloworld)
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(System:out:println "Hello world")
 	)
 )

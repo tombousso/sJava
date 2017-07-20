@@ -2,8 +2,8 @@
 
 (import examples.wow.x.y)
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(System:out:println "WOW")
 		(y:wow)
 	)

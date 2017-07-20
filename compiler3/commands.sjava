@@ -7,33 +7,33 @@
 (import java.io.*)
 (import org.apache.commons.cli.*)
 
-(define-class Command () 'public 'abstract
-	(parser DefaultParser 'public)
-	(options Options 'public)
+(define-class Command () public abstract
+	(parser DefaultParser public)
+	(options Options public)
 	((<init>) void
 		(super:<init>)
 		(set this:parser (DefaultParser))
 		(set this:options (Options))
 		(this:options:addOption (chain (Option:builder "h") (longOpt "help") (build)))
 	)
-	((name) String 'public 'abstract)
+	((name) String public abstract)
 	((helpHeader) String "")
 	((helpFooter) String "")
-	((helpArgs) String 'abstract)
-	((printHelp) void 'public
+	((helpArgs) String abstract)
+	((printHelp) void public
 		((HelpFormatter):printHelp (concat "sjava " (this:name) " " (this:helpArgs)) (this:helpHeader) this:options (this:helpFooter))
 	)
-	((run commandLine CommandLine args List{String}) void 'public 'abstract)
+	((run commandLine CommandLine args List{String}) void public abstract)
 )
 
-(define-class BuildCommand (Command) 'public
-	((<init>) void 'public
+(define-class BuildCommand (Command) public
+	((<init>) void public
 		(super:<init>)
 		(this:options:addOption (chain (Option:builder "d") (hasArg) (desc "Output directory for classfiles") (build)))
 	)
-	((name) String 'public "build")
+	((name) String public "build")
 	((helpArgs) String "[options] [files]")
-	((run commandLine CommandLine args List{String}) void 'public
+	((run commandLine CommandLine args List{String}) void public
 		(define fileNames args)
 		(if (= (fileNames:size) 0)
 			(this:printHelp)
@@ -53,13 +53,13 @@
 	)
 )
 
-(define-class RunCommand (Command) 'public
-	((<init>) void 'public
+(define-class RunCommand (Command) public
+	((<init>) void public
 		(super:<init>)
 	)
-	((name) String 'public "run")
+	((name) String public "run")
 	((helpArgs) String "<MainClass> [files]")
-	((run commandLine CommandLine args List{String}) void 'public
+	((run commandLine CommandLine args List{String}) void public
 		(if (< (args:size) 2)
 			(this:printHelp)
 			(try
@@ -95,13 +95,13 @@
 	)
 )
 
-(define-class FormatCommand (Command) 'public
-	((<init>) void 'public
+(define-class FormatCommand (Command) public
+	((<init>) void public
 		(super:<init>)
 	)
-	((name) String 'public "fmt")
+	((name) String public "fmt")
 	((helpArgs) String "[files]")
-	((run commandLine CommandLine args List{String}) void 'public
+	((run commandLine CommandLine args List{String}) void public
 		(define fileNames args)
 		(if (= (fileNames:size) 0)
 			(this:printHelp)

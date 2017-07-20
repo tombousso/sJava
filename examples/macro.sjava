@@ -14,8 +14,8 @@
 	`(Integer:toString ((java.util.Random):nextInt ,n))
 )
 
-(define-class Main () 'public
-	((main args String[]) void 'public 'static
+(define-class Main () public
+	((main args String[]) void public static
 		(define i -1)
 		(repeat 2 (println i))
 
