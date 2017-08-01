@@ -1,8 +1,8 @@
 # sJava - A simple self hosting compiler for a Java dialect using S-expressions
-For comparison, here's a hello world program in sJava (examples/helloworld.sjava):
+Here's a hello world program in sJava (examples/helloworld.sjava):
 
-	(define-class Main () 'public
-		((main args String[]) void 'public 'static
+	(define-class Main () public
+		((main args String[]) void public static
 			(System:out:println "Hello world")
 		)
 	)
@@ -18,8 +18,8 @@ and in Java:
 A more complex example of an sJava program including generics, autoboxing/unboxing, star imports, and type inference (examples/generics.sjava):
 
 	(import java.util.*)
-	(define-class Main () 'public
-		((main args String[]) void 'public 'static
+	(define-class Main () public
+		((main args String[]) void public static
 			(define al (ArrayList{Integer})) ;constructor
 			(al:add 3)
 			(al:add 4)
@@ -171,8 +171,8 @@ The `concat` macro will automatically call `Arrays:toString` when passed in `Arr
 
 You can create a `printTest.sjava` file:
 
-	(define-class Main () 'public
-		((main args String[]) void 'public 'static
+	(define-class Main () public
+		((main args String[]) void public static
 			(println "Counting to 3: " (int[] 1 2 3))
 		)
 	)

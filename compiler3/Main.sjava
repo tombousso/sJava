@@ -364,7 +364,7 @@
 			false
 		)
 	)
-	((getParams ci ClassInfo tok LexedParsedToken scope LinkedHashMap i int o int) List{Type} static public
+	((getParams ci ClassInfo tok BlockToken scope LinkedHashMap i int o int) List{Type} static public
 		(define n (/ (- (tok:toks:size) i) 2))
 		(define types (ArrayList{Type} n))
 		(for ((j 0)) (!= j n) (inc j)
@@ -751,11 +751,10 @@
 			)
 			(ParameterizedType
 				(define toks (ArrayList{LexedParsedToken}))
-				(toks:add (Main:typeToTok (t:getRawType)))
 				(forEach ta (t:getTypeArgumentTypes)
 					(toks:add (Main:typeToTok ta))
 				)
-				(GenericToken -1 toks)
+				(GenericToken -1 (Main:typeToTok (t:getRawType)) toks)
 			)
 			(true
 				(VToken -1 (t:getName))
@@ -827,9 +826,6 @@
 		(set line block:endLine)
 		line
 	)
-	((formatToks block LexedParsedToken tabs int before String after String sb StringBuffer) int static
-		(Formatter:formatToks block tabs before after sb block:toks)
-	)
 	((formatToks toks List{LexedParsedToken}) String static
 		(define sb (StringBuffer))
 		(define line (if (!= (toks:size) 0) (toks:get 0):line 1))
@@ -845,20 +841,20 @@
 		(set line tok:line)
 		(instanceCond tok
 			(BlockToken
-				(set line (Formatter:formatToks tok tabs "(" ")" sb))
+				(set line (Formatter:formatToks tok tabs "(" ")" sb tok:toks))
 			)
 			(GenericToken
-				(set line (Formatter:formatTok (tok:toks:get 0) line line tabs sb))
-				(set line (Formatter:formatToks tok tabs "{" "}" sb (tok:toks:subList 1 (tok:toks:size))))
+				(set line (Formatter:formatTok tok:tok line line tabs sb))
+				(set line (Formatter:formatToks tok tabs "{" "}" sb tok:toks))
 			)
 			(ArrayToken
 				(set line (Formatter:formatTok (tok:toks:get 0) line line tabs sb))
 				(set line (Formatter:formatToks tok tabs "[" "]" sb (tok:toks:subList 1 (tok:toks:size))))
 			)
 			(ColonToken
-				(set line (Formatter:formatTok (tok:toks:get 0) line line tabs sb))
+				(set line (Formatter:formatTok tok:left line line tabs sb))
 				(sb:append ":")
-				(set line (Formatter:formatTok (tok:toks:get 1) line line tabs sb))
+				(set line (Formatter:formatTok tok:right line line tabs sb))
 			)
 			(SingleQuoteToken
 				(sb:append "'")
@@ -877,7 +873,6 @@
 				(sb:append tok:val)
 			)
 			(true
-				(if (!= tok:toks null) (throw (RuntimeException)))
 				(sb:append (tok:toString))
 			)
 		)
@@ -1165,13 +1160,12 @@
 				((w:equals ":")
 					(this:next)
 					(define right (this:parse 1))
-					(set left (ColonToken t:line (ArrayList (Arrays:asList left right))))
+					(set left (ColonToken t:line left right))
 				)
 				((w:equals "{")
 					(this:next)
 					(define toks (this:subToks "}"))
-					(toks:add 0 left)
-					(set left (GenericToken t:line toks))
+					(set left (GenericToken t:line left toks))
 				)
 				((w:equals "[")
 					(this:next)
@@ -1264,10 +1258,10 @@
 				(&&
 					(> (toks:size) 0)
 					(instance? (toks:get 0) BlockToken)
-					(instance? ((toks:get 0):toks:get 0) VToken)
-					((as VToken ((toks:get 0):toks:get 0)):val:equals "package")
+					(instance? ((as BlockToken (toks:get 0)):toks:get 0) VToken)
+					((as VToken ((as BlockToken (toks:get 0)):toks:get 0)):val:equals "package")
 				)
-				((as VToken ((toks:get 0):toks:get 1)):val:concat ".")
+				((as VToken ((as BlockToken (toks:get 0)):toks:get 1)):val:concat ".")
 				""
 			)
 		)
@@ -1287,10 +1281,9 @@
 	((getNewType tok Token) ClassType
 		(instanceCond tok
 			(GenericToken
-				(define c (ClassType (this:package_:concat (as VToken (tok:toks:get 0)):val)))
-				(define params (tok:toks:subList 1 (tok:toks:size)))
-				(define tparams (TypeVariable[] len:(params:size)))
-				(forEach (param i) params
+				(define c (ClassType (this:package_:concat (as VToken tok:tok):val)))
+				(define tparams (TypeVariable[] len:(tok:toks:size)))
+				(forEach (param i) tok:toks
 					(define name (as VToken param):val)
 					(define tv (TypeVariable name))
 					(aset tparams i tv)
@@ -1306,7 +1299,7 @@
 	)
 	((compileRoot) void
 		(forEach tok this:toks
-			(this:compileRoot tok)
+			(this:compileRoot (as BlockToken tok))
 		)
 	)
 	((getMacroParams out List{Type} params BlockToken scope Map) bool
@@ -1327,7 +1320,7 @@
 		)
 		varargs
 	)
-	((compileRoot tok LexedParsedToken) void
+	((compileRoot tok BlockToken) void
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
 				(define first VToken (tok:toks:get 0))
@@ -1336,20 +1329,23 @@
 						(define c (this:getNewType (tok:toks:get 1)))
 						(define name (c:getName))
 						(define ci (ClassInfo c this))
-						(set ci:toks tok:toks)
+						(set ci:supers (as BlockToken (tok:toks:get 2)))
 						(this:newClasses:add ci)
 						(this:locals:put name ci:c)
 						(define run true)
-						(for ((i 3)) (&& run (!= i (tok:toks:size))) (inc i)
+						(define i 3)
+						(for () (&& run (!= i (tok:toks:size))) ()
 							(set run (Main:compileClassMod (tok:toks:get i) ci:c))
+							(if run (inc i))
 						)
+						(set ci:toks (tok:toks:subList i (tok:toks:size)))
 					)
 					((first:val:equals "import")
 						(define import (as VToken (tok:toks:get 1)):val)
 						(if (import:equals "%tokens%")
 							(this:starImports:add "sjava.compiler.tokens.")
-							(if (import:contains "*")
-								(this:starImports:add (import:replace "*" ""))
+							(if (import:endsWith "*")
+								(this:starImports:add (import:substring 0 (- (import:length) 1)))
 								(this:imports:put (import:substring (+ (import:lastIndexOf ".") 1)) import)
 							)
 						)
@@ -1436,6 +1432,7 @@
 (define-class ClassInfo () public
 	(c ClassType public)
 	(fs FileScope public)
+	(supers BlockToken)
 	(toks List{LexedParsedToken})
 	(methods List{AMethodInfo} public)
 	(anonClasses List{ClassInfo} public)
@@ -1561,10 +1558,9 @@
 	((getType tok Token allowNew bool) Type public
 		(instanceCond tok
 			(GenericToken
-				(define c ClassType ((this:getType (as VToken (tok:toks:get 0)):val allowNew):getRawType))
-				(define params (tok:toks:subList 1 (tok:toks:size)))
+				(define c ClassType ((this:getType (as VToken tok:tok):val allowNew):getRawType))
 				(define tparams
-					(mapA param params
+					(mapA param tok:toks
 						(this:getType param allowNew)
 					)
 				)
@@ -1582,7 +1578,7 @@
 	((getType tok Token) Type public
 		(this:getType tok true)
 	)
-	((compileDef tok LexedParsedToken) void public
+	((compileDef tok BlockToken) void public
 		(if (instance? tok BlockToken)
 			(begin
 				(define first (tok:toks:get 0))
@@ -1606,7 +1602,7 @@
 								(instance? (tok:toks:get i) SingleQuoteToken)
 							)
 							(begin
-								(define toks ((tok:toks:get i):toks:get 0):toks)
+								(define toks (as BlockToken ((as SingleQuoteToken (tok:toks:get i)):toks:get 0)):toks)
 								(define first VToken (toks:get 0))
 								(if (first:val:equals "throws")
 									(set exceptions
@@ -1619,8 +1615,8 @@
 								(inc i)
 							)
 						)
-						(define types (Main:getParams this first scope 1 n))
-						(define mi (this:addMethod (as VToken (first:toks:get 0)):val types (this:getType (tok:toks:get 1)) mods (tok:toks:subList i (tok:toks:size)) scope))
+						(define types (Main:getParams this (as BlockToken first) scope 1 n))
+						(define mi (this:addMethod (as VToken ((as BlockToken first):toks:get 0)):val types (this:getType (tok:toks:get 1)) mods (tok:toks:subList i (tok:toks:size)) scope))
 						(if (!= exceptions null) (mi:method:setExceptions exceptions))
 						(forEach annotation annotations
 							(RuntimeAnnotationsAttr:maybeAddAnnotation mi:method annotation)
@@ -1644,18 +1640,15 @@
 	)
 	((compileDefs) void
 		(define c this:c)
-		(define supers (this:toks:get 2):toks)
-		(forEach super supers
+		(forEach super this:supers:toks
 			(define related Type (this:getType super))
 			(if (related:isInterface)
 				(c:addInterface related)
 				(c:setSuper related)
 			)
 		)
-		(define i 3)
-		(while (!= i (this:toks:size))
-			(this:compileDef (this:toks:get i))
-			(inc i)
+		(forEach tok this:toks
+			(this:compileDef (as BlockToken tok))
 		)
 	)
 	((compileMethods h GenHandler) void public
@@ -1664,18 +1657,15 @@
 		)
 	)
 	((runMethodMacros) void
-		(define i 3)
-		(while (!= i (this:toks:size))
-			(define tok (this:toks:get i))
+		(forEach tok this:toks
 			(if
 				(&&
 					(instance? tok BlockToken)
-					(instance? (tok:toks:get 0) VToken)
-					((as VToken (tok:toks:get 0)):val:endsWith "!")
+					(instance? ((as BlockToken tok):toks:get 0) VToken)
+					((as VToken ((as BlockToken tok):toks:get 0)):val:endsWith "!")
 				)
 				(this:runMethodMacro (as BlockToken tok))
 			)
-			(inc i)
 		)
 	)
 	((runMethodMacro tok BlockToken) void
@@ -1898,11 +1888,11 @@
 		(define tok LexedParsedToken (block:toks:get i))
 		(define ntok (this:transformBlock tok transform))
 		(block:toks:set i ntok)
-		(if (&& transform (instance? tok BlockToken) (> (tok:toks:size) 0) (instance? (tok:toks:get 0) VToken))
+		(if (&& transform (instance? tok BlockToken) (> ((as BlockToken tok):toks:size) 0) (instance? ((as BlockToken tok):toks:get 0) VToken))
 			(begin
-				(define val (as VToken (tok:toks:get 0)):val)
+				(define val (as VToken ((as BlockToken tok):toks:get 0)):val)
 				(if (val:equals "label")
-					(block:labels:put (as VToken (tok:toks:get 1)):val (Label))
+					(block:labels:put (as VToken ((as BlockToken tok):toks:get 1)):val (Label))
 				)
 			)
 		)
@@ -1943,7 +1933,7 @@
 	((transformToks l List{LexedParsedToken}) List{Token} public
 		(this:transformToks l true)
 	)
-	((transformForm block LexedParsedToken transform bool) Token public
+	((transformForm block BlockToken transform bool) Token public
 		(define val (as VToken (block:toks:get 0)):val)
 		(define rest (block:toks:subList 1 (block:toks:size)))
 		(cond
@@ -1963,7 +1953,7 @@
 					(return (this:transformBlock (QuoteToken block:line (ArrayList rest))))
 				)
 				((val:equals "object")
-					(define superTok (rest:get 0))
+					(define superTok BlockToken (rest:get 0))
 					(return (ObjectToken block:line (this:getType (superTok:toks:get 0)) (superTok:toks:subList 1 (superTok:toks:size)) (rest:subList 1 (rest:size))))
 				)
 				((val:equals "lambda")
@@ -1971,13 +1961,13 @@
 					(define FunctionN (instance? (rest:get 0) BlockToken))
 					(if FunctionN
 						(begin
-							(define params (Main:getParams this:ci (rest:get 0) scope 0 1))
+							(define params (Main:getParams this:ci (as BlockToken (rest:get 0)) scope 0 1))
 							(return (LambdaFnToken block:line null scope params (rest:subList 1 (rest:size))))
 						)
 						(begin
 							(define t (this:getType (rest:get 0)))
 							(define sam ((as ClassType (t:getRawType)):checkSingleAbstractMethod))
-							(define args (rest:get 1))
+							(define args BlockToken (rest:get 1))
 							(define params (ArrayList{Type} (args:toks:size)))
 							(forEach (arg i) args:toks
 								(define param (Main:resolveType t (aget (sam:getGenericParameterTypes) i)))
@@ -2029,20 +2019,21 @@
 					(define hasFinally
 						(&&
 							(!= (rest:size) 1)
-							(instance? ((rest:get (- (rest:size) 1)):toks:get 0) VToken)
-							((as VToken ((rest:get (- (rest:size) 1)):toks:get 0)):val:equals "finally")
+							(instance? ((as BlockToken (rest:get (- (rest:size) 1))):toks:get 0) VToken)
+							((as VToken ((as BlockToken (rest:get (- (rest:size) 1))):toks:get 0)):val:equals "finally")
 						)
 					)
 					(define finallyToks List{Token} null)
 					(if hasFinally
 						(begin
-							(define finallyToks (rest:get (- (rest:size) 1)):toks)
+							(define finallyToks (as BlockToken (rest:get (- (rest:size) 1))):toks)
 							(set finallyToks (this:transformToks (finallyToks:subList 1 (finallyToks:size))))
 							(set rest (rest:subList 0 (- (rest:size) 1)))
 						)
 					)
 					(define catches
 						(mapA catch (rest:subList 1 (rest:size))
+							(define catch BlockToken catch)
 							(Tuple3
 								(as VToken (catch:toks:get 0))
 								(this:getType (catch:toks:get 1))
@@ -2143,11 +2134,11 @@
 										(&&
 											(!= (rest:size) 0)
 											(instance? (rest:get 0) ColonToken)
-											(instance? ((as ColonToken (rest:get 0)):toks:get 0) VToken)
-											((as VToken ((as ColonToken (rest:get 0)):toks:get 0)):val:equals "len")
+											(instance? (as ColonToken (rest:get 0)):left VToken)
+											((as VToken (as ColonToken (rest:get 0)):left):val:equals "len")
 										)
 										(begin
-											(set len (this:transformBlock ((as ColonToken (rest:get 0)):toks:get 1)))
+											(set len (this:transformBlock (as ColonToken (rest:get 0)):right))
 											(set rest (rest:subList 1 (rest:size)))
 										)
 										(begin
@@ -2175,8 +2166,8 @@
 								(define out
 									(CallToken
 										block:line
-										(this:transformBlock (first:toks:get 0) true)
-										(as VToken (first:toks:get 1)):val
+										(this:transformBlock first:left true)
+										(as VToken first:right):val
 										(this:transformToks (block:toks:subList 1 (block:toks:size)))
 									)
 								)
@@ -2194,11 +2185,11 @@
 				(if transform
 					(return
 						(FieldToken block:line
-							(this:transformBlock (block:toks:get 0))
-							(as VToken (block:toks:get 1)):val
+							(this:transformBlock block:left)
+							(as VToken block:right):val
 						)
 					)
-					(return (ColonToken block:line (Main:toLexedParsed (this:transformToks block:toks transform))))
+					(return (ColonToken block:line (as LexedParsedToken (this:transformBlock block:left transform)) (as LexedParsedToken (this:transformBlock block:right transform))))
 				)
 			)
 			(QuoteToken
@@ -2220,7 +2211,7 @@
 			(GenericToken
 				(if transform
 					(throw (RuntimeException))
-					(return (GenericToken block:line (Main:toLexedParsed (this:transformToks block:toks transform))))
+					(return (GenericToken block:line (as LexedParsedToken (this:transformBlock block:tok transform)) (Main:toLexedParsed (this:transformToks block:toks transform))))
 				)
 			)
 			(ArrayToken

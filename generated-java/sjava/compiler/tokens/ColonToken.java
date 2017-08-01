@@ -1,24 +1,28 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
 
 public class ColonToken extends ParsedToken {
-    public ColonToken(int line, List<LexedParsedToken> toks) {
-        super(line, toks);
+    public LexedParsedToken left;
+    public LexedParsedToken right;
+
+    public ColonToken(int line, LexedParsedToken left, LexedParsedToken right) {
+        super(line);
+        this.left = left;
+        this.right = right;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append((LexedParsedToken)super.toks.get(0));
+        sb.append(this.left);
         sb.append(":");
-        sb.append((LexedParsedToken)super.toks.get(1));
+        sb.append(this.right);
         return sb.toString();
     }
 
     public int firstLine() {
-        return ((LexedParsedToken)super.toks.get(0)).firstLine();
+        return this.left.firstLine();
     }
 
     public ColonToken() {

@@ -88,7 +88,9 @@ task compiler3_3(type: SJavaCompile, dependsOn: [compiler]) {
 
 task diff(dependsOn: [compiler2_2, compiler3_3]) {
 	doLast {
-		println("diff3_3: "+(same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler")) ? "good" : "bad"))
+		def good = same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler"))
+		println("diff3_3: "+(good ? "good" : "bad"))
+		if (!good) throw new Exception()
 	}
 }
 
@@ -131,7 +133,9 @@ task java_compile(type: JavaCompile, dependsOn: [compiler3_3]) {
 			destinationDir = file("bin/java-3-3")
 		}
 		java_compile_test.execute()
-		println("java version works: "+same(file("bin/main/sjava"), file("bin/java-3-3/sjava")))
+		def works = same(file("bin/main/sjava"), file("bin/java-3-3/sjava"))
+		println("java version works: "+works)
+		if (!works) throw new Exception()
 	}
 }
 
@@ -146,17 +150,17 @@ file("examples").listFiles().each { f ->
 		}
 		task "run_${root}"(type: JavaExec, dependsOn: ["build_${root}"]) {
 			main = "examples.${root}.Main"
-			classpath = files("bin", "bin/main")
+			classpath = JARS + files("bin", "bin/main")
 		}
 	} else if (f.isDirectory()) {
-		def root = f.name;
+		def root = f.name
 		buildTasks += task "build_${root}"(type: SJavaCompile, dependsOn: [compiler]) {
 			source = fileTree(f)
 			destinationDir = file("bin")
 		}
 		task "run_${root}"(type: JavaExec, dependsOn: ["build_${root}"]) {
 			main = "examples.${root}.Main"
-			classpath = files("bin", "bin/main")
+			classpath = JARS + files("bin", "bin/main")
 		}
 	}
 }

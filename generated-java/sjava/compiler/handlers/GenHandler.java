@@ -45,6 +45,7 @@ import sjava.compiler.tokens.ASetToken;
 import sjava.compiler.tokens.ArrayConstructorToken;
 import sjava.compiler.tokens.AsToken;
 import sjava.compiler.tokens.BeginToken;
+import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.BlockToken2;
 import sjava.compiler.tokens.CToken;
 import sjava.compiler.tokens.CallToken;
@@ -620,7 +621,7 @@ public class GenHandler extends Handler {
                     }
                 }
 
-                var10000 = Main.getCompilerType("tokens.LexedParsedToken");
+                var10000 = type1;
             } else if(o instanceof String) {
                 String o3 = (String)o;
                 if(output) {
@@ -740,7 +741,7 @@ public class GenHandler extends Handler {
 
     public Type compile(QuoteToken2 tok, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
-        return this.castMaybe(this.compileQuasi(tok.tok, mi, this.code, Main.getCompilerType("tokens.LexedParsedToken")), needed);
+        return this.castMaybe(this.compileQuasi(tok.tok, mi, this.code, Main.unknownType), needed);
     }
 
     public Type compile(ConstToken tok, AMethodInfo mi, Type needed) {
@@ -883,7 +884,7 @@ public class GenHandler extends Handler {
 
                 for(int notused = 0; it.hasNext(); ++notused) {
                     LexedParsedToken tok3 = (LexedParsedToken)it.next();
-                    ci.compileDef(tok3);
+                    ci.compileDef((BlockToken)tok3);
                 }
             }
 

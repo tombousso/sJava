@@ -22,15 +22,10 @@
 )
 
 (define-class LexedParsedToken (Token) public
-	(toks List{LexedParsedToken} public)
 	(endLine int public)
 	(transformed Token public transient)
 	((<init> line int) void public
 		(super:<init> line)
-	)
-	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line)
-		(set this:toks toks)
 	)
 	((toksString l List{LexedParsedToken}) String
 		(define s (StringBuffer))
@@ -41,9 +36,6 @@
 			)
 		)
 		(s:toString)
-	)
-	((toksString) String
-		(this:toksString this:toks)
 	)
 	((firstLine) int public
 		this:line
@@ -62,9 +54,6 @@
 (define-class ParsedToken (LexedParsedToken) public
 	((<init> line int) void public
 		(super:<init> line)
-	)
-	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
 	)
 	((<init>) void public
 		(super:<init>)
@@ -204,11 +193,13 @@
 )
 
 (define-class BlockToken (ParsedToken) public
+	(toks List{LexedParsedToken} public)
 	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
+		(super:<init> line)
+		(set this:toks toks)
 	)
 	((toString) String public
-		(concat "(" (this:toksString) ")")
+		(concat "(" (this:toksString this:toks) ")")
 	)
 	((firstLine) int public
 		(if (= (this:toks:size) 0)
@@ -239,11 +230,15 @@
 )
 
 (define-class GenericToken (ParsedToken) public
-	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
+	(tok LexedParsedToken public)
+	(toks List{LexedParsedToken} public)
+	((<init> line int tok LexedParsedToken toks List{LexedParsedToken}) void public
+		(super:<init> line)
+		(set this:tok tok)
+		(set this:toks toks)
 	)
 	((toString) String public
-		(concat (this:toks:get 0) "{" (this:toksString (this:toks:subList 1 (this:toks:size))) "}")
+		(concat this:tok "{" (this:toksString this:toks) "}")
 	)
 	((<init>) void public
 		(super:<init>)
@@ -251,8 +246,10 @@
 )
 
 (define-class ArrayToken (ParsedToken) public
+	(toks List{LexedParsedToken} public)
 	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
+		(super:<init> line)
+		(set this:toks toks)
 	)
 	((toString) String public
 		(concat (this:toks:get 0) "[" (this:toksString (this:toks:subList 1 (this:toks:size))) "]")
@@ -263,14 +260,18 @@
 )
 
 (define-class ColonToken (ParsedToken) public
-	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
+	(left LexedParsedToken public)
+	(right LexedParsedToken public)
+	((<init> line int left LexedParsedToken right LexedParsedToken) void public
+		(super:<init> line)
+		(set this:left left)
+		(set this:right right)
 	)
 	((toString) String public
-		(concat (this:toks:get 0) ":" (this:toks:get 1))
+		(concat this:left ":" this:right)
 	)
 	((firstLine) int public
-		((this:toks:get 0):firstLine)
+		(this:left:firstLine)
 	)
 	((<init>) void public
 		(super:<init>)
@@ -288,8 +289,10 @@
 )
 
 (define-class SingleQuoteToken (ParsedToken) public
+	(toks List{LexedParsedToken} public)
 	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
+		(super:<init> line)
+		(set this:toks toks)
 	)
 	((toString) String public
 		(concat "'" (this:toks:get 0))
@@ -300,8 +303,10 @@
 )
 
 (define-class QuoteToken (ParsedToken) public
+	(toks List{LexedParsedToken} public)
 	((<init> line int toks List{LexedParsedToken}) void public
-		(super:<init> line toks)
+		(super:<init> line)
+		(set this:toks toks)
 	)
 	((toString) String public
 		(concat "`" (this:toks:get 0))
@@ -321,8 +326,10 @@
 
 (define-class UnquoteToken (ParsedToken) public
 	(var bool public)
+	(toks List{LexedParsedToken} public)
 	((<init> line int toks List{LexedParsedToken} var bool) void public
-		(super:<init> line toks)
+		(super:<init> line)
+		(set this:toks toks)
 		(set this:var var)
 	)
 	((toString) String public

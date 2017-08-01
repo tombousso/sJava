@@ -41,6 +41,7 @@ import sjava.std.Tuple2;
 public class ClassInfo {
     public ClassType c;
     public FileScope fs;
+    BlockToken supers;
     List<LexedParsedToken> toks;
     public List<AMethodInfo> methods;
     public List<ClassInfo> anonClasses;
@@ -203,10 +204,10 @@ public class ClassInfo {
         Object var10000;
         if(tok instanceof GenericToken) {
             GenericToken tok1 = (GenericToken)tok;
-            ClassType c = (ClassType)this.getType(((VToken)((LexedParsedToken)tok1.toks.get(0))).val, allowNew).getRawType();
-            List params = tok1.toks.subList(1, tok1.toks.size());
-            Type[] out = new Type[params.size()];
-            Iterator it = params.iterator();
+            ClassType c = (ClassType)this.getType(((VToken)tok1.tok).val, allowNew).getRawType();
+            List collection = tok1.toks;
+            Type[] out = new Type[collection.size()];
+            Iterator it = collection.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {
                 LexedParsedToken param = (LexedParsedToken)it.next();
@@ -231,20 +232,20 @@ public class ClassInfo {
         return this.getType(tok, true);
     }
 
-    public void compileDef(LexedParsedToken tok) {
+    public void compileDef(BlockToken tok) {
         if(tok instanceof BlockToken) {
-            LexedParsedToken first = (LexedParsedToken)((BlockToken)tok).toks.get(0);
+            LexedParsedToken first = (LexedParsedToken)tok.toks.get(0);
             if(first instanceof BlockToken) {
                 LinkedHashMap scope = new LinkedHashMap();
-                Tuple2 tup = Main.extractModifiers(((BlockToken)tok).toks, 2);
+                Tuple2 tup = Main.extractModifiers(tok.toks, 2);
                 Integer mods = (Integer)tup._1;
                 Integer i = (Integer)tup._2;
                 int n = (mods.intValue() & Access.STATIC) == 0?1:0;
                 ClassType[] exceptions = (ClassType[])null;
 
                 ArrayList annotations;
-                for(annotations = new ArrayList(); i.intValue() != ((BlockToken)tok).toks.size() && (LexedParsedToken)((BlockToken)tok).toks.get(i.intValue()) instanceof SingleQuoteToken; i = Integer.valueOf(i.intValue() + 1)) {
-                    List toks = ((LexedParsedToken)((LexedParsedToken)((BlockToken)tok).toks.get(i.intValue())).toks.get(0)).toks;
+                for(annotations = new ArrayList(); i.intValue() != tok.toks.size() && (LexedParsedToken)tok.toks.get(i.intValue()) instanceof SingleQuoteToken; i = Integer.valueOf(i.intValue() + 1)) {
+                    List toks = ((BlockToken)((LexedParsedToken)((SingleQuoteToken)((LexedParsedToken)tok.toks.get(i.intValue()))).toks.get(0))).toks;
                     VToken first1 = (VToken)((LexedParsedToken)toks.get(0));
                     if(!first1.val.equals("throws")) {
                         annotations.add(new AnnotationEntry((ClassType)this.getType(first1)));
@@ -263,7 +264,7 @@ public class ClassInfo {
                 }
 
                 List types = Main.getParams(this, (BlockToken)first, scope, 1, n);
-                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((LexedParsedToken)((BlockToken)tok).toks.get(1)), mods.intValue(), ((BlockToken)tok).toks.subList(i.intValue(), ((BlockToken)tok).toks.size()), scope);
+                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((LexedParsedToken)tok.toks.get(1)), mods.intValue(), tok.toks.subList(i.intValue(), tok.toks.size()), scope);
                 if(exceptions != null) {
                     mi.method.setExceptions(exceptions);
                 }
@@ -277,10 +278,10 @@ public class ClassInfo {
             } else {
                 String name = ((VToken)first).val;
                 if(!name.endsWith("!")) {
-                    Tuple2 tup1 = Main.extractModifiers(((BlockToken)tok).toks, 2);
+                    Tuple2 tup1 = Main.extractModifiers(tok.toks, 2);
                     Integer mods1 = (Integer)tup1._1;
                     Integer i2 = (Integer)tup1._2;
-                    Type t = this.getType((LexedParsedToken)((BlockToken)tok).toks.get(1));
+                    Type t = this.getType((LexedParsedToken)tok.toks.get(1));
                     this.c.addField(name, t, mods1.intValue());
                 }
             }
@@ -290,12 +291,12 @@ public class ClassInfo {
 
     void compileDefs() {
         ClassType c = this.c;
-        List supers = ((LexedParsedToken)this.toks.get(2)).toks;
-        Iterator it = supers.iterator();
+        List iterable = this.supers.toks;
+        Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
-            LexedParsedToken var6 = (LexedParsedToken)it.next();
-            Type related = this.getType(var6);
+            LexedParsedToken var5 = (LexedParsedToken)it.next();
+            Type related = this.getType(var5);
             if(related.isInterface()) {
                 c.addInterface(related);
             } else {
@@ -303,8 +304,12 @@ public class ClassInfo {
             }
         }
 
-        for(int i = 3; i != this.toks.size(); ++i) {
-            this.compileDef((LexedParsedToken)this.toks.get(i));
+        List iterable1 = this.toks;
+        Iterator it1 = iterable1.iterator();
+
+        for(int notused1 = 0; it1.hasNext(); ++notused1) {
+            LexedParsedToken tok = (LexedParsedToken)it1.next();
+            this.compileDef((BlockToken)tok);
         }
 
     }
@@ -321,8 +326,11 @@ public class ClassInfo {
     }
 
     void runMethodMacros() {
-        for(int i = 3; i != this.toks.size(); ++i) {
-            LexedParsedToken tok = (LexedParsedToken)this.toks.get(i);
+        List iterable = this.toks;
+        Iterator it = iterable.iterator();
+
+        for(int notused = 0; it.hasNext(); ++notused) {
+            LexedParsedToken tok = (LexedParsedToken)it.next();
             if(tok instanceof BlockToken && (LexedParsedToken)((BlockToken)tok).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)tok).toks.get(0))).val.endsWith("!")) {
                 this.runMethodMacro((BlockToken)tok);
             }

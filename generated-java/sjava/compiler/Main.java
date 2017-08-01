@@ -47,6 +47,7 @@ import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.mfilters.MethodCall;
 import sjava.compiler.tokens.ArrayToken;
+import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.VToken;
@@ -467,7 +468,7 @@ public class Main {
         return var10000;
     }
 
-    public static List<Type> getParams(ClassInfo ci, LexedParsedToken tok, LinkedHashMap scope, int i, int o) {
+    public static List<Type> getParams(ClassInfo ci, BlockToken tok, LinkedHashMap scope, int i, int o) {
         int n = (tok.toks.size() - i) / 2;
         ArrayList types = new ArrayList(n);
 
@@ -868,7 +869,6 @@ public class Main {
         } else if(t instanceof ParameterizedType) {
             ParameterizedType t2 = (ParameterizedType)t;
             ArrayList toks = new ArrayList();
-            toks.add(typeToTok(t2.getRawType()));
             Type[] array = t2.getTypeArgumentTypes();
 
             for(int notused = 0; notused != array.length; ++notused) {
@@ -876,7 +876,7 @@ public class Main {
                 toks.add(typeToTok(ta));
             }
 
-            var10000 = new GenericToken(-1, toks);
+            var10000 = new GenericToken(-1, typeToTok(t2.getRawType()), toks);
         } else {
             var10000 = new VToken(-1, t.getName());
         }

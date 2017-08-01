@@ -5,15 +5,20 @@ import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
 
 public class GenericToken extends ParsedToken {
-    public GenericToken(int line, List<LexedParsedToken> toks) {
-        super(line, toks);
+    public LexedParsedToken tok;
+    public List<LexedParsedToken> toks;
+
+    public GenericToken(int line, LexedParsedToken tok, List<LexedParsedToken> toks) {
+        super(line);
+        this.tok = tok;
+        this.toks = toks;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append((LexedParsedToken)super.toks.get(0));
+        sb.append(this.tok);
         sb.append("{");
-        sb.append(this.toksString(super.toks.subList(1, super.toks.size())));
+        sb.append(this.toksString(this.toks));
         sb.append("}");
         return sb.toString();
     }

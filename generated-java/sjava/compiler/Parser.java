@@ -81,12 +81,11 @@ public class Parser {
             if(w1.equals(":")) {
                 this.next();
                 LexedParsedToken right = this.parse(1);
-                left = new ColonToken(t.line, new ArrayList(Arrays.asList(new Object[]{left, right})));
+                left = new ColonToken(t.line, (LexedParsedToken)left, right);
             } else if(w1.equals("{")) {
                 this.next();
                 ArrayList toks1 = this.subToks("}");
-                toks1.add(0, left);
-                left = new GenericToken(t.line, toks1);
+                left = new GenericToken(t.line, (LexedParsedToken)left, toks1);
             } else if(w1.equals("[")) {
                 this.next();
                 ArrayList toks2 = this.subToks("]");

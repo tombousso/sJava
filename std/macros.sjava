@@ -31,13 +31,13 @@
 	(define item VToken
 		(if (instance? vars VToken)
 			vars
-			(vars:toks:get 0)
+			((as BlockToken vars):toks:get 0)
 		)
 	)
 	(define index VToken
 		(if (instance? vars VToken)
 			`notused
-			(vars:toks:get 1)
+			((as BlockToken vars):toks:get 1)
 		)
 	)
 	(if (instance? (type iterable) ArrayType)
@@ -90,13 +90,13 @@
 	(define item VToken
 		(if (instance? vars VToken)
 			vars
-			(vars:toks:get 0)
+			((as BlockToken vars):toks:get 0)
 		)
 	)
 	(define i VToken
 		(if (instance? vars VToken)
 			`i
-			(vars:toks:get 1)
+			((as BlockToken vars):toks:get 1)
 		)
 	)
 	(define arrElement `(begin (define ,item ,itemT) (define ,i int) ,block))
@@ -125,8 +125,8 @@
 )
 (define-macro (let inits @block)
 	(define defines
-		(mapA init inits:toks
-			`(define ,init:toks)
+		(mapA init (as BlockToken inits):toks
+			`(define ,(as BlockToken init):toks)
 		)
 	)
 	`(begin
@@ -163,7 +163,7 @@
 	`(for ((i ,n)) (> i 0) (dec i) ,block)
 )
 (define-macro (cond @cases)
-	(define out (aget cases (- (alen cases) 1)))
+	(define out BlockToken (aget cases (- (alen cases) 1)))
 	(define n
 		(if
 			(&&
@@ -181,7 +181,7 @@
 		)
 	)
 	(for ((i (- (alen cases) n))) (>= i 0) (dec i)
-		(define case (aget cases i))
+		(define case BlockToken (aget cases i))
 		(set out
 			`(if ,(case:toks:get 0)
 				(begin
@@ -196,6 +196,7 @@
 (define-macro (instanceCond var @cases)
 	(define newCases
 		(mapA case cases
+			(define case BlockToken case)
 			(if
 				(&&
 					(instance? (case:toks:get 0) ConstToken)
@@ -216,6 +217,7 @@
 (define-macro (doubleDispatch call arg)
 	(define j 1)
 	(define special 0)
+	(define call BlockToken call)
 	(while (&& (!= j (call:toks:size)) (= special 0))
 		(define arg VToken (call:toks:get j))
 		(if (arg:val:equals "_")
@@ -225,7 +227,7 @@
 	)
 	(call:toks:set special arg)
 	(define conds (ArrayList))
-	(define mname (as VToken ((call:toks:get 0):toks:get 1)):val)
+	(define mname (as VToken (as ColonToken (call:toks:get 0)):right):val)
 	(define nargs (alen (mi:method:getParameterTypes)))
 	(forEach omi mi:ci:methods
 		(if
@@ -255,6 +257,7 @@
 	`(begin
 		(define obj ,obj)
 		,(mapA call calls
+			(define call BlockToken call)
 			`(obj:,(call:toks:get 0) ,(call:toks:subList 1 (call:toks:size)))
 		)
 		obj
@@ -263,6 +266,7 @@
 (define-macro (chain obj @calls)
 	(define out obj)
 	(forEach call calls
+		(define call BlockToken call)
 		(set out `((unquote out):(unquote (call:toks:get 0)) ,(call:toks:subList 1 (call:toks:size))))
 	)
 	out
@@ -289,6 +293,7 @@
 	(define scope (LinkedHashMap))
 	(define arg 1)
 	(define sets (ArrayList{Token}))
+	(define params BlockToken params)
 	(for ((i 0)) (< i (params:toks:size)) (inc i)
 		(define param (params:toks:get i))
 		(instanceCond param
@@ -350,7 +355,7 @@
 				(define props (ArrayList{LexedParsedToken}))
 				(define i 1)
 				(for () (&& (< i size) (instance? (tag:toks:get i) ArrayToken)) (inc i)
-					(define tok (tag:toks:get i))
+					(define tok ArrayToken (tag:toks:get i))
 					(props:add
 						(if (= (tok:toks:size) 1)
 							`(begin

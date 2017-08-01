@@ -306,7 +306,7 @@ public class AMethodInfo {
         return this.transformToks(l, true);
     }
 
-    public Token transformForm(LexedParsedToken block, boolean transform) {
+    public Token transformForm(BlockToken block, boolean transform) {
         String val = ((VToken)((LexedParsedToken)block.toks.get(0))).val;
         List rest = block.toks.subList(1, block.toks.size());
         if(val.equals("unquote")) {
@@ -322,7 +322,7 @@ public class AMethodInfo {
                 }
 
                 if(val.equals("object")) {
-                    LexedParsedToken superTok = (LexedParsedToken)rest.get(0);
+                    BlockToken superTok = (BlockToken)((LexedParsedToken)rest.get(0));
                     return new ObjectToken(block.line, this.getType((LexedParsedToken)superTok.toks.get(0)), superTok.toks.subList(1, superTok.toks.size()), rest.subList(1, rest.size()));
                 }
 
@@ -330,13 +330,13 @@ public class AMethodInfo {
                     LinkedHashMap scope = new LinkedHashMap();
                     boolean FunctionN = (LexedParsedToken)rest.get(0) instanceof BlockToken;
                     if(FunctionN) {
-                        List params = Main.getParams(this.ci, (LexedParsedToken)rest.get(0), scope, 0, 1);
+                        List params = Main.getParams(this.ci, (BlockToken)((LexedParsedToken)rest.get(0)), scope, 0, 1);
                         return new LambdaFnToken(block.line, (Type)null, scope, params, rest.subList(1, rest.size()));
                     }
 
                     Type t = this.getType((LexedParsedToken)rest.get(0));
                     Method sam = ((ClassType)t.getRawType()).checkSingleAbstractMethod();
-                    LexedParsedToken args = (LexedParsedToken)rest.get(1);
+                    BlockToken args = (BlockToken)((LexedParsedToken)rest.get(1));
                     ArrayList params1 = new ArrayList(args.toks.size());
                     List iterable = args.toks;
                     Iterator it = iterable.iterator();
@@ -396,10 +396,10 @@ public class AMethodInfo {
                 }
 
                 if(val.equals("try")) {
-                    boolean hasFinally = rest.size() != 1 && (LexedParsedToken)((LexedParsedToken)rest.get(rest.size() - 1)).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((LexedParsedToken)rest.get(rest.size() - 1)).toks.get(0))).val.equals("finally");
+                    boolean hasFinally = rest.size() != 1 && (LexedParsedToken)((BlockToken)((LexedParsedToken)rest.get(rest.size() - 1))).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)rest.get(rest.size() - 1))).toks.get(0))).val.equals("finally");
                     List finallyToks = (List)null;
                     if(hasFinally) {
-                        List finallyToks1 = ((LexedParsedToken)rest.get(rest.size() - 1)).toks;
+                        List finallyToks1 = ((BlockToken)((LexedParsedToken)rest.get(rest.size() - 1))).toks;
                         this.transformToks(finallyToks1.subList(1, finallyToks1.size()));
                         rest = rest.subList(0, rest.size() - 1);
                     }
@@ -410,7 +410,8 @@ public class AMethodInfo {
 
                     for(int i1 = 0; it1.hasNext(); ++i1) {
                         LexedParsedToken var29 = (LexedParsedToken)it1.next();
-                        out[i1] = new Tuple3((VToken)((LexedParsedToken)var29.toks.get(0)), this.getType((LexedParsedToken)var29.toks.get(1)), this.transformToks(var29.toks.subList(2, var29.toks.size())));
+                        BlockToken var30 = (BlockToken)var29;
+                        out[i1] = new Tuple3((VToken)((LexedParsedToken)var30.toks.get(0)), this.getType((LexedParsedToken)var30.toks.get(1)), this.transformToks(var30.toks.subList(2, var30.toks.size())));
                     }
 
                     return new TryToken(block.line, this.transformBlock((LexedParsedToken)rest.get(0)), Arrays.asList(out), finallyToks);
@@ -501,7 +502,7 @@ public class AMethodInfo {
         if(!(block instanceof BlockToken)) {
             if(block instanceof ColonToken) {
                 ColonToken block2 = (ColonToken)block;
-                return (Token)(transform?new FieldToken(block2.line, this.transformBlock((LexedParsedToken)block2.toks.get(0)), ((VToken)((LexedParsedToken)block2.toks.get(1))).val):new ColonToken(block2.line, Main.toLexedParsed(this.transformToks(block2.toks, transform))));
+                return (Token)(transform?new FieldToken(block2.line, this.transformBlock(block2.left), ((VToken)block2.right).val):new ColonToken(block2.line, (LexedParsedToken)this.transformBlock(block2.left, transform), (LexedParsedToken)this.transformBlock(block2.right, transform)));
             } else if(block instanceof QuoteToken) {
                 QuoteToken block3 = (QuoteToken)block;
                 return (Token)(transform?new QuoteToken2(block3.line, this.transformBlock((LexedParsedToken)block3.toks.get(0), (LexedParsedToken)block3.toks.get(0) instanceof UnquoteToken)):new QuoteToken(block3.line, Main.toLexedParsed(this.transformToks(block3.toks, false))));
@@ -513,7 +514,7 @@ public class AMethodInfo {
                 if(transform) {
                     throw new RuntimeException();
                 } else {
-                    return new GenericToken(block5.line, Main.toLexedParsed(this.transformToks(block5.toks, transform)));
+                    return new GenericToken(block5.line, (LexedParsedToken)this.transformBlock(block5.tok, transform), Main.toLexedParsed(this.transformToks(block5.toks, transform)));
                 }
             } else if(block instanceof ArrayToken) {
                 ArrayToken block6 = (ArrayToken)block;
@@ -537,8 +538,8 @@ public class AMethodInfo {
                         return new ConstructorToken(block1.line, type, this.transformToks(rest));
                     } else {
                         Token len = (Token)null;
-                        if(rest.size() != 0 && (LexedParsedToken)rest.get(0) instanceof ColonToken && (LexedParsedToken)((ColonToken)((LexedParsedToken)rest.get(0))).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((ColonToken)((LexedParsedToken)rest.get(0))).toks.get(0))).val.equals("len")) {
-                            len = this.transformBlock((LexedParsedToken)((ColonToken)((LexedParsedToken)rest.get(0))).toks.get(1));
+                        if(rest.size() != 0 && (LexedParsedToken)rest.get(0) instanceof ColonToken && ((ColonToken)((LexedParsedToken)rest.get(0))).left instanceof VToken && ((VToken)((ColonToken)((LexedParsedToken)rest.get(0))).left).val.equals("len")) {
+                            len = this.transformBlock(((ColonToken)((LexedParsedToken)rest.get(0))).right);
                             rest = rest.subList(1, rest.size());
                         } else {
                             ArrayToken tok;
@@ -561,7 +562,7 @@ public class AMethodInfo {
                         }
                     } else if(transform && (LexedParsedToken)block1.toks.get(0) instanceof ColonToken) {
                         ColonToken first = (ColonToken)((LexedParsedToken)block1.toks.get(0));
-                        CallToken out = new CallToken(block1.line, this.transformBlock((LexedParsedToken)first.toks.get(0), true), ((VToken)((LexedParsedToken)first.toks.get(1))).val, this.transformToks(block1.toks.subList(1, block1.toks.size())));
+                        CallToken out = new CallToken(block1.line, this.transformBlock(first.left, true), ((VToken)first.right).val, this.transformToks(block1.toks.subList(1, block1.toks.size())));
                         return out;
                     }
 

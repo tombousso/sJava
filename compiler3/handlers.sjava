@@ -522,7 +522,7 @@
 							(if output (this:code:emitPutField (type:getField "macro")))
 						)
 					)
-					(Main:getCompilerType "tokens.LexedParsedToken")
+					type
 				)
 				(String
 					(if output (this:code:emitPushString o))
@@ -590,7 +590,7 @@
 	)
 	((compile tok QuoteToken2 mi AMethodInfo needed Type) Type public
 		(define output (!= this:code null))
-		(this:castMaybe (this:compileQuasi tok:tok mi this:code (Main:getCompilerType "tokens.LexedParsedToken")) needed)
+		(this:castMaybe (this:compileQuasi tok:tok mi this:code Main:unknownType) needed)
 	)
 	((compile tok ConstToken mi AMethodInfo needed Type) Type public
 		(define output (!= this:code null))
@@ -732,7 +732,7 @@
 									(ci:c:setSuper tok:t)
 								)
 								(forEach tok tok:toks
-									(ci:compileDef tok)
+									(ci:compileDef (as BlockToken tok))
 								)
 							)
 						)

@@ -73,10 +73,6 @@ public class Formatter {
         return line;
     }
 
-    static int formatToks(LexedParsedToken block, int tabs, String before, String after, StringBuffer sb) {
-        return formatToks(block, tabs, before, after, sb, block.toks);
-    }
-
     static String formatToks(List<LexedParsedToken> toks) {
         StringBuffer sb = new StringBuffer();
         int line = toks.size() != 0?((LexedParsedToken)toks.get(0)).line:1;
@@ -105,20 +101,20 @@ public class Formatter {
         line = tok.line;
         if(tok instanceof BlockToken) {
             BlockToken tok1 = (BlockToken)tok;
-            formatToks(tok1, tabs, "(", ")", sb);
+            formatToks(tok1, tabs, "(", ")", sb, tok1.toks);
         } else if(tok instanceof GenericToken) {
             GenericToken tok2 = (GenericToken)tok;
-            formatTok((LexedParsedToken)tok2.toks.get(0), line, line, tabs, sb);
-            formatToks(tok2, tabs, "{", "}", sb, tok2.toks.subList(1, tok2.toks.size()));
+            formatTok(tok2.tok, line, line, tabs, sb);
+            formatToks(tok2, tabs, "{", "}", sb, tok2.toks);
         } else if(tok instanceof ArrayToken) {
             ArrayToken tok3 = (ArrayToken)tok;
             formatTok((LexedParsedToken)tok3.toks.get(0), line, line, tabs, sb);
             formatToks(tok3, tabs, "[", "]", sb, tok3.toks.subList(1, tok3.toks.size()));
         } else if(tok instanceof ColonToken) {
             ColonToken tok4 = (ColonToken)tok;
-            line = formatTok((LexedParsedToken)tok4.toks.get(0), line, line, tabs, sb);
+            line = formatTok(tok4.left, line, line, tabs, sb);
             sb.append(":");
-            formatTok((LexedParsedToken)tok4.toks.get(1), line, line, tabs, sb);
+            formatTok(tok4.right, line, line, tabs, sb);
         } else if(tok instanceof SingleQuoteToken) {
             SingleQuoteToken tok5 = (SingleQuoteToken)tok;
             sb.append("\'");
@@ -136,10 +132,6 @@ public class Formatter {
             sb.append(";");
             sb.append(tok8.val);
         } else {
-            if(tok.toks != null) {
-                throw new RuntimeException();
-            }
-
             sb.append(tok.toString());
         }
 

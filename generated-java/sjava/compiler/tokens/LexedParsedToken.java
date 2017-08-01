@@ -5,17 +5,11 @@ import java.util.List;
 import sjava.compiler.tokens.Token;
 
 public class LexedParsedToken extends Token {
-    public List<LexedParsedToken> toks;
     public int endLine;
     public transient Token transformed;
 
     public LexedParsedToken(int line) {
         super(line);
-    }
-
-    public LexedParsedToken(int line, List<LexedParsedToken> toks) {
-        super(line);
-        this.toks = toks;
     }
 
     String toksString(List<LexedParsedToken> l) {
@@ -31,10 +25,6 @@ public class LexedParsedToken extends Token {
         }
 
         return s.toString();
-    }
-
-    String toksString() {
-        return this.toksString(this.toks);
     }
 
     public int firstLine() {

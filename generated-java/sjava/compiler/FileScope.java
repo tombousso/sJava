@@ -53,7 +53,7 @@ public class FileScope {
         this.starImports.add("sjava.std.");
         this.newClasses = new ArrayList();
         this.macros = new ArrayList();
-        this.package_ = toks.size() > 0 && (LexedParsedToken)toks.get(0) instanceof BlockToken && (LexedParsedToken)((LexedParsedToken)toks.get(0)).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((LexedParsedToken)toks.get(0)).toks.get(0))).val.equals("package")?((VToken)((LexedParsedToken)((LexedParsedToken)toks.get(0)).toks.get(1))).val.concat("."):"";
+        this.package_ = toks.size() > 0 && (LexedParsedToken)toks.get(0) instanceof BlockToken && (LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(0))).val.equals("package")?((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(1))).val.concat("."):"";
         MacroInfo includes = new MacroInfo("Includes", this);
         this.includes = includes;
         includes.c.setModifiers(Access.PUBLIC);
@@ -77,10 +77,10 @@ public class FileScope {
         ClassType var10000;
         if(tok instanceof GenericToken) {
             GenericToken tok1 = (GenericToken)tok;
-            ClassType c = new ClassType(this.package_.concat(((VToken)((LexedParsedToken)tok1.toks.get(0))).val));
-            List params = tok1.toks.subList(1, tok1.toks.size());
-            TypeVariable[] tparams = new TypeVariable[params.size()];
-            Iterator it = params.iterator();
+            ClassType c = new ClassType(this.package_.concat(((VToken)tok1.tok).val));
+            TypeVariable[] tparams = new TypeVariable[tok1.toks.size()];
+            List iterable = tok1.toks;
+            Iterator it = iterable.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {
                 LexedParsedToken param = (LexedParsedToken)it.next();
@@ -107,7 +107,7 @@ public class FileScope {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             LexedParsedToken tok = (LexedParsedToken)it.next();
-            this.compileRoot(tok);
+            this.compileRoot((BlockToken)tok);
         }
 
     }
@@ -135,27 +135,33 @@ public class FileScope {
         return varargs;
     }
 
-    void compileRoot(LexedParsedToken tok) {
+    void compileRoot(BlockToken tok) {
         if((LexedParsedToken)tok.toks.get(0) instanceof VToken) {
             VToken first = (VToken)((LexedParsedToken)tok.toks.get(0));
             if(first.val.equals("define-class")) {
                 ClassType c = this.getNewType((LexedParsedToken)tok.toks.get(1));
                 String name = c.getName();
                 ClassInfo ci = new ClassInfo(c, this);
-                ci.toks = tok.toks;
+                ci.supers = (BlockToken)((LexedParsedToken)tok.toks.get(2));
                 this.newClasses.add(ci);
                 this.locals.put(name, ci.c);
                 boolean run = true;
+                int i = 3;
 
-                for(int i = 3; run && i != tok.toks.size(); ++i) {
+                while(run && i != tok.toks.size()) {
                     run = Main.compileClassMod((LexedParsedToken)tok.toks.get(i), ci.c);
+                    if(run) {
+                        ++i;
+                    }
                 }
+
+                ci.toks = tok.toks.subList(i, tok.toks.size());
             } else if(first.val.equals("import")) {
                 String var8 = ((VToken)((LexedParsedToken)tok.toks.get(1))).val;
                 if(var8.equals("%tokens%")) {
                     this.starImports.add("sjava.compiler.tokens.");
-                } else if(var8.contains("*")) {
-                    this.starImports.add(var8.replace("*", ""));
+                } else if(var8.endsWith("*")) {
+                    this.starImports.add(var8.substring(0, var8.length() - 1));
                 } else {
                     this.imports.put(var8.substring(var8.lastIndexOf(".") + 1), var8);
                 }
