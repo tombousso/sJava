@@ -61,7 +61,7 @@
 )
 
 (define-class LexedToken (LexedParsedToken) public
-	(prec int public)
+	(prec int public transient)
 	(what String public)
 	((<init> line int) void public
 		(super:<init> line)
