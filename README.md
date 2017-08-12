@@ -291,21 +291,6 @@ If the inverse comparator argument is true when a conditional needs to be emitte
 
 Sounds a bit confusing but it works through the magic of recursion :)
 
-#### Types
-The compile methods take in a "needed" Type (among other things) and return the Type which the operation results in. Consider:
-
-	(define a double 5)
-
-This sJava code defines a variable of type double and sets it to 5.0. compile will be called on the token "5" with "needed" set to Type:doubleType and so it will convert the integer 5 to a double 5.0 to meet the "needed" requirement.
-
-#### Generics
-The JVM doesn't support generics and so they are implemented in Java using type erasure. Generics give the compiler extra information to work with during compile time, but to the JVM all Map objects are Map\<Object, Object>. 
-
-In the generics.sjava example, the variable doesn't have a given type and so the token (ArrayList{Integer}) will run with "needed" set to unknownType by the code for define. The variable's type will become the return value of the compile method, which will be ArrayList{Integer}. These defines are equivalent:
-
-	(define al ArrayList{Integer} (ArrayList{Integer}))
-	(define al (ArrayList{Integer}))
-
 ### Final thoughts
 gnu.bytecode makes it easy to create classfiles and the JVM will do many optimizations as it's JITing so the bytecode doesn't really need much optimization. Also there are bytecode optimizers like ProGuard which can help with performance. Unlike the CLR which was designed by Microsoft to be the platform for many languages, the JVM was originally designed only for Java (no standard assembly language or assembler, etc), and so it seems like there are less languages which target the JVM.
 
