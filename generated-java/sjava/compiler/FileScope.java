@@ -42,11 +42,10 @@ public class FileScope {
     ArrayList<MacroInfo> methodMacros;
     public HashMap<String, List<MacroInfo>> methodMacroNames;
 
-    FileScope(CompileScope cs, String path, List<LexedParsedToken> toks, HashMap locals) {
+    FileScope(CompileScope cs, String path, List<LexedParsedToken> toks) {
         this.cs = cs;
         this.path = path;
         this.toks = toks;
-        this.locals = locals;
         this.imports = new HashMap();
         this.starImports = new ArrayList();
         this.starImports.add("java.lang.");
@@ -58,6 +57,9 @@ public class FileScope {
         this.includes = includes;
         includes.c.setModifiers(Access.PUBLIC);
         this.methodMacros = new ArrayList();
+        this.locals = cs.locals;
+        this.macroNames = cs.macroNames;
+        this.methodMacroNames = cs.methodMacroNames;
     }
 
     void compileMacros() {

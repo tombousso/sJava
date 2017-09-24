@@ -149,17 +149,14 @@
 		)
 		(define arg (aget args 0))
 		(if (Main:commands:containsKey arg)
-			(try
-				(begin
-					(define cmd (Main:commands:get arg))
-					(set args (Arrays:copyOfRange args 1 (alen args)))
-					(define commandLine (cmd:parse args))
-					(if (commandLine:hasOption "h")
-						(cmd:printHelp)
-						(cmd:run commandLine (commandLine:getArgList))
-					)
+			(begin
+				(define cmd (Main:commands:get arg))
+				(set args (Arrays:copyOfRange args 1 (alen args)))
+				(define commandLine (cmd:parse args))
+				(if (commandLine:hasOption "h")
+					(cmd:printHelp)
+					(cmd:run commandLine (commandLine:getArgList))
 				)
-				(e ParseException (e:printStackTrace))
 			)
 			(Main:printHelp)
 		)
@@ -1175,8 +1172,8 @@
 
 (define-class CompileScope () public
 	(locals HashMap{String ClassType})
-	(macroNames HashMap{String MacroInfo})
-	(methodMacroNames HashMap{String MacroInfo})
+	(macroNames HashMap{String List{MacroInfo}})
+	(methodMacroNames HashMap{String List{MacroInfo}})
 	(mcl ArrayClassLoader)
 	(found HashMap{String Boolean})
 	(macroIndex int)

@@ -5,7 +5,6 @@ import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
 import gnu.bytecode.CodeAttr;
-import gnu.bytecode.Label;
 import gnu.bytecode.Method;
 import gnu.bytecode.ParameterizedType;
 import gnu.bytecode.PrimType;
@@ -28,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
@@ -172,18 +170,14 @@ public class Main {
             printHelp();
         } else {
             String arg = args[0];
-            args = (String[])Arrays.copyOfRange(args, 1, args.length);
             if(commands.containsKey(arg)) {
-                try {
-                    Command cmd = (Command)commands.get(arg);
-                    CommandLine commandLine = cmd.parser.parse(cmd.options, args);
-                    if(commandLine.hasOption("h")) {
-                        cmd.printHelp();
-                    } else {
-                        cmd.run(commandLine, commandLine.getArgList());
-                    }
-                } catch (ParseException var5) {
-                    var5.printStackTrace();
+                Command cmd = (Command)commands.get(arg);
+                args = (String[])Arrays.copyOfRange(args, 1, args.length);
+                CommandLine commandLine = cmd.parse(args);
+                if(commandLine.hasOption("h")) {
+                    cmd.printHelp();
+                } else {
+                    cmd.run(commandLine, commandLine.getArgList());
                 }
             } else {
                 printHelp();
@@ -247,8 +241,15 @@ public class Main {
 
     public static List<FileScope> compile(Collection<File> files) {
         ArrayList mFiles = new ArrayList();
-        String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String pre = System.getProperty("sjava.home") != null?System.getProperty("sjava.home"):(path.endsWith(".jar")?(new File(path)).getParent():".");
+        String var10000;
+        if(System.getProperty("sjava.home") != null) {
+            var10000 = System.getProperty("sjava.home");
+        } else {
+            String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+            var10000 = path.endsWith(".jar")?(new File(path)).getParent():".";
+        }
+
+        String pre = var10000;
         StringBuilder sb = new StringBuilder();
         sb.append(pre);
         sb.append("/std/macros.sjava");
@@ -269,14 +270,14 @@ public class Main {
 
             int line = Formatter.checkFormatted(code);
             if(line != -1) {
-                PrintStream var10000 = System.out;
+                PrintStream var15 = System.out;
                 StringBuilder sb1 = new StringBuilder();
                 sb1.append("Warning: ");
                 sb1.append(file);
                 sb1.append(" isn\'t formatted (line ");
                 sb1.append(line);
                 sb1.append(")");
-                var10000.println(sb1.toString());
+                var15.println(sb1.toString());
             }
 
             files1.put(file, parse(code, new Lexer(), new Parser()));
@@ -287,19 +288,14 @@ public class Main {
 
     public static List<FileScope> compile(HashMap<File, List<LexedParsedToken>> files) {
         CompileScope cs = new CompileScope();
-        HashMap locals = new HashMap();
         ArrayList fileScopes = new ArrayList();
-        HashMap macroNames = new HashMap();
-        HashMap methodMacroNames = new HashMap();
         Set iterable = files.entrySet();
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
             List toks = (List)entry.getValue();
-            FileScope fs = new FileScope(cs, ((File)entry.getKey()).toString(), toks, locals);
-            fs.macroNames = macroNames;
-            fs.methodMacroNames = methodMacroNames;
+            FileScope fs = new FileScope(cs, ((File)entry.getKey()).toString(), toks);
             fileScopes.add(fs);
             fs.compileRoot();
         }
@@ -600,46 +596,6 @@ public class Main {
 
     public static Type compareType(Type[] types) {
         return (Type)(allNumeric(types)?numericOpType(types):(Collections.frequency(Arrays.asList(types), Type.booleanType) + Collections.frequency(Arrays.asList(types), ClassType.make("java.lang.Boolean")) == types.length?Type.booleanType:Type.objectType));
-    }
-
-    public static void emitGotoIf(Type otype, String invCompare, String compare, Label label, CodeAttr code) {
-        boolean output = code != null;
-        if(otype != Type.doubleType && otype != Type.floatType) {
-            if(output) {
-                code.emitGotoIfCompare2(label, ((Integer)compare2Ops.get(invCompare)).intValue());
-            }
-        } else {
-            boolean lt = compare.equals("<") || compare.equals("<=");
-            int op = otype == Type.doubleType?(lt?151:152):(lt?149:150);
-            if(output) {
-                code.emitPrimop(op, 2, Type.intType);
-            }
-
-            if(invCompare.equals(">")) {
-                if(output) {
-                    code.emitGotoIfIntLeZero(label);
-                }
-            } else if(invCompare.equals(">=")) {
-                if(output) {
-                    code.emitGotoIfIntLtZero(label);
-                }
-            } else if(invCompare.equals("<")) {
-                if(output) {
-                    code.emitGotoIfIntGeZero(label);
-                }
-            } else if(invCompare.equals("<=")) {
-                if(output) {
-                    code.emitGotoIfIntGtZero(label);
-                }
-            } else if(invCompare.equals("=")) {
-                if(output) {
-                    code.emitGotoIfIntNeZero(label);
-                }
-            } else if(invCompare.equals("!=") && output) {
-                code.emitGotoIfIntEqZero(label);
-            }
-        }
-
     }
 
     public static int compare(Type a, Type b) {

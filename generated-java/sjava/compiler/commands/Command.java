@@ -6,6 +6,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 public abstract class Command {
     public DefaultParser parser = new DefaultParser();
@@ -35,6 +36,15 @@ public abstract class Command {
         sb.append(" ");
         sb.append(this.helpArgs());
         var10000.printHelp(sb.toString(), this.helpHeader(), this.options, this.helpFooter());
+    }
+
+    public CommandLine parse(String[] args) {
+        try {
+            CommandLine var2 = this.parser.parse(this.options, args);
+            return var2;
+        } catch (ParseException var4) {
+            throw new RuntimeException(var4);
+        }
     }
 
     public abstract void run(CommandLine var1, List<String> var2);

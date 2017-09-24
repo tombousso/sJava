@@ -226,6 +226,46 @@ public class GenHandler extends Handler {
         return new Tuple3(needed, trueCasts, falseCasts);
     }
 
+    public void emitGotoIf(Type otype, String invCompare, String compare, Label label) {
+        boolean output = this.code != null;
+        if(otype != Type.doubleType && otype != Type.floatType) {
+            if(output) {
+                this.code.emitGotoIfCompare2(label, ((Integer)Main.compare2Ops.get(invCompare)).intValue());
+            }
+        } else {
+            boolean lt = compare.equals("<") || compare.equals("<=");
+            int op = otype == Type.doubleType?(lt?151:152):(lt?149:150);
+            if(output) {
+                this.code.emitPrimop(op, 2, Type.intType);
+            }
+
+            if(invCompare.equals(">")) {
+                if(output) {
+                    this.code.emitGotoIfIntLeZero(label);
+                }
+            } else if(invCompare.equals(">=")) {
+                if(output) {
+                    this.code.emitGotoIfIntLtZero(label);
+                }
+            } else if(invCompare.equals("<")) {
+                if(output) {
+                    this.code.emitGotoIfIntGeZero(label);
+                }
+            } else if(invCompare.equals("<=")) {
+                if(output) {
+                    this.code.emitGotoIfIntGtZero(label);
+                }
+            } else if(invCompare.equals("=")) {
+                if(output) {
+                    this.code.emitGotoIfIntNeZero(label);
+                }
+            } else if(invCompare.equals("!=") && output) {
+                this.code.emitGotoIfIntEqZero(label);
+            }
+        }
+
+    }
+
     public Tuple3<Type, List<Tuple2<VToken, Type>>, List<Tuple2<VToken, Type>>> emitIf_(boolean inv, List<Token> toks, String compare, Emitter trueE, Emitter falseE, AMethodInfo mi, Type needed) {
         boolean output = this.code != null;
         ArrayList trueCasts = new ArrayList();
@@ -281,9 +321,9 @@ public class GenHandler extends Handler {
                     }
 
                     if(special) {
-                        Main.emitGotoIf(otype1, compare, compare, trueL1, this.code);
+                        this.emitGotoIf(otype1, compare, compare, trueL1);
                     } else {
-                        Main.emitGotoIf(otype1, invCompare, compare, falseLabel, this.code);
+                        this.emitGotoIf(otype1, invCompare, compare, falseLabel);
                     }
 
                     if(output) {
@@ -293,9 +333,9 @@ public class GenHandler extends Handler {
 
                 this.compile((Token)toks.get(toks.size() - 1), mi, otype1);
                 if(special) {
-                    Main.emitGotoIf(otype1, compare, compare, trueL1, this.code);
+                    this.emitGotoIf(otype1, compare, compare, trueL1);
                 } else {
-                    Main.emitGotoIf(otype1, invCompare, compare, falseLabel, this.code);
+                    this.emitGotoIf(otype1, invCompare, compare, falseLabel);
                 }
 
                 if(special && output) {
