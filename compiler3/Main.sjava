@@ -148,12 +148,12 @@
 			)
 		)
 		(define arg (aget args 0))
-		(set args (Arrays:copyOfRange args 1 (alen args)))
 		(if (Main:commands:containsKey arg)
 			(try
 				(begin
 					(define cmd (Main:commands:get arg))
-					(define commandLine (cmd:parser:parse cmd:options args))
+					(set args (Arrays:copyOfRange args 1 (alen args)))
+					(define commandLine (cmd:parse args))
 					(if (commandLine:hasOption "h")
 						(cmd:printHelp)
 						(cmd:run commandLine (commandLine:getArgList))
@@ -186,13 +186,14 @@
 	)
 	((compile files Collection{File}) List{FileScope} public static
 		(define mFiles (ArrayList{File}))
-		(define path (((((class Main):getProtectionDomain):getCodeSource):getLocation):getPath))
 		(define pre
 			(if (!= (System:getProperty "sjava.home") null)
 				(System:getProperty "sjava.home")
-				(if (path:endsWith ".jar")
-					((File path):getParent)
-					"."
+				(let ((path (((((class Main):getProtectionDomain):getCodeSource):getLocation):getPath)))
+					(if (path:endsWith ".jar")
+						((File path):getParent)
+						"."
+					)
 				)
 			)
 		)
@@ -213,16 +214,11 @@
 	)
 	((compile files HashMap{File List{LexedParsedToken}}) List{FileScope} public static
 		(define cs (CompileScope))
-		(define locals (HashMap))
 		(define fileScopes (ArrayList{FileScope}))
-		(define macroNames (HashMap{String MacroInfo}))
-		(define methodMacroNames (HashMap{String MacroInfo}))
 
 		(forEach entry (files:entrySet)
 			(define toks (entry:getValue))
-			(define fs (FileScope cs ((entry:getKey):toString) toks locals))
-			(set fs:macroNames macroNames)
-			(set fs:methodMacroNames methodMacroNames)
+			(define fs (FileScope cs ((entry:getKey):toString) toks))
 			(fileScopes:add fs)
 			(fs:compileRoot)
 		)
@@ -511,25 +507,6 @@
 				Type:booleanType
 			)
 			(true Type:objectType)
-		)
-	)
-	((emitGotoIf otype Type invCompare String compare String label Label code CodeAttr) void public static
-		(define output (!= code null))
-		(if (|| (= otype Type:doubleType) (= otype Type:floatType))
-			(begin
-				(define lt (|| (compare:equals "<") (compare:equals "<=")))
-				(define op (if (= otype Type:doubleType) (if lt 151 152) (if lt 149 150)))
-				(if output (code:emitPrimop op 2 Type:intType))
-				(cond
-					((invCompare:equals ">") (if output (code:emitGotoIfIntLeZero label)))
-					((invCompare:equals ">=") (if output (code:emitGotoIfIntLtZero label)))
-					((invCompare:equals "<") (if output (code:emitGotoIfIntGeZero label)))
-					((invCompare:equals "<=") (if output (code:emitGotoIfIntGtZero label)))
-					((invCompare:equals "=") (if output (code:emitGotoIfIntNeZero label)))
-					((invCompare:equals "!=") (if output (code:emitGotoIfIntEqZero label)))
-				)
-			)
-			(if output (code:emitGotoIfCompare2 label (Main:compare2Ops:get invCompare)))
 		)
 	)
 	((compare a Type b Type) int public static
@@ -1197,13 +1174,19 @@
 )
 
 (define-class CompileScope () public
+	(locals HashMap{String ClassType})
+	(macroNames HashMap{String MacroInfo})
+	(methodMacroNames HashMap{String MacroInfo})
 	(mcl ArrayClassLoader)
 	(found HashMap{String Boolean})
 	(macroIndex int)
 	((<init>) void
 		(super:<init>)
+		(set this:locals (HashMap))
+		(set this:macroNames (HashMap))
+		(set this:methodMacroNames (HashMap))
 		(set this:mcl (Main:getClassLoader))
-		(set this:found (HashMap{String Boolean}))
+		(set this:found (HashMap))
 		(set this:macroIndex 0)
 	)
 	((classExists name String) bool
@@ -1241,12 +1224,11 @@
 	(macroNames HashMap{String List{MacroInfo}} public)
 	(methodMacros ArrayList{MacroInfo})
 	(methodMacroNames HashMap{String List{MacroInfo}} public)
-	((<init> cs CompileScope path String toks List{LexedParsedToken} locals HashMap) void
+	((<init> cs CompileScope path String toks List{LexedParsedToken}) void
 		(super:<init>)
 		(set this:cs cs)
 		(set this:path path)
 		(set this:toks toks)
-		(set this:locals locals)
 		(set this:imports (HashMap))
 		(set this:starImports (ArrayList))
 		(this:starImports:add "java.lang.")
@@ -1269,6 +1251,10 @@
 		(set this:includes includes)
 		(includes:c:setModifiers Access:PUBLIC)
 		(set this:methodMacros (ArrayList))
+
+		(set this:locals cs:locals)
+		(set this:macroNames cs:macroNames)
+		(set this:methodMacroNames cs:methodMacroNames)
 	)
 	((compileMacros) void
 		(forEach macro this:macros

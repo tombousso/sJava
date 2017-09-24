@@ -23,6 +23,9 @@
 	((printHelp) void public
 		((HelpFormatter):printHelp (concat "sjava " (this:name) " " (this:helpArgs)) (this:helpHeader) this:options (this:helpFooter))
 	)
+	((parse args String[]) CommandLine public
+		(this:parser:parse this:options args)
+	)
 	((run commandLine CommandLine args List{String}) void public abstract)
 )
 

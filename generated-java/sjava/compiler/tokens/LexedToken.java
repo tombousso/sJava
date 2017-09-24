@@ -3,7 +3,7 @@ package sjava.compiler.tokens;
 import sjava.compiler.tokens.LexedParsedToken;
 
 public class LexedToken extends LexedParsedToken {
-    public int prec;
+    public transient int prec;
     public String what;
 
     public LexedToken(int line) {

@@ -187,6 +187,25 @@
 		(this:emitTrueFalseClauses_ mi trueE falseE trueCasts falseCasts needed skipL trueL falseL)
 		(Tuple3 needed trueCasts falseCasts)
 	)
+	((emitGotoIf otype Type invCompare String compare String label Label) void public
+		(define output (!= this:code null))
+		(if (|| (= otype Type:doubleType) (= otype Type:floatType))
+			(begin
+				(define lt (|| (compare:equals "<") (compare:equals "<=")))
+				(define op (if (= otype Type:doubleType) (if lt 151 152) (if lt 149 150)))
+				(if output (this:code:emitPrimop op 2 Type:intType))
+				(cond
+					((invCompare:equals ">") (if output (this:code:emitGotoIfIntLeZero label)))
+					((invCompare:equals ">=") (if output (this:code:emitGotoIfIntLtZero label)))
+					((invCompare:equals "<") (if output (this:code:emitGotoIfIntGeZero label)))
+					((invCompare:equals "<=") (if output (this:code:emitGotoIfIntGtZero label)))
+					((invCompare:equals "=") (if output (this:code:emitGotoIfIntNeZero label)))
+					((invCompare:equals "!=") (if output (this:code:emitGotoIfIntEqZero label)))
+				)
+			)
+			(if output (this:code:emitGotoIfCompare2 label (Main:compare2Ops:get invCompare)))
+		)
+	)
 	;toks = condition
 	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
 		(define output (!= this:code null))
@@ -284,15 +303,15 @@
 						(for ((i 0)) (< i (alen vars)) (inc i)
 							(if output (this:code:emitLoad (aget vars i)))
 							(if special
-								(Main:emitGotoIf otype compare compare trueL this:code)
-								(Main:emitGotoIf otype invCompare compare falseLabel this:code)
+								(this:emitGotoIf otype compare compare trueL)
+								(this:emitGotoIf otype invCompare compare falseLabel)
 							)
 							(if output (this:code:emitLoad (aget vars i)))
 						)
 						(this:compile (toks:get (- (toks:size) 1)) mi otype)
 						(if special
-							(Main:emitGotoIf otype compare compare trueL this:code)
-							(Main:emitGotoIf otype invCompare compare falseLabel this:code)
+							(this:emitGotoIf otype compare compare trueL)
+							(this:emitGotoIf otype invCompare compare falseLabel)
 						)
 						(if special
 							(if output (this:code:emitGoto falseLabel))
