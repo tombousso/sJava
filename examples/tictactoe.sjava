@@ -52,10 +52,10 @@
 					(App:gc:setStroke Color:BLACK)
 
 					(App:gc:setLineWidth 1)
-					(App:gc:strokeLine App:cell 0 App:cell App:wh)
-					(App:gc:strokeLine (* 2 App:cell) 0 (* 2 App:cell) App:wh)
-					(App:gc:strokeLine 0 App:cell App:wh App:cell)
-					(App:gc:strokeLine 0 (* 2 App:cell) App:wh (* 2 App:cell))
+					(App:gc:strokeLine (+ App:cell 0.5) 0 (+ App:cell 0.5) App:wh)
+					(App:gc:strokeLine (+ (* 2 App:cell) 0.5) 0 (+ (* 2 App:cell) 0.5) App:wh)
+					(App:gc:strokeLine 0 (+ App:cell 0.5) App:wh (+ App:cell 0.5))
+					(App:gc:strokeLine 0 (+ (* 2 App:cell) 0.5) App:wh (+ (* 2 App:cell) 0.5))
 
 					(for ((x 0)) (< x 3) (inc x)
 						(for ((y 0)) (< y 3) (inc y)

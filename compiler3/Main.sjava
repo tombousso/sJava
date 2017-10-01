@@ -417,7 +417,7 @@
 			comp
 		)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type special bool) Tuple2{Type MethodCall} static public
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo needed Type special bool) Tuple2{Type MethodCall} static public
 		(define types (Emitter:emitAll emitters h mi null Main:unknownType))
 		;(System:out:println name)
 		;(System:out:println type)
@@ -427,12 +427,13 @@
 			(filter:searchDeclared)
 			(filter:searchAll)
 		)
-		(Main:emitInvoke h (filter:getMethodCall) emitters mi code needed special)
+		(Main:emitInvoke h (filter:getMethodCall) emitters mi needed special)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type) Tuple2{Type MethodCall} static public
-		(Main:emitInvoke h name type emitters mi code needed false)
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo needed Type) Tuple2{Type MethodCall} static public
+		(Main:emitInvoke h name type emitters mi needed false)
 	)
-	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type special bool) Tuple2{Type MethodCall} static public
+	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} mi AMethodInfo needed Type special bool) Tuple2{Type MethodCall} static public
+		(define code h:code)
 		(define output (!= code null))
 		(define method mc:m)
 		;(System:out:println method)
@@ -485,8 +486,8 @@
 		)
 		(Tuple2 (h:castMaybe out needed) mc)
 	)
-	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} mi AMethodInfo code CodeAttr needed Type) Tuple2{Type MethodCall} static public
-		(Main:emitInvoke h mc emitters mi code needed false)
+	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} mi AMethodInfo needed Type) Tuple2{Type MethodCall} static public
+		(Main:emitInvoke h mc emitters mi needed false)
 	)
 	((compareType types Type[]) Type public static
 		(cond

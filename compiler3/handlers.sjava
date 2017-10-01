@@ -773,7 +773,7 @@
 				(forEach v tok:captured
 					(emitters:add (LoadAVar v))
 				)
-				(Main:emitInvoke this "<init>" ci:c emitters mi this:code Main:unknownType)
+				(Main:emitInvoke this "<init>" ci:c emitters mi Main:unknownType)
 			)
 		)
 		(this:castMaybe tok:t needed)
@@ -1088,7 +1088,7 @@
 		(if (= t null)
 			(set t (this:compile tok:target mi this:code Main:unknownType))
 		)
-		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi this:code needed special):_1
+		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi needed special):_1
 	)
 	((compile tok DefaultToken mi AMethodInfo needed Type) Type public
 		(define output (!= this:code null))
@@ -1107,14 +1107,14 @@
 			)
 			(set method (method:getNext))
 		)
-		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi this:code needed):_1
+		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi needed):_1
 	)
 	((compile tok ConstructorToken mi AMethodInfo needed Type) Type public
 		(define output (!= this:code null))
 		(define class ClassType (tok:type:getRawType))
 		(if output (this:code:emitNew class))
 		(if output (this:code:emitDup))
-		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) mi this:code Main:unknownType):_2)
+		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) mi Main:unknownType):_2)
 		(if
 			(&&
 				(instance? tok:type ClassType)
