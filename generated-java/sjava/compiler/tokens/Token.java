@@ -2,7 +2,6 @@ package sjava.compiler.tokens;
 
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Type;
-import sjava.compiler.AMethodInfo;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.handlers.GenHandler;
 
@@ -14,8 +13,8 @@ public class Token extends Emitter {
         this.line = line;
     }
 
-    public Type emit(GenHandler h, AMethodInfo mi, CodeAttr code, Type needed) {
-        return h.compile(this, mi, code, needed);
+    public Type emit(GenHandler h, CodeAttr code, Type needed) {
+        return h.compile(this, code, needed);
     }
 
     public Token() {

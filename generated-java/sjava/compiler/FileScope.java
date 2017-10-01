@@ -68,7 +68,7 @@ public class FileScope {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             MacroInfo macro = (MacroInfo)it.next();
-            macro.compileMethods(GenHandler.inst);
+            macro.compileMethods();
             macro.addToClassLoader(this.cs.mcl);
             macro.rc = macro.getClazz(this.cs.mcl);
         }
@@ -251,24 +251,13 @@ public class FileScope {
 
     }
 
-    public void compileMethods(GenHandler h) {
-        List iterable = this.newClasses;
-        Iterator it = iterable.iterator();
-
-        for(int notused = 0; it.hasNext(); ++notused) {
-            ClassInfo newClass = (ClassInfo)it.next();
-            newClass.compileMethods(h);
-        }
-
-    }
-
     public void compileInclude(IncludeToken tok) {
         String name = "$".concat(Integer.toString(this.includes.c.getMethodCount()));
         LinkedHashMap scope = new LinkedHashMap();
         scope.put("mi", new Arg(Main.getCompilerType("AMethodInfo"), 0, 0));
         Type[] params = new Type[]{Main.getCompilerType("AMethodInfo"), Type.intType, Main.getCompilerType("handlers.GenHandler")};
         AMethodInfo mi = this.includes.addMethod(name, Arrays.asList(params), Main.getCompilerType("tokens.LexedParsedToken"), Access.PUBLIC | Access.STATIC, tok.toks, scope);
-        mi.compileMethodBody();
+        mi.compileMethodBody(new GenHandler(mi));
         tok.mi = mi;
     }
 }

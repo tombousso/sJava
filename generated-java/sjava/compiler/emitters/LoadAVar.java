@@ -2,7 +2,6 @@ package sjava.compiler.emitters;
 
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Type;
-import sjava.compiler.AMethodInfo;
 import sjava.compiler.AVar;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.handlers.GenHandler;
@@ -14,7 +13,7 @@ public class LoadAVar extends Emitter {
         this.avar = avar;
     }
 
-    public Type emit(GenHandler h, AMethodInfo mi, CodeAttr code, Type needed) {
+    public Type emit(GenHandler h, CodeAttr code, Type needed) {
         return this.avar.load(code);
     }
 }

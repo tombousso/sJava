@@ -4,7 +4,6 @@ import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Type;
 import java.util.Arrays;
 import java.util.List;
-import sjava.compiler.AMethodInfo;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.handlers.GenHandler;
 
@@ -19,7 +18,7 @@ public class Emitters extends Emitter {
         this.emitters = emitters;
     }
 
-    public Type[] emitAll(GenHandler h, AMethodInfo mi, CodeAttr code, Object needed) {
-        return Emitter.emitAll(this.emitters, h, mi, code, needed);
+    public Type[] emitAll(GenHandler h, CodeAttr code, Object needed) {
+        return Emitter.emitAll(this.emitters, h, code, needed);
     }
 }

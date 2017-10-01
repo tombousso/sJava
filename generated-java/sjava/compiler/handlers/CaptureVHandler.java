@@ -4,7 +4,6 @@ import gnu.bytecode.Access;
 import gnu.bytecode.CodeAttr;
 import gnu.bytecode.Field;
 import gnu.bytecode.Type;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.AVar;
@@ -17,27 +16,28 @@ class CaptureVHandler extends GenHandler {
     Map<AVar, Field> captured;
     int n;
 
-    CaptureVHandler(AMethodInfo enc) {
+    CaptureVHandler(AMethodInfo mi, AMethodInfo enc, Map captured) {
+        super(mi);
         this.enc = enc;
-        this.captured = new LinkedHashMap();
+        this.captured = captured;
     }
 
-    void assignField(VCaptured vcaptured, AMethodInfo mi, CodeAttr code) {
+    void assignField(VCaptured vcaptured, CodeAttr code) {
         boolean output = code != null;
         if(output && vcaptured.field == null) {
-            Field var5 = mi.ci.c.addField("captured$".concat(Integer.toString(this.n)), vcaptured.type, Access.SYNTHETIC);
+            Field var4 = super.mi.ci.c.addField("captured$".concat(Integer.toString(this.n)), vcaptured.type, Access.SYNTHETIC);
             ++this.n;
-            vcaptured.field = var5;
-            this.captured.put(vcaptured.avar, var5);
+            vcaptured.field = var4;
+            this.captured.put(vcaptured.avar, var4);
         }
 
     }
 
-    public Type compile(VToken tok, AMethodInfo mi, Type needed) {
+    public Type compile(VToken tok, Type needed) {
         boolean output = super.code != null;
-        AVar found = mi.getVar(tok);
+        AVar found = super.mi.getVar(tok);
         if(found instanceof VCaptured) {
-            this.assignField((VCaptured)found, mi, super.code);
+            this.assignField((VCaptured)found, super.code);
         }
 
         Type var10001;
@@ -48,8 +48,8 @@ class CaptureVHandler extends GenHandler {
             }
 
             VCaptured vcaptured = new VCaptured(outer, (Field)null);
-            this.assignField(vcaptured, mi, super.code);
-            mi.putCapturedVar(tok, vcaptured);
+            this.assignField(vcaptured, super.code);
+            super.mi.putCapturedVar(tok, vcaptured);
             var10001 = vcaptured.load(super.code);
         } else {
             var10001 = found.load(super.code);

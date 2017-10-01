@@ -13,8 +13,8 @@
 		(this:<init>)
 		(set this:line line)
 	)
-	((emit h GenHandler mi AMethodInfo code CodeAttr needed Type) Type public
-		(h:compile this mi code needed)
+	((emit h GenHandler code CodeAttr needed Type) Type public
+		(h:compile this code needed)
 	)
 	((<init>) void public
 		(super:<init>)

@@ -9,13 +9,17 @@
 (import gnu.bytecode.*)
 
 (define-class Handler () abstract public
-	((<init>) void (super:<init>))
-	((compileAll toks List{Token} i int e int mi AMethodInfo needed Object) Type[] public
+	(mi AMethodInfo)
+	((<init> mi AMethodInfo) void
+		(super:<init>)
+		(set this:mi mi)
+	)
+	((compileAll toks List{Token} i int e int needed Object) Type[] public
 		(define l (toks:size))
 		(define types (Type[] len:(- e i)))
 		(for ((j i)) (! (>= j e)) (inc j)
 			(aset types (- j i)
-				(this:compile (toks:get j) mi
+				(this:compile (toks:get j)
 					(if (instance? needed Type[])
 						(aget (as Type[] needed) (- j i))
 						(as Type needed)
@@ -25,66 +29,64 @@
 		)
 		types
 	)
-	((compile tok EmptyToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok SToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok CToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok NToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok FieldToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok QuoteToken2 mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ConstToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok VToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok IncludeToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ObjectToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok BeginToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok SpecialBeginToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok LabelToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok GotoToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok DefineToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok TryToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok InstanceToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok SetToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ASetToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok AGetToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ALenToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok AsToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok NumOpToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ShiftToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok IfToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok CompareToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ThrowToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ClassToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok SynchronizedToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok TypeToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ReturnToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok CallToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok DefaultToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ConstructorToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok ArrayConstructorToken mi AMethodInfo needed Type) Type public abstract)
-	((compile tok Token mi AMethodInfo needed Type) Type public
-		(doubleDispatch (this:compile _ mi needed) tok)
+	((compile tok EmptyToken needed Type) Type public abstract)
+	((compile tok SToken needed Type) Type public abstract)
+	((compile tok CToken needed Type) Type public abstract)
+	((compile tok NToken needed Type) Type public abstract)
+	((compile tok FieldToken needed Type) Type public abstract)
+	((compile tok QuoteToken2 needed Type) Type public abstract)
+	((compile tok ConstToken needed Type) Type public abstract)
+	((compile tok VToken needed Type) Type public abstract)
+	((compile tok IncludeToken needed Type) Type public abstract)
+	((compile tok ObjectToken needed Type) Type public abstract)
+	((compile tok MacroIncludeToken needed Type) Type public abstract)
+	((compile tok BeginToken needed Type) Type public abstract)
+	((compile tok SpecialBeginToken needed Type) Type public abstract)
+	((compile tok LabelToken needed Type) Type public abstract)
+	((compile tok GotoToken needed Type) Type public abstract)
+	((compile tok DefineToken needed Type) Type public abstract)
+	((compile tok TryToken needed Type) Type public abstract)
+	((compile tok InstanceToken needed Type) Type public abstract)
+	((compile tok SetToken needed Type) Type public abstract)
+	((compile tok ASetToken needed Type) Type public abstract)
+	((compile tok AGetToken needed Type) Type public abstract)
+	((compile tok ALenToken needed Type) Type public abstract)
+	((compile tok AsToken needed Type) Type public abstract)
+	((compile tok NumOpToken needed Type) Type public abstract)
+	((compile tok ShiftToken needed Type) Type public abstract)
+	((compile tok IfToken needed Type) Type public abstract)
+	((compile tok CompareToken needed Type) Type public abstract)
+	((compile tok ThrowToken needed Type) Type public abstract)
+	((compile tok ClassToken needed Type) Type public abstract)
+	((compile tok SynchronizedToken needed Type) Type public abstract)
+	((compile tok TypeToken needed Type) Type public abstract)
+	((compile tok ReturnToken needed Type) Type public abstract)
+	((compile tok CallToken needed Type) Type public abstract)
+	((compile tok DefaultToken needed Type) Type public abstract)
+	((compile tok ConstructorToken needed Type) Type public abstract)
+	((compile tok ArrayConstructorToken needed Type) Type public abstract)
+	((compile tok Token needed Type) Type public
+		(doubleDispatch (this:compile _ needed) tok)
 	)
 	((castMaybe result Type needed Type) Type public abstract)
 )
 
 (define-class GenHandler (Handler) public
-	(inst GenHandler static public)
 	(code CodeAttr public)
-	((<clinit>) void static (set GenHandler:inst (GenHandler)))
-	((<init>) void
-		(super:<init>)
+	((<init> mi AMethodInfo) void public
+		(super:<init> mi)
 	)
-	((compileAll toks List{Token} i int e int mi AMethodInfo code CodeAttr needed Object) Type[] public
+	((compileAll toks List{Token} i int e int code CodeAttr needed Object) Type[] public
 		(define ocode this:code)
 		(set this:code code)
-		(define out (this:compileAll toks i e mi needed))
+		(define out (this:compileAll toks i e needed))
 		(set this:code ocode)
 		out
 	)
-	((compile tok Token mi AMethodInfo code CodeAttr needed Type) Type public
+	((compile tok Token code CodeAttr needed Type) Type public
 		(define ocode this:code)
 		(set this:code code)
-		(define out (this:compile tok mi needed))
+		(define out (this:compile tok needed))
 		(set this:code ocode)
 		out
 	)
@@ -144,37 +146,37 @@
 			)
 		)
 	)
-	((emitTrueFalseClauses_ mi AMethodInfo trueE Emitter falseE Emitter trueCasts List{Tuple2{VToken Type}} falseCasts List{Tuple2{VToken Type}} needed Type skipL Label trueL Label falseL Label) Tuple2{Type Type}
+	((emitTrueFalseClauses_ trueE Emitter falseE Emitter trueCasts List{Tuple2{VToken Type}} falseCasts List{Tuple2{VToken Type}} needed Type skipL Label trueL Label falseL Label) Tuple2{Type Type}
 		(define output (!= this:code null))
 
-		(mi:pushScope this:code (HashMap))
+		(this:mi:pushScope this:code (HashMap))
 		(forEach cast trueCasts
-			(GenHandler:putCast mi cast)
+			(this:putCast cast)
 		)
 		(if output (trueL:define this:code))
-		(define trueT (trueE:emit this mi this:code needed))
-		(mi:popScope this:code)
+		(define trueT (trueE:emit this this:code needed))
+		(this:mi:popScope this:code)
 
 		(if (&& output (this:code:reachableHere)) (this:code:emitGoto skipL))
 
-		(mi:pushScope this:code (HashMap))
+		(this:mi:pushScope this:code (HashMap))
 		(forEach cast falseCasts
-			(GenHandler:putCast mi cast)
+			(this:putCast cast)
 		)
 		(if output (falseL:define this:code))
-		(define falseT (falseE:emit this mi this:code needed))
-		(mi:popScope this:code)
+		(define falseT (falseE:emit this this:code needed))
+		(this:mi:popScope this:code)
 
 		(if output (skipL:define this:code))
 
 		(Tuple2 trueT falseT)
 	)
-	((emitTrueFalseClauses mi AMethodInfo trueE Emitter falseE Emitter trueCasts List{Tuple2{VToken Type}} falseCasts List{Tuple2{VToken Type}} needed Type skipL Label trueL Label falseL Label) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
+	((emitTrueFalseClauses trueE Emitter falseE Emitter trueCasts List{Tuple2{VToken Type}} falseCasts List{Tuple2{VToken Type}} needed Type skipL Label trueL Label falseL Label) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
 		(if (= needed Main:unknownType)
 			(begin
 				(define ocode this:code)
 				(set this:code null)
-				(define ts (this:emitTrueFalseClauses_ mi trueE falseE trueCasts falseCasts needed skipL trueL falseL))
+				(define ts (this:emitTrueFalseClauses_ trueE falseE trueCasts falseCasts needed skipL trueL falseL))
 				(set this:code ocode)
 				(set needed
 					(Main:commonType
@@ -184,7 +186,7 @@
 				)
 			)
 		)
-		(this:emitTrueFalseClauses_ mi trueE falseE trueCasts falseCasts needed skipL trueL falseL)
+		(this:emitTrueFalseClauses_ trueE falseE trueCasts falseCasts needed skipL trueL falseL)
 		(Tuple3 needed trueCasts falseCasts)
 	)
 	((emitGotoIf otype Type invCompare String compare String label Label) void public
@@ -207,14 +209,14 @@
 		)
 	)
 	;toks = condition
-	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter mi AMethodInfo needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
+	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
 		(define output (!= this:code null))
 
 		(define trueCasts (ArrayList{Tuple2{VToken Type}}))
 		(define falseCasts (ArrayList{Tuple2{VToken Type}}))
 		(cond
 			((compare:equals "!")
-				(this:emitIf (! inv) (toks:get 0) trueE falseE mi needed)
+				(this:emitIf (! inv) (toks:get 0) trueE falseE needed)
 			)
 			((|| (compare:equals "&&") (compare:equals "||"))
 				(define skipL (Label))
@@ -222,33 +224,33 @@
 				(define trueG (Goto trueL))
 				(define falseL (Label))
 				(define falseG (Goto falseL))
-				(mi:pushScope this:code (HashMap))
+				(this:mi:pushScope this:code (HashMap))
 				(if (|| (&& (! inv) (compare:equals "&&")) (&& inv (compare:equals "||")))
 					;AND
 					(begin
 						(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
-							(define a (this:emitIf inv (toks:get i) Nothing:inst falseG mi Type:voidType))
+							(define a (this:emitIf inv (toks:get i) Nothing:inst falseG Type:voidType))
 							(forEach cast a:_2
-								(GenHandler:putCast mi cast)
+								(this:putCast cast)
 							)
 							(trueCasts:addAll a:_2)
 						)
-						(trueCasts:addAll (this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG mi Type:voidType):_2)
+						(trueCasts:addAll (this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG Type:voidType):_2)
 					)
 					;OR
 					(begin
 						(for ((i 0)) (!= i (- (toks:size) 1)) (inc i)
-							(define a (this:emitIf (! inv) (toks:get i) Nothing:inst trueG mi Type:voidType))
+							(define a (this:emitIf (! inv) (toks:get i) Nothing:inst trueG Type:voidType))
 							(forEach cast a:_2
-								(GenHandler:putCast mi cast)
+								(this:putCast cast)
 							)
 							(falseCasts:addAll a:_2)
 						)
-						(falseCasts:addAll (this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG mi Type:voidType):_2)
+						(falseCasts:addAll (this:emitIf inv (toks:get (- (toks:size) 1)) Nothing:inst falseG Type:voidType):_2)
 					)
 				)
-				(mi:popScope this:code)
-				(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed skipL trueL falseL)
+				(this:mi:popScope this:code)
+				(this:emitTrueFalseClauses trueE falseE trueCasts falseCasts needed skipL trueL falseL)
 			)
 			(true
 				(define trueL (Label))
@@ -275,9 +277,9 @@
 									(set cast (Tuple2 (as VToken it:tok) it:type))
 								)
 							)
-							(define types (this:compileAll toks j (+ j 1) mi null Main:unknownType))
+							(define types (this:compileAll toks j (+ j 1) null Main:unknownType))
 							(define otype (Main:compareType types))
-							(this:compileAll toks j (+ j 1) mi otype)
+							(this:compileAll toks j (+ j 1) otype)
 							(if output (this:code:emitGotoIfCompare1 falseLabel (Main:compare1Ops:get invCompare)))
 						)
 					)
@@ -285,12 +287,12 @@
 						(if (&& (> (toks:size) 2) (compare:equals "!="))
 							(throw (RuntimeException))
 						)
-						(define types (this:compileAll toks 0 (toks:size) mi null Main:unknownType))
+						(define types (this:compileAll toks 0 (toks:size) null Main:unknownType))
 						(define otype (Main:compareType types))
 						(define special (&& inv (> (toks:size) 2)))
 						(define vars (Variable[] len:(- (toks:size) 2)))
 						(for ((j 1)) (< (+ j 1) (toks:size)) (inc j)
-							(this:compile (toks:get j) mi otype)
+							(this:compile (toks:get j) otype)
 							(if output
 								(begin
 									(define v (this:code:addLocal otype))
@@ -299,7 +301,7 @@
 								)
 							)
 						)
-						(this:compile (toks:get 0) mi otype)
+						(this:compile (toks:get 0) otype)
 						(for ((i 0)) (< i (alen vars)) (inc i)
 							(if output (this:code:emitLoad (aget vars i)))
 							(if special
@@ -308,7 +310,7 @@
 							)
 							(if output (this:code:emitLoad (aget vars i)))
 						)
-						(this:compile (toks:get (- (toks:size) 1)) mi otype)
+						(this:compile (toks:get (- (toks:size) 1)) otype)
 						(if special
 							(this:emitGotoIf otype compare compare trueL)
 							(this:emitGotoIf otype invCompare compare falseLabel)
@@ -343,32 +345,32 @@
 								Collections:EMPTY_LIST
 							)
 						)
-						(this:emitTrueFalseClauses mi trueE falseE trueCasts falseCasts needed (Label) trueL falseLabel)
+						(this:emitTrueFalseClauses trueE falseE trueCasts falseCasts needed (Label) trueL falseLabel)
 					)
 				)
 			)
 		)
 	)
-	((putCast mi AMethodInfo cast Tuple2{VToken Type}) void static
+	((putCast cast Tuple2{VToken Type}) void
 		(if (!= cast null)
-			(mi:putVar cast:_1 (CastVar (mi:getVar cast:_1) cast:_2))
+			(this:mi:putVar cast:_1 (CastVar (this:mi:getVar cast:_1) cast:_2))
 		)
 	)
-	((emitIf inv bool cond Token trueE Emitter falseE Emitter mi AMethodInfo needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
+	((emitIf inv bool cond Token trueE Emitter falseE Emitter needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
 		(instanceCond cond
-			(CompareToken (this:emitIf_ inv cond:toks cond:compare trueE falseE mi needed))
-			(true (this:emitIf_ inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE mi needed))
+			(CompareToken (this:emitIf_ inv cond:toks cond:compare trueE falseE needed))
+			(true (this:emitIf_ inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE needed))
 		)
 	)
-	((compile tok EmptyToken mi AMethodInfo needed Type) Type public
+	((compile tok EmptyToken needed Type) Type public
 		Type:voidType
 	)
-	((compile tok SToken mi AMethodInfo needed Type) Type public
+	((compile tok SToken needed Type) Type public
 		(define output (!= this:code null))
 		(if output (this:code:emitPushString tok:val))
 		(this:castMaybe Type:javalangStringType needed)
 	)
-	((compile tok CToken mi AMethodInfo needed Type) Type public
+	((compile tok CToken needed Type) Type public
 		(define output (!= this:code null))
 		(define c int tok:val)
 		(if (! (instance? needed PrimType))
@@ -382,7 +384,7 @@
 			)
 		)
 	)
-	((compile tok NToken mi AMethodInfo needed Type) Type public
+	((compile tok NToken needed Type) Type public
 		(define output (!= this:code null))
 		(define val tok:val)
 		(this:castMaybe
@@ -417,11 +419,11 @@
 			needed
 		)
 	)
-	((compile tok FieldToken mi AMethodInfo needed Type) Type public
+	((compile tok FieldToken needed Type) Type public
 		(define output (!= this:code null))
-		(define t (mi:getType tok:left))
+		(define t (this:mi:getType tok:left))
 		(if (= t null)
-			(set t (this:compile tok:left mi this:code Main:unknownType))
+			(set t (this:compile tok:left this:code Main:unknownType))
 		)
 		(define class ClassType (t:getRawType))
 		(define field Field (class:getField tok:right -1))
@@ -435,14 +437,14 @@
 		)
 		(this:castMaybe out needed)
 	)
-	((compileQuasi o Object mi AMethodInfo code CodeAttr needed Type) Type
+	((compileQuasi o Object code CodeAttr needed Type) Type
 		(define ocode this:code)
 		(set this:code code)
-		(define out (this:compileQuasi o mi needed))
+		(define out (this:compileQuasi o needed))
 		(set this:code ocode)
 		out
 	)
-	((compileQuasi o Object mi AMethodInfo needed Type) Type
+	((compileQuasi o Object needed Type) Type
 		(define output (!= this:code null))
 		(if (= o null)
 			(begin
@@ -453,11 +455,11 @@
 		(define result Type
 			(instanceCond o
 				(UnquoteToken
-					(define tok (mi:transformBlock (o:toks:get 0)))
-					(define t (this:compile tok mi null Main:unknownType))
+					(define tok (this:mi:transformBlock (o:toks:get 0)))
+					(define t (this:compile tok null Main:unknownType))
 					(cond
 						((= t (Type:getType "gnu.bytecode.Type"))
-							(this:compile tok mi this:code Main:unknownType)
+							(this:compile tok this:code Main:unknownType)
 							(if output (this:code:emitInvoke ((Main:getCompilerType "Main"):getDeclaredMethod "typeToTok" 1)))
 							(Main:getCompilerType "tokens.LexedParsedToken")
 						)
@@ -470,10 +472,10 @@
 								;)
 								((t:getRawType):isSubtype (Type:getType "java.util.List"))
 							)
-							(this:compile tok mi this:code Main:unknownType)
+							(this:compile tok this:code Main:unknownType)
 						)
 						(true
-							(define t (this:compile tok mi null Main:unknownType))
+							(define t (this:compile tok null Main:unknownType))
 							(define type ClassType
 								(Main:getCompilerType
 									(if o:var
@@ -492,7 +494,7 @@
 							(if output (this:code:emitDup))
 							(if output (this:code:emitInvoke (type:getDeclaredMethod "<init>" 0)))
 							(if output (this:code:emitDup))
-							(this:compile tok mi this:code Type:objectType)
+							(this:compile tok this:code Type:objectType)
 							(if output (this:code:emitPutField (type:getField "val")))
 							(Main:getCompilerType "tokens.LexedParsedToken")
 						)
@@ -516,7 +518,7 @@
 								(begin
 									(if output (this:code:emitDup))
 									(try
-										(this:compileQuasi ((field:getReflectField):get o) mi this:code (field:getType))
+										(this:compileQuasi ((field:getReflectField):get o) this:code (field:getType))
 										(e NoSuchFieldException (throw (RuntimeException e)))
 										(e IllegalAccessException (throw (RuntimeException e)))
 									)
@@ -531,10 +533,10 @@
 						(begin
 							(if output (this:code:emitDup))
 							(cond
-								((instance? mi:ci MethodMacroInfo)
+								((instance? this:mi:ci MethodMacroInfo)
 									(if output (this:code:emitPushInt 0))
 								)
-								((instance? mi:ci MacroInfo)
+								((instance? this:mi:ci MacroInfo)
 									(if output (this:code:emitLoad (this:code:getArg 1)))
 								)
 							)
@@ -574,24 +576,24 @@
 					(if output (this:code:emitInvoke (al:getMethod "<init>" (Type[]))))
 					(define i 0)
 					(forEach a o
-						(define t (this:compileQuasi a mi null Main:unknownType))
+						(define t (this:compileQuasi a null Main:unknownType))
 						(if (>= (Main:compare (Main:getCompilerType "tokens.LexedParsedToken") t) 0)
 							(begin
 								(if output (this:code:emitDup))
-								(this:compileQuasi a mi this:code Main:unknownType)
+								(this:compileQuasi a this:code Main:unknownType)
 								(if output (this:code:emitInvoke (al:getMethod "add" (Type[] Type:objectType))))
 								(if output (this:code:emitPop 1))
 							)
 							(if (instance? t ArrayType)
 								(begin
 									(if output (this:code:emitDup))
-									(this:compileQuasi a mi this:code Main:unknownType)
+									(this:compileQuasi a this:code Main:unknownType)
 									(if output (this:code:emitInvoke ((as ClassType (Type:getType "java.util.Collections")):getDeclaredMethod "addAll" 2)))
 									(if output (this:code:emitPop 1))
 								)
 								(begin
 									(if output (this:code:emitDup))
-									(this:compileQuasi a mi this:code Main:unknownType)
+									(this:compileQuasi a this:code Main:unknownType)
 									(if output (this:code:emitInvoke ((as ClassType (Type:getType "java.util.List")):getDeclaredMethod "addAll" 1)))
 									(if output (this:code:emitPop 1))
 								)
@@ -607,11 +609,11 @@
 		)
 		(this:castMaybe result needed)
 	)
-	((compile tok QuoteToken2 mi AMethodInfo needed Type) Type public
+	((compile tok QuoteToken2 needed Type) Type public
 		(define output (!= this:code null))
-		(this:castMaybe (this:compileQuasi tok:tok mi this:code Main:unknownType) needed)
+		(this:castMaybe (this:compileQuasi tok:tok this:code Main:unknownType) needed)
 	)
-	((compile tok ConstToken mi AMethodInfo needed Type) Type public
+	((compile tok ConstToken needed Type) Type public
 		(define output (!= this:code null))
 		(this:castMaybe
 			(if (tok:val:equals "true")
@@ -633,22 +635,22 @@
 			needed
 		)
 	)
-	((compile tok VToken mi AMethodInfo needed Type) Type public
+	((compile tok VToken needed Type) Type public
 		(define output (!= this:code null))
-		(define found (mi:getVar tok))
+		(define found (this:mi:getVar tok))
 		(this:castMaybe (found:load this:code) needed)
 	)
-	((compile tok IncludeToken mi AMethodInfo needed Type) Type public
+	((compile tok IncludeToken needed Type) Type public
 		(define output (!= this:code null))
 		(if (= tok:ret null)
 			(begin
-				(mi:ci:fs:compileInclude tok)
+				(this:mi:ci:fs:compileInclude tok)
 				(try
 					(set tok:ret
-						(mi:transformBlock
+						(this:mi:transformBlock
 							(as LexedParsedToken
 								(
-									((mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
+									((this:mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
 										(Class[]
 											(class AMethodInfo)
 											Integer:TYPE
@@ -656,7 +658,7 @@
 										)
 									):invoke
 									null
-									(Object[] mi 0 this)
+									(Object[] this:mi 0 this)
 								)
 							)
 						)
@@ -667,7 +669,7 @@
 				)
 			)
 		)
-		(this:castMaybe (this:compile tok:ret mi this:code needed) needed)
+		(this:castMaybe (this:compile tok:ret this:code needed) needed)
 	)
 	((createCtor c ClassType types Type[] fields Collection{Field}) void
 		(define superC (c:getSuperclass))
@@ -694,21 +696,29 @@
 		)
 		(ncode:emitReturn)
 	)
-	((compile tok ObjectToken mi AMethodInfo needed Type) Type public
+	((compile tok ObjectToken needed Type) Type public
 		(define output (!= this:code null))
 		(define ci tok:ci)
 		(define emitters List{Emitter} (ArrayList{LexedParsedToken} tok:superArgs))
 		(if (= ci null)
 			(begin
-				(define captureH (CaptureVHandler mi))
 				;must wait until output is true
 				;because the Variables in capturedH:captured
 				;won't be valid if output is false
 				(if output
 					(begin
-						(set ci (ClassInfo ((mi:ci:c:getName):concat ("$":concat (Integer:toString (mi:ci:anonClasses:size)))) mi:ci:fs))
+						(set ci
+							(ClassInfo
+								(concat
+									(this:mi:ci:c:getName)
+									"$"
+									(this:mi:ci:anonClasses:size)
+								)
+								this:mi:ci:fs
+							)
+						)
 						(set tok:ci ci)
-						(mi:ci:anonClasses:add ci)
+						(this:mi:ci:anonClasses:add ci)
 					)
 				)
 				(instanceCond tok
@@ -719,9 +729,10 @@
 						(define toks (ArrayList tok:toks))
 						(if (= tok:t null)
 							(begin
-								(define fakemi (MethodInfo (ClassInfo (as ClassType null) mi:ci:fs) null null scope))
-								(define beginTok (mi:transformBlockToks (BeginToken 0 toks)))
-								(set tok:ret (Main:tryBox (captureH:compile beginTok fakemi null Main:unknownType)))
+								(define fakemi (MethodInfo (ClassInfo (as ClassType null) this:mi:ci:fs) null null scope))
+								(define beginTok (this:mi:transformBlockToks (BeginToken 0 toks)))
+								(define captureH (CaptureVHandler fakemi this:mi (LinkedHashMap)))
+								(set tok:ret (Main:tryBox (captureH:compile beginTok null Main:unknownType)))
 								(generics:add tok:ret)
 								(define agenerics (Type[] len:(generics:size)))
 								(generics:toArray agenerics)
@@ -759,9 +770,13 @@
 				)
 				(if output
 					(begin
-						(ci:compileMethods captureH)
-						(set tok:captured (captureH:captured:keySet))
-						(this:createCtor ci:c (Emitter:emitAll emitters captureH mi null Main:unknownType) (captureH:captured:values))
+						(define captured (LinkedHashMap))
+						(forEach mi ci:methods
+							(define captureH (CaptureVHandler mi this:mi captured))
+							(mi:compileMethodBody captureH)
+						)
+						(set tok:captured (captured:keySet))
+						(this:createCtor ci:c (Emitter:emitAll emitters this null Main:unknownType) (captured:values))
 					)
 				)
 			)
@@ -773,12 +788,12 @@
 				(forEach v tok:captured
 					(emitters:add (LoadAVar v))
 				)
-				(Main:emitInvoke this "<init>" ci:c emitters mi Main:unknownType)
+				(Main:emitInvoke this "<init>" ci:c emitters Main:unknownType)
 			)
 		)
 		(this:castMaybe tok:t needed)
 	)
-	((compile tok MacroIncludeToken mi AMethodInfo needed Type) Type public
+	((compile tok MacroIncludeToken needed Type) Type public
 		(define output (!= this:code null))
 		(if (= tok:ret null)
 			(begin
@@ -792,14 +807,14 @@
 				(define method Method null)
 				(define ci ClassInfo null)
 				(for ((i 0)) (= method null) (inc i)
-					(set ci ((mi:ci:fs:macroNames:get tok:name):get i))
+					(set ci ((this:mi:ci:fs:macroNames:get tok:name):get i))
 					(define filter (MFilter tok:name types ci:c))
 					(filter:searchDeclared)
 					(set method (filter:getMethod))
 				)
 				(define params (method:getGenericParameterTypes))
 				(define classes (mapA t params (t:getReflectClass)))
-				(define args (ArrayList (Arrays:asList (Object[] mi (mi:levels:size) this))))
+				(define args (ArrayList (Arrays:asList (Object[] this:mi (this:mi:levels:size) this))))
 				(args:addAll
 					(if (!= (& (method:getModifiers) Access:TRANSIENT) 0)
 						(begin
@@ -818,7 +833,7 @@
 						(define clazz (ci:getClazz))
 						(define method (clazz:getMethod tok:name classes))
 						(define ret (as LexedParsedToken (method:invoke null (args:toArray))))
-						(set tok:ret (mi:transformBlock ret))
+						(set tok:ret (this:mi:transformBlock ret))
 					)
 					(e NoSuchMethodException (throw (RuntimeException e)))
 					(e IllegalAccessException (throw (RuntimeException e)))
@@ -826,35 +841,35 @@
 				)
 			)
 		)
-		(define out (this:compile tok:ret mi this:code needed))
+		(define out (this:compile tok:ret this:code needed))
 		(this:castMaybe out needed)
 	)
-	((compile tok BeginToken mi AMethodInfo needed Type) Type public
+	((compile tok BeginToken needed Type) Type public
 		(define output (!= this:code null))
-		(mi:pushScope this:code tok:labels)
-		(this:compileAll tok:toks 0 (- (tok:toks:size) 1) mi this:code Type:voidType)
-		(define type (this:compile (tok:toks:get (- (tok:toks:size) 1)) mi this:code needed))
-		(mi:popScope this:code)
+		(this:mi:pushScope this:code tok:labels)
+		(this:compileAll tok:toks 0 (- (tok:toks:size) 1) this:code Type:voidType)
+		(define type (this:compile (tok:toks:get (- (tok:toks:size) 1)) this:code needed))
+		(this:mi:popScope this:code)
 		type
 	)
-	((compile tok SpecialBeginToken mi AMethodInfo needed Type) Type public
+	((compile tok SpecialBeginToken needed Type) Type public
 		(define output (!= this:code null))
 		;tok:labels
-		(this:compileAll tok:toks 0 (- (tok:toks:size) 1) mi this:code Type:voidType)
-		(this:compile (tok:toks:get (- (tok:toks:size) 1)) mi this:code needed)
+		(this:compileAll tok:toks 0 (- (tok:toks:size) 1) this:code Type:voidType)
+		(this:compile (tok:toks:get (- (tok:toks:size) 1)) this:code needed)
 	)
-	((compile tok LabelToken mi AMethodInfo needed Type) Type public
+	((compile tok LabelToken needed Type) Type public
 		(define output (!= this:code null))
-		(define label (mi:getLabel tok:label))
+		(define label (this:mi:getLabel tok:label))
 		(if output (label:define this:code))
 		Type:voidType
 	)
-	((compile tok GotoToken mi AMethodInfo needed Type) Type public
+	((compile tok GotoToken needed Type) Type public
 		(define output (!= this:code null))
-		(if output (this:code:emitGoto (mi:getLabel tok:label)))
+		(if output (this:code:emitGoto (this:mi:getLabel tok:label)))
 		Type:voidType
 	)
-	((compile tok DefineToken mi AMethodInfo needed Type) Type public
+	((compile tok DefineToken needed Type) Type public
 		(define output (!= this:code null))
 		(define type
 			(if (= tok:tok null)
@@ -862,70 +877,70 @@
 					(if output (this:code:emitPushDefaultValue tok:type))
 					tok:type
 				)
-				(this:compile tok:tok mi this:code tok:type)
+				(this:compile tok:tok this:code tok:type)
 			)
 		)
-		(define var (mi:newVar this:code tok:name type))
+		(define var (this:mi:newVar this:code tok:name type))
 		(if output (this:code:emitStore var))
 		Type:voidType
 	)
-	((compile tok TryToken mi AMethodInfo needed Type) Type public
+	((compile tok TryToken needed Type) Type public
 		(define output (!= this:code null))
-		(define type (this:compile tok:tok mi null needed))
+		(define type (this:compile tok:tok null needed))
 		(define hasFinally (!= tok:finallyToks null))
 		(if output (this:code:emitTryStart hasFinally type))
-		(this:compile tok:tok mi this:code needed)
+		(this:compile tok:tok this:code needed)
 		(forEach catch tok:catches
-			(mi:pushScope this:code (Collections:emptyMap)) ;catch:labels
-			(define var (mi:newVar this:code catch:_1 catch:_2))
+			(this:mi:pushScope this:code (Collections:emptyMap)) ;catch:labels
+			(define var (this:mi:newVar this:code catch:_1 catch:_2))
 			(if output (this:code:emitCatchStart var))
-			(this:compileAll catch:_3 0 (- (catch:_3:size) 1) mi this:code Type:voidType)
-			(this:compile (catch:_3:get (- (catch:_3:size) 1)) mi type)
+			(this:compileAll catch:_3 0 (- (catch:_3:size) 1) this:code Type:voidType)
+			(this:compile (catch:_3:get (- (catch:_3:size) 1)) type)
 			(if output (this:code:emitCatchEnd))
-			(mi:popScope this:code)
+			(this:mi:popScope this:code)
 		)
 		(if hasFinally
 			(begin
 				(if output (this:code:emitFinallyStart))
-				(this:compileAll tok:finallyToks 0 (- (tok:finallyToks:size) 1) mi this:code Type:voidType)
-				(this:compile (tok:finallyToks:get (- (tok:finallyToks:size) 1)) mi type)
+				(this:compileAll tok:finallyToks 0 (- (tok:finallyToks:size) 1) this:code Type:voidType)
+				(this:compile (tok:finallyToks:get (- (tok:finallyToks:size) 1)) type)
 				(if output (this:code:emitFinallyEnd))
 			)
 		)
 		(if output (this:code:emitTryCatchEnd))
 		(this:castMaybe type needed)
 	)
-	((compile tok InstanceToken mi AMethodInfo needed Type) Type public
+	((compile tok InstanceToken needed Type) Type public
 		(define output (!= this:code null))
-		(this:compile tok:tok mi this:code Main:unknownType)
+		(this:compile tok:tok this:code Main:unknownType)
 		(if output (this:code:emitInstanceof tok:type))
 		(this:castMaybe Type:booleanType needed)
 	)
-	((compile tok SetToken mi AMethodInfo needed Type) Type public
+	((compile tok SetToken needed Type) Type public
 		(define output (!= this:code null))
 		(define first (tok:toks:get 0))
 		(define out (tok:toks:get 1))
 		(instanceCond out
 			(FieldToken
-				(define t (mi:getType out:left))
+				(define t (this:mi:getType out:left))
 				(if (= t null)
-					(set t (this:compile out:left mi this:code Main:unknownType))
+					(set t (this:compile out:left this:code Main:unknownType))
 				)
 				(define class ClassType (t:getRawType))
 				(define field Field (class:getField out:right -1))
-				(this:compile (tok:toks:get 2) mi this:code (Main:resolveType t (field:getType)))
+				(this:compile (tok:toks:get 2) this:code (Main:resolveType t (field:getType)))
 				(if (field:getStaticFlag)
 					(if output (this:code:emitPutStatic field))
 					(if output (this:code:emitPutField field))
 				)
 			)
 			(VToken
-				(define var (mi:getVar out))
+				(define var (this:mi:getVar out))
 				(while (instance? var CastVar)
-					(mi:removeVar out)
-					(set var (mi:getVar out))
+					(this:mi:removeVar out)
+					(set var (this:mi:getVar out))
 				)
-				(this:compile (tok:toks:get 2) mi this:code var:type)
+				(this:compile (tok:toks:get 2) this:code var:type)
 				(var:store this:code)
 			)
 			(true
@@ -934,38 +949,38 @@
 		)
 		Type:voidType
 	)
-	((compile tok ASetToken mi AMethodInfo needed Type) Type public
+	((compile tok ASetToken needed Type) Type public
 		(define output (!= this:code null))
-		(define type ArrayType (this:compile tok:array mi this:code Main:unknownType))
-		(this:compile tok:index mi this:code Type:intType)
-		(this:compile tok:el mi this:code type:elements)
+		(define type ArrayType (this:compile tok:array this:code Main:unknownType))
+		(this:compile tok:index this:code Type:intType)
+		(this:compile tok:el this:code type:elements)
 		(if output (this:code:emitArrayStore))
 		Type:voidType
 	)
-	((compile tok AGetToken mi AMethodInfo needed Type) Type public
+	((compile tok AGetToken needed Type) Type public
 		(define output (!= this:code null))
-		(define type ArrayType (this:compile (tok:toks:get 0) mi this:code Main:unknownType))
+		(define type ArrayType (this:compile (tok:toks:get 0) this:code Main:unknownType))
 		(for ((i 1)) (< i (tok:toks:size)) (inc i)
-			(this:compile (tok:toks:get i) mi this:code Type:intType)
+			(this:compile (tok:toks:get i) this:code Type:intType)
 			(if output (this:code:emitArrayLoad))
 			(if (!= i 1) (set type (as ArrayType type:elements))) ;multi-dim arrays
 		)
 		(this:castMaybe type:elements needed)
 	)
-	((compile tok ALenToken mi AMethodInfo needed Type) Type public
+	((compile tok ALenToken needed Type) Type public
 		(define output (!= this:code null))
-		(this:compile tok:tok mi this:code Main:unknownType)
+		(this:compile tok:tok this:code Main:unknownType)
 		(if output (this:code:emitArrayLength))
 		(this:castMaybe Type:intType needed)
 	)
-	((compile tok AsToken mi AMethodInfo needed Type) Type public
+	((compile tok AsToken needed Type) Type public
 		(define output (!= this:code null))
-		(this:castMaybe (this:compile tok:tok mi this:code tok:type) needed)
+		(this:castMaybe (this:compile tok:tok this:code tok:type) needed)
 	)
-	((compile tok NumOpToken mi AMethodInfo needed Type) Type public
+	((compile tok NumOpToken needed Type) Type public
 		(define output (!= this:code null))
-		(define otype (Main:numericOpType (this:compileAll tok:toks 0 (tok:toks:size) mi null Main:unknownType)))
-		(this:compile (tok:toks:get 0) mi this:code otype)
+		(define otype (Main:numericOpType (this:compileAll tok:toks 0 (tok:toks:size) null Main:unknownType)))
+		(this:compile (tok:toks:get 0) this:code otype)
 		(if (&& (tok:op:equals "-") (= (tok:toks:size) 1))
 			(if output
 				(this:code:emitPrimop
@@ -980,70 +995,69 @@
 				)
 			)
 			(for ((i 1)) (!= i (tok:toks:size)) (inc i)
-				(this:compile (tok:toks:get i) mi this:code otype)
+				(this:compile (tok:toks:get i) this:code otype)
 				(if output (this:code:emitBinop (Main:binOps:get tok:op) otype))
 			)
 		)
 		(this:castMaybe otype needed)
 	)
-	((compile tok ShiftToken mi AMethodInfo needed Type) Type public
+	((compile tok ShiftToken needed Type) Type public
 		(define output (!= this:code null))
-		(define otype (PrimType:unboxedType (this:compile tok:tok mi null Main:unknownType)))
-		(this:compile tok:tok mi this:code otype)
-		(this:compile tok:amt mi this:code Type:intType)
+		(define otype (PrimType:unboxedType (this:compile tok:tok null Main:unknownType)))
+		(this:compile tok:tok this:code otype)
+		(this:compile tok:amt this:code Type:intType)
 		(if output (if tok:right (this:code:emitShr) (this:code:emitShl)))
 		(this:castMaybe otype needed)
 	)
-	((compile tok IfToken mi AMethodInfo needed Type) Type public
+	((compile tok IfToken needed Type) Type public
 		(define output (!= this:code null))
 		(define hasElse (= (tok:toks:size) 4))
-		(this:emitIf false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) mi (if hasElse needed Type:voidType)):_1
+		(this:emitIf false (tok:toks:get 1) (tok:toks:get 2) (if hasElse (tok:toks:get 3) Nothing:inst) (if hasElse needed Type:voidType)):_1
 	)
-	((compile tok CompareToken mi AMethodInfo needed Type) Type public
+	((compile tok CompareToken needed Type) Type public
 		(define output (!= this:code null))
-		(this:emitIf_ false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") mi needed):_1
+		(this:emitIf_ false tok:toks tok:compare (ConstToken tok:line "true") (ConstToken tok:line "false") needed):_1
 	)
-	((compile tok ThrowToken mi AMethodInfo needed Type) Type public
+	((compile tok ThrowToken needed Type) Type public
 		(define output (!= this:code null))
-		(this:compile tok:tok mi this:code Main:unknownType)
+		(this:compile tok:tok this:code Main:unknownType)
 		(if output (this:code:emitThrow))
 		Main:throwType
 	)
-	((compile tok ClassToken mi AMethodInfo needed Type) Type public
+	((compile tok ClassToken needed Type) Type public
 		(define output (!= this:code null))
 		(if output (this:code:emitPushClass (as ObjectType (tok:type:getRawType))))
 		(this:castMaybe Type:javalangClassType needed)
 	)
-	((compile tok SynchronizedToken mi AMethodInfo needed Type) Type public
+	((compile tok SynchronizedToken needed Type) Type public
 		(define output (!= this:code null))
-		(this:compile (tok:toks:get 1) mi this:code Main:unknownType)
-		(mi:pushScope null tok:labels)
-		(this:compileAll tok:toks 2 (- (tok:toks:size) 1) mi null Type:voidType)
-		(define type (this:compile (tok:toks:get (- (tok:toks:size) 1)) mi null needed))
-		(mi:popScope null)
-		(mi:pushScope this:code tok:labels)
+		(this:compile (tok:toks:get 1) this:code Main:unknownType)
+		(this:mi:pushScope null tok:labels)
+		(this:compileAll tok:toks 2 (- (tok:toks:size) 1) null Type:voidType)
+		(define type (this:compile (tok:toks:get (- (tok:toks:size) 1)) null needed))
+		(this:mi:popScope null)
+		(this:mi:pushScope this:code tok:labels)
 		(define obj (if output (this:code:addLocal Type:objectType) null))
 		(if output (this:code:emitDup))
 		(if output (this:code:emitStore obj))
 		(if output (this:code:emitMonitorEnter))
 		(if output (this:code:emitTryStart true type))
-		(this:compileAll tok:toks 2 (- (tok:toks:size) 1) mi this:code Type:voidType)
-		(this:compile (tok:toks:get (- (tok:toks:size) 1)) mi this:code needed)
+		(this:compileAll tok:toks 2 (- (tok:toks:size) 1) this:code Type:voidType)
+		(this:compile (tok:toks:get (- (tok:toks:size) 1)) this:code needed)
 		(if output (this:code:emitFinallyStart))
 		(if output (this:code:emitLoad obj))
 		(if output (this:code:emitMonitorExit))
 		(if output (this:code:emitFinallyEnd))
 		(if output (this:code:emitTryCatchEnd))
-		(mi:popScope this:code)
+		(this:mi:popScope this:code)
 		(this:castMaybe type needed)
 	)
-	((compile tok TypeToken mi AMethodInfo needed Type) Type public
+	((compile tok TypeToken needed Type) Type public
 		(define output (!= this:code null))
 		(if output (this:code:emitLoad (this:code:getArg 2)))
 		(if output (this:code:emitLoad (this:code:getArg 0)))
-		(this:compile tok:tok mi this:code Main:unknownType)
+		(this:compile tok:tok this:code Main:unknownType)
 		(if output (this:code:emitInvoke ((Main:getCompilerType "AMethodInfo"):getDeclaredMethod "transformBlock" 1)))
-		(if output (this:code:emitLoad (this:code:getArg 0)))
 		(if output (this:code:emitPushNull))
 		(if output (this:code:emitGetStatic ((Main:getCompilerType "Main"):getField "unknownType")))
 		(if output
@@ -1051,7 +1065,6 @@
 				((Main:getCompilerType "handlers.GenHandler"):getDeclaredMethod "compile"
 					(Type[]
 						(Main:getCompilerType "tokens.Token")
-						(Main:getCompilerType "AMethodInfo")
 						(ClassType:make "gnu.bytecode.CodeAttr")
 						(ClassType:make "gnu.bytecode.Type")
 					)
@@ -1060,15 +1073,15 @@
 		)
 		(this:castMaybe (Type:getType "gnu.bytecode.Type") needed)
 	)
-	((compile tok ReturnToken mi AMethodInfo needed Type) Type public
+	((compile tok ReturnToken needed Type) Type public
 		(define output (!= this:code null))
 		(if (!= tok:tok null)
-			(this:compile tok:tok mi this:code Main:unknownType)
+			(this:compile tok:tok this:code Main:unknownType)
 		)
 		(if output (this:code:emitReturn))
 		Main:returnType
 	)
-	((compile tok CallToken mi AMethodInfo needed Type) Type public
+	((compile tok CallToken needed Type) Type public
 		(define output (!= this:code null))
 		(define special
 			(&&
@@ -1080,20 +1093,20 @@
 			(if special
 				(begin
 					(if output (this:code:emitPushThis))
-					(mi:ci:c:getGenericSuperclass)
+					(this:mi:ci:c:getGenericSuperclass)
 				)
-				(mi:getType tok:target)
+				(this:mi:getType tok:target)
 			)
 		)
 		(if (= t null)
-			(set t (this:compile tok:target mi this:code Main:unknownType))
+			(set t (this:compile tok:target this:code Main:unknownType))
 		)
-		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) mi needed special):_1
+		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) needed special):_1
 	)
-	((compile tok DefaultToken mi AMethodInfo needed Type) Type public
+	((compile tok DefaultToken needed Type) Type public
 		(define output (!= this:code null))
 		(define first (tok:toks:get 0))
-		(define t (this:compile first mi this:code Main:unknownType))
+		(define t (this:compile first this:code Main:unknownType))
 		(define c ClassType (t:getRawType))
 		(define method (c:getDeclaredMethods))
 		(define i 0)
@@ -1107,14 +1120,14 @@
 			)
 			(set method (method:getNext))
 		)
-		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) mi needed):_1
+		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) needed):_1
 	)
-	((compile tok ConstructorToken mi AMethodInfo needed Type) Type public
+	((compile tok ConstructorToken needed Type) Type public
 		(define output (!= this:code null))
 		(define class ClassType (tok:type:getRawType))
 		(if output (this:code:emitNew class))
 		(if output (this:code:emitDup))
-		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) mi Main:unknownType):_2)
+		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) Main:unknownType):_2)
 		(if
 			(&&
 				(instance? tok:type ClassType)
@@ -1129,28 +1142,28 @@
 			(this:castMaybe tok:type needed)
 		)
 	)
-	((compile tok ArrayConstructorToken mi AMethodInfo needed Type) Type public
+	((compile tok ArrayConstructorToken needed Type) Type public
 		(define output (!= this:code null))
 		(define array ArrayType tok:type)
 		(if (!= tok:len null)
-			(this:compile tok:len mi this:code Main:unknownType)
+			(this:compile tok:len this:code Main:unknownType)
 			(if output (this:code:emitPushInt (tok:toks:size)))
 		)
 		(if output (this:code:emitNewArray (array:elements:getRawType)))
 		(for ((i 0)) (!= i (tok:toks:size)) (inc i)
 			(if output (this:code:emitDup))
 			(if output (this:code:emitPushInt i))
-			(this:compile (tok:toks:get i) mi this:code array:elements)
+			(this:compile (tok:toks:get i) this:code array:elements)
 			(if output (this:code:emitArrayStore))
 		)
 		(this:castMaybe tok:type needed)
 	)
-	((compile tok Token mi AMethodInfo needed Type) Type public
+	((compile tok Token needed Type) Type public
 		(define output (!= this:code null))
-		(if output (this:code:putLineNumber (mi:ci:fs:path:substring (+ (mi:ci:fs:path:lastIndexOf "/") 1)) tok:line))
+		(if output (this:code:putLineNumber (this:mi:ci:fs:path:substring (+ (this:mi:ci:fs:path:lastIndexOf "/") 1)) tok:line))
 		(try
 			(begin
-				(define t (super:compile tok mi needed))
+				(define t (super:compile tok needed))
 				(if
 					(&&
 						(!= needed Main:unknownType)
@@ -1163,7 +1176,11 @@
 				t
 			)
 			(e Throwable
-				(System:out:println (mi:ci:fs:path:concat (": Error compiling line ":concat (Integer:toString tok:line))))
+				(println
+					this:mi:ci:fs:path
+					": Error compiling line "
+					tok:line
+				)
 				(throw e)
 			)
 		)
@@ -1174,27 +1191,27 @@
 	(enc AMethodInfo)
 	(captured Map{AVar Field})
 	(n int)
-	((<init> enc AMethodInfo) void
-		(super:<init>)
+	((<init> mi AMethodInfo enc AMethodInfo captured Map) void
+		(super:<init> mi)
 		(set this:enc enc)
-		(set this:captured (LinkedHashMap))
+		(set this:captured captured)
 	)
-	((assignField vcaptured VCaptured mi AMethodInfo code CodeAttr) void
+	((assignField vcaptured VCaptured code CodeAttr) void
 		(define output (!= code null))
 		(if (&& output (= vcaptured:field null))
 			(begin
-				(define new (mi:ci:c:addField ("captured$":concat (Integer:toString this:n)) vcaptured:type Access:SYNTHETIC))
+				(define new (this:mi:ci:c:addField ("captured$":concat (Integer:toString this:n)) vcaptured:type Access:SYNTHETIC))
 				(inc this:n)
 				(set vcaptured:field new)
 				(this:captured:put vcaptured:avar new)
 			)
 		)
 	)
-	((compile tok VToken mi AMethodInfo needed Type) Type public
+	((compile tok VToken needed Type) Type public
 		(define output (!= this:code null))
-		(define found (mi:getVar tok))
+		(define found (this:mi:getVar tok))
 		(if (instance? found VCaptured)
-			(this:assignField (as VCaptured found) mi this:code)
+			(this:assignField (as VCaptured found) this:code)
 		)
 		(this:castMaybe
 			(if (= found null)
@@ -1202,8 +1219,8 @@
 					(define outer (this:enc:getVar tok))
 					(if (= outer null) (throw (RuntimeException (tok:toString))))
 					(define vcaptured (VCaptured outer null))
-					(this:assignField vcaptured mi this:code)
-					(mi:putCapturedVar tok vcaptured)
+					(this:assignField vcaptured this:code)
+					(this:mi:putCapturedVar tok vcaptured)
 					(vcaptured:load this:code)
 				)
 				(found:load this:code)

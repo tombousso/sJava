@@ -42,161 +42,167 @@ import sjava.compiler.tokens.TypeToken;
 import sjava.compiler.tokens.VToken;
 
 public abstract class Handler {
-    public Type[] compileAll(List<Token> toks, int i, int e, AMethodInfo mi, Object needed) {
+    AMethodInfo mi;
+
+    Handler(AMethodInfo mi) {
+        this.mi = mi;
+    }
+
+    public Type[] compileAll(List<Token> toks, int i, int e, Object needed) {
         int l = toks.size();
         Type[] types = new Type[e - i];
 
         for(int j = i; j < e; ++j) {
-            types[j - i] = this.compile((Token)toks.get(j), mi, needed instanceof Type[]?((Type[])needed)[j - i]:(Type)needed);
+            types[j - i] = this.compile((Token)toks.get(j), needed instanceof Type[]?((Type[])needed)[j - i]:(Type)needed);
         }
 
         return types;
     }
 
-    public abstract Type compile(EmptyToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(EmptyToken var1, Type var2);
 
-    public abstract Type compile(SToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(SToken var1, Type var2);
 
-    public abstract Type compile(CToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(CToken var1, Type var2);
 
-    public abstract Type compile(NToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(NToken var1, Type var2);
 
-    public abstract Type compile(FieldToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(FieldToken var1, Type var2);
 
-    public abstract Type compile(QuoteToken2 var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(QuoteToken2 var1, Type var2);
 
-    public abstract Type compile(ConstToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ConstToken var1, Type var2);
 
-    public abstract Type compile(VToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(VToken var1, Type var2);
 
-    public abstract Type compile(IncludeToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(IncludeToken var1, Type var2);
 
-    public abstract Type compile(ObjectToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ObjectToken var1, Type var2);
 
-    public abstract Type compile(MacroIncludeToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(MacroIncludeToken var1, Type var2);
 
-    public abstract Type compile(BeginToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(BeginToken var1, Type var2);
 
-    public abstract Type compile(SpecialBeginToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(SpecialBeginToken var1, Type var2);
 
-    public abstract Type compile(LabelToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(LabelToken var1, Type var2);
 
-    public abstract Type compile(GotoToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(GotoToken var1, Type var2);
 
-    public abstract Type compile(DefineToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(DefineToken var1, Type var2);
 
-    public abstract Type compile(TryToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(TryToken var1, Type var2);
 
-    public abstract Type compile(InstanceToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(InstanceToken var1, Type var2);
 
-    public abstract Type compile(SetToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(SetToken var1, Type var2);
 
-    public abstract Type compile(ASetToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ASetToken var1, Type var2);
 
-    public abstract Type compile(AGetToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(AGetToken var1, Type var2);
 
-    public abstract Type compile(ALenToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ALenToken var1, Type var2);
 
-    public abstract Type compile(AsToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(AsToken var1, Type var2);
 
-    public abstract Type compile(NumOpToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(NumOpToken var1, Type var2);
 
-    public abstract Type compile(ShiftToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ShiftToken var1, Type var2);
 
-    public abstract Type compile(IfToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(IfToken var1, Type var2);
 
-    public abstract Type compile(CompareToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(CompareToken var1, Type var2);
 
-    public abstract Type compile(ThrowToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ThrowToken var1, Type var2);
 
-    public abstract Type compile(ClassToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ClassToken var1, Type var2);
 
-    public abstract Type compile(SynchronizedToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(SynchronizedToken var1, Type var2);
 
-    public abstract Type compile(TypeToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(TypeToken var1, Type var2);
 
-    public abstract Type compile(ReturnToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ReturnToken var1, Type var2);
 
-    public abstract Type compile(CallToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(CallToken var1, Type var2);
 
-    public abstract Type compile(DefaultToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(DefaultToken var1, Type var2);
 
-    public abstract Type compile(ConstructorToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ConstructorToken var1, Type var2);
 
-    public abstract Type compile(ArrayConstructorToken var1, AMethodInfo var2, Type var3);
+    public abstract Type compile(ArrayConstructorToken var1, Type var2);
 
-    public Type compile(Token tok, AMethodInfo mi, Type needed) {
+    public Type compile(Token tok, Type needed) {
         Type var10000;
         if(tok instanceof EmptyToken) {
-            var10000 = this.compile((EmptyToken)tok, mi, needed);
+            var10000 = this.compile((EmptyToken)tok, needed);
         } else if(tok instanceof SToken) {
-            var10000 = this.compile((SToken)tok, mi, needed);
+            var10000 = this.compile((SToken)tok, needed);
         } else if(tok instanceof CToken) {
-            var10000 = this.compile((CToken)tok, mi, needed);
+            var10000 = this.compile((CToken)tok, needed);
         } else if(tok instanceof NToken) {
-            var10000 = this.compile((NToken)tok, mi, needed);
+            var10000 = this.compile((NToken)tok, needed);
         } else if(tok instanceof FieldToken) {
-            var10000 = this.compile((FieldToken)tok, mi, needed);
+            var10000 = this.compile((FieldToken)tok, needed);
         } else if(tok instanceof QuoteToken2) {
-            var10000 = this.compile((QuoteToken2)tok, mi, needed);
+            var10000 = this.compile((QuoteToken2)tok, needed);
         } else if(tok instanceof ConstToken) {
-            var10000 = this.compile((ConstToken)tok, mi, needed);
+            var10000 = this.compile((ConstToken)tok, needed);
         } else if(tok instanceof VToken) {
-            var10000 = this.compile((VToken)tok, mi, needed);
+            var10000 = this.compile((VToken)tok, needed);
         } else if(tok instanceof IncludeToken) {
-            var10000 = this.compile((IncludeToken)tok, mi, needed);
+            var10000 = this.compile((IncludeToken)tok, needed);
         } else if(tok instanceof ObjectToken) {
-            var10000 = this.compile((ObjectToken)tok, mi, needed);
+            var10000 = this.compile((ObjectToken)tok, needed);
         } else if(tok instanceof MacroIncludeToken) {
-            var10000 = this.compile((MacroIncludeToken)tok, mi, needed);
+            var10000 = this.compile((MacroIncludeToken)tok, needed);
         } else if(tok instanceof BeginToken) {
-            var10000 = this.compile((BeginToken)tok, mi, needed);
+            var10000 = this.compile((BeginToken)tok, needed);
         } else if(tok instanceof SpecialBeginToken) {
-            var10000 = this.compile((SpecialBeginToken)tok, mi, needed);
+            var10000 = this.compile((SpecialBeginToken)tok, needed);
         } else if(tok instanceof LabelToken) {
-            var10000 = this.compile((LabelToken)tok, mi, needed);
+            var10000 = this.compile((LabelToken)tok, needed);
         } else if(tok instanceof GotoToken) {
-            var10000 = this.compile((GotoToken)tok, mi, needed);
+            var10000 = this.compile((GotoToken)tok, needed);
         } else if(tok instanceof DefineToken) {
-            var10000 = this.compile((DefineToken)tok, mi, needed);
+            var10000 = this.compile((DefineToken)tok, needed);
         } else if(tok instanceof TryToken) {
-            var10000 = this.compile((TryToken)tok, mi, needed);
+            var10000 = this.compile((TryToken)tok, needed);
         } else if(tok instanceof InstanceToken) {
-            var10000 = this.compile((InstanceToken)tok, mi, needed);
+            var10000 = this.compile((InstanceToken)tok, needed);
         } else if(tok instanceof SetToken) {
-            var10000 = this.compile((SetToken)tok, mi, needed);
+            var10000 = this.compile((SetToken)tok, needed);
         } else if(tok instanceof ASetToken) {
-            var10000 = this.compile((ASetToken)tok, mi, needed);
+            var10000 = this.compile((ASetToken)tok, needed);
         } else if(tok instanceof AGetToken) {
-            var10000 = this.compile((AGetToken)tok, mi, needed);
+            var10000 = this.compile((AGetToken)tok, needed);
         } else if(tok instanceof ALenToken) {
-            var10000 = this.compile((ALenToken)tok, mi, needed);
+            var10000 = this.compile((ALenToken)tok, needed);
         } else if(tok instanceof AsToken) {
-            var10000 = this.compile((AsToken)tok, mi, needed);
+            var10000 = this.compile((AsToken)tok, needed);
         } else if(tok instanceof NumOpToken) {
-            var10000 = this.compile((NumOpToken)tok, mi, needed);
+            var10000 = this.compile((NumOpToken)tok, needed);
         } else if(tok instanceof ShiftToken) {
-            var10000 = this.compile((ShiftToken)tok, mi, needed);
+            var10000 = this.compile((ShiftToken)tok, needed);
         } else if(tok instanceof IfToken) {
-            var10000 = this.compile((IfToken)tok, mi, needed);
+            var10000 = this.compile((IfToken)tok, needed);
         } else if(tok instanceof CompareToken) {
-            var10000 = this.compile((CompareToken)tok, mi, needed);
+            var10000 = this.compile((CompareToken)tok, needed);
         } else if(tok instanceof ThrowToken) {
-            var10000 = this.compile((ThrowToken)tok, mi, needed);
+            var10000 = this.compile((ThrowToken)tok, needed);
         } else if(tok instanceof ClassToken) {
-            var10000 = this.compile((ClassToken)tok, mi, needed);
+            var10000 = this.compile((ClassToken)tok, needed);
         } else if(tok instanceof SynchronizedToken) {
-            var10000 = this.compile((SynchronizedToken)tok, mi, needed);
+            var10000 = this.compile((SynchronizedToken)tok, needed);
         } else if(tok instanceof TypeToken) {
-            var10000 = this.compile((TypeToken)tok, mi, needed);
+            var10000 = this.compile((TypeToken)tok, needed);
         } else if(tok instanceof ReturnToken) {
-            var10000 = this.compile((ReturnToken)tok, mi, needed);
+            var10000 = this.compile((ReturnToken)tok, needed);
         } else if(tok instanceof CallToken) {
-            var10000 = this.compile((CallToken)tok, mi, needed);
+            var10000 = this.compile((CallToken)tok, needed);
         } else if(tok instanceof DefaultToken) {
-            var10000 = this.compile((DefaultToken)tok, mi, needed);
+            var10000 = this.compile((DefaultToken)tok, needed);
         } else if(tok instanceof ConstructorToken) {
-            var10000 = this.compile((ConstructorToken)tok, mi, needed);
+            var10000 = this.compile((ConstructorToken)tok, needed);
         } else {
             if(!(tok instanceof ArrayConstructorToken)) {
                 StringBuilder sb = new StringBuilder();
@@ -205,7 +211,7 @@ public abstract class Handler {
                 throw new RuntimeException(sb.toString());
             }
 
-            var10000 = this.compile((ArrayConstructorToken)tok, mi, needed);
+            var10000 = this.compile((ArrayConstructorToken)tok, needed);
         }
 
         return var10000;

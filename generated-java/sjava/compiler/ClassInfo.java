@@ -314,13 +314,13 @@ public class ClassInfo {
 
     }
 
-    public void compileMethods(GenHandler h) {
+    public void compileMethods() {
         List iterable = this.methods;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             AMethodInfo mi = (AMethodInfo)it.next();
-            mi.compileMethodBody(h);
+            mi.compileMethodBody(new GenHandler(mi));
         }
 
     }
@@ -361,7 +361,7 @@ public class ClassInfo {
             method = filter.getMethod();
         }
 
-        ((ClassInfo)ci).compileMethods(GenHandler.inst);
+        ((ClassInfo)ci).compileMethods();
         Type[] params = method.getGenericParameterTypes();
         Class[] out = new Class[params.length];
         Type[] array = params;

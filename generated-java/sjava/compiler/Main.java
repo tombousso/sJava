@@ -28,7 +28,6 @@ import java.util.Set;
 import java.util.Map.Entry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.io.FileUtils;
-import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.CompileScope;
@@ -325,7 +324,13 @@ public class Main {
 
         for(int notused4 = 0; it4.hasNext(); ++notused4) {
             FileScope fs4 = (FileScope)it4.next();
-            fs4.compileMethods(GenHandler.inst);
+            List iterable1 = fs4.newClasses;
+            Iterator it5 = iterable1.iterator();
+
+            for(int notused5 = 0; it5.hasNext(); ++notused5) {
+                ClassInfo ci = (ClassInfo)it5.next();
+                ci.compileMethods();
+            }
         }
 
         return fileScopes;
@@ -518,8 +523,8 @@ public class Main {
         return inv?(String)oppositeOps.get(comp):comp;
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
-        Type[] types = Emitter.emitAll(emitters, h, mi, (CodeAttr)null, unknownType);
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed, boolean special) {
+        Type[] types = Emitter.emitAll(emitters, h, (CodeAttr)null, unknownType);
         MFilter filter = new MFilter(name, types, type);
         if(special) {
             filter.searchDeclared();
@@ -527,14 +532,15 @@ public class Main {
             filter.searchAll();
         }
 
-        return emitInvoke(h, filter.getMethodCall(), emitters, mi, code, needed, special);
+        return emitInvoke(h, filter.getMethodCall(), emitters, needed, special);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
-        return emitInvoke(h, name, type, emitters, mi, code, needed, false);
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed) {
+        return emitInvoke(h, name, type, emitters, needed, false);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed, boolean special) {
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed, boolean special) {
+        CodeAttr code = h.code;
         boolean output = code != null;
         Method method = mc.m;
         TypeVariable[] typeParameters = method.getTypeParameters();
@@ -544,7 +550,7 @@ public class Main {
 
         int n;
         for(n = !varargs || mc.types.length >= params.length && arrayDim(params[params.length - 1]) == arrayDim(mc.types[params.length - 1])?0:1; j != params.length - n; ++j) {
-            ((Emitter)emitters.get(j)).emit(h, mi, code, resolveType(mc.tvs, mc.t, params[j]));
+            ((Emitter)emitters.get(j)).emit(h, code, resolveType(mc.tvs, mc.t, params[j]));
         }
 
         if(n == 1) {
@@ -567,7 +573,7 @@ public class Main {
                     code.emitPushInt(j - oj);
                 }
 
-                ((Emitter)emitters.get(j)).emit(h, mi, code, et);
+                ((Emitter)emitters.get(j)).emit(h, code, et);
                 if(output) {
                     code.emitArrayStore();
                 }
@@ -590,8 +596,8 @@ public class Main {
         return new Tuple2(h.castMaybe(out, needed), mc);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, AMethodInfo mi, CodeAttr code, Type needed) {
-        return emitInvoke(h, mc, emitters, mi, code, needed, false);
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed) {
+        return emitInvoke(h, mc, emitters, needed, false);
     }
 
     public static Type compareType(Type[] types) {

@@ -216,7 +216,7 @@ public class AMethodInfo {
     public void compileMethodBody(GenHandler h) {
         if(!this.compiled && !this.method.isAbstract()) {
             this.transformBlockToks(this.block);
-            h.compile(this.block, this, (CodeAttr)null, this.method.getReturnType());
+            h.compile(this.block, (CodeAttr)null, this.method.getReturnType());
             BridgeFilter filter = new BridgeFilter(this.method);
             filter.searchAll();
             CodeAttr code = this.method.startCode();
@@ -229,7 +229,7 @@ public class AMethodInfo {
                 code.getArg(arg.n).setName((String)entry.getKey());
             }
 
-            h.compile(this.block, this, code, this.method.getReturnType());
+            h.compile(this.block, code, this.method.getReturnType());
             code.popScope();
             if(code.reachableHere()) {
                 code.emitReturn();
@@ -238,10 +238,6 @@ public class AMethodInfo {
             this.compiled = true;
         }
 
-    }
-
-    void compileMethodBody() {
-        this.compileMethodBody(GenHandler.inst);
     }
 
     public String toString() {

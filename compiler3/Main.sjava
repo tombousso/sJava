@@ -233,7 +233,9 @@
 		)
 
 		(forEach fs fileScopes
-			(fs:compileMethods GenHandler:inst)
+			(forEach ci fs:newClasses
+				(ci:compileMethods)
+			)
 		)
 
 		fileScopes
@@ -417,8 +419,8 @@
 			comp
 		)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo needed Type special bool) Tuple2{Type MethodCall} static public
-		(define types (Emitter:emitAll emitters h mi null Main:unknownType))
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type special bool) Tuple2{Type MethodCall} static public
+		(define types (Emitter:emitAll emitters h null Main:unknownType))
 		;(System:out:println name)
 		;(System:out:println type)
 		;(System:out:println (Arrays:toString types))
@@ -427,12 +429,12 @@
 			(filter:searchDeclared)
 			(filter:searchAll)
 		)
-		(Main:emitInvoke h (filter:getMethodCall) emitters mi needed special)
+		(Main:emitInvoke h (filter:getMethodCall) emitters needed special)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} mi AMethodInfo needed Type) Tuple2{Type MethodCall} static public
-		(Main:emitInvoke h name type emitters mi needed false)
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type) Tuple2{Type MethodCall} static public
+		(Main:emitInvoke h name type emitters needed false)
 	)
-	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} mi AMethodInfo needed Type special bool) Tuple2{Type MethodCall} static public
+	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type special bool) Tuple2{Type MethodCall} static public
 		(define code h:code)
 		(define output (!= code null))
 		(define method mc:m)
@@ -456,7 +458,7 @@
 				)
 			)
 			(while (!= j (- (alen params) n))
-				((emitters:get j):emit h mi code (Main:resolveType mc:tvs mc:t (aget params j)))
+				((emitters:get j):emit h code (Main:resolveType mc:tvs mc:t (aget params j)))
 				(inc j)
 			)
 			(if (= n 1)
@@ -469,7 +471,7 @@
 					(while (!= j (alen mc:types))
 						(if output (code:emitDup))
 						(if output (code:emitPushInt (- j oj)))
-						((emitters:get j):emit h mi code et)
+						((emitters:get j):emit h code et)
 						(if output (code:emitArrayStore))
 						(inc j)
 					)
@@ -486,8 +488,8 @@
 		)
 		(Tuple2 (h:castMaybe out needed) mc)
 	)
-	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} mi AMethodInfo needed Type) Tuple2{Type MethodCall} static public
-		(Main:emitInvoke h mc emitters mi needed false)
+	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type) Tuple2{Type MethodCall} static public
+		(Main:emitInvoke h mc emitters needed false)
 	)
 	((compareType types Type[]) Type public static
 		(cond
@@ -1256,7 +1258,7 @@
 	)
 	((compileMacros) void
 		(forEach macro this:macros
-			(macro:compileMethods GenHandler:inst)
+			(macro:compileMethods)
 			;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
 			(macro:addToClassLoader this:cs:mcl)
 			(set macro:rc (macro:getClazz this:cs:mcl))
@@ -1397,18 +1399,13 @@
 			(ci:runMethodMacros)
 		)
 	)
-	((compileMethods h GenHandler) void public
-		(forEach newClass this:newClasses
-			(newClass:compileMethods h)
-		)
-	)
 	((compileInclude tok IncludeToken) void public
 		(define name ("$":concat (Integer:toString (this:includes:c:getMethodCount))))
 		(define scope (LinkedHashMap))
 		(scope:put "mi" (Arg (Main:getCompilerType "AMethodInfo") 0 0))
 		(define params (Type[] (Main:getCompilerType "AMethodInfo") Type:intType (Main:getCompilerType "handlers.GenHandler")))
 		(define mi (this:includes:addMethod name (Arrays:asList params) (Main:getCompilerType "tokens.LexedParsedToken") (| Access:PUBLIC Access:STATIC) tok:toks scope))
-		(mi:compileMethodBody)
+		(mi:compileMethodBody (GenHandler mi))
 		(set tok:mi mi)
 	)
 )
@@ -1635,9 +1632,9 @@
 			(this:compileDef (as BlockToken tok))
 		)
 	)
-	((compileMethods h GenHandler) void public
+	((compileMethods) void public
 		(forEach mi this:methods
-			(mi:compileMethodBody h)
+			(mi:compileMethodBody (GenHandler mi))
 		)
 	)
 	((runMethodMacros) void
@@ -1669,7 +1666,7 @@
 			(filter:searchDeclared)
 			(set method (filter:getMethod))
 		)
-		(ci:compileMethods GenHandler:inst)
+		(ci:compileMethods)
 		(define params (method:getGenericParameterTypes))
 		(define classes (mapA t params (t:getReflectClass)))
 		(define args (ArrayList (Arrays:asList (Object[] this))))
@@ -1842,7 +1839,7 @@
 		(if (&& (! this:compiled) (! (this:method:isAbstract)))
 			(begin
 				(this:transformBlockToks this:block)
-				(h:compile this:block this null (this:method:getReturnType))
+				(h:compile this:block null (this:method:getReturnType))
 
 				(define filter (BridgeFilter this:method))
 				(filter:searchAll)
@@ -1852,7 +1849,7 @@
 					(define arg (entry:getValue))
 					((code:getArg arg:n):setName (entry:getKey))
 				)
-				(define ret (h:compile this:block this code (this:method:getReturnType)))
+				(define ret (h:compile this:block code (this:method:getReturnType)))
 				(code:popScope)
 
 				(if (code:reachableHere)
@@ -1861,9 +1858,6 @@
 				(set this:compiled true)
 			)
 		)
-	)
-	((compileMethodBody) void
-		(this:compileMethodBody GenHandler:inst)
 	)
 	((toString) String public
 		(concat (super:toString) ":" this:method)
