@@ -419,20 +419,20 @@
 			comp
 		)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type special bool) Tuple2{Type MethodCall} static public
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type special bool static_ bool) Tuple2{Type MethodCall} static public
 		(define types (Emitter:emitAll emitters h null Main:unknownType))
 		;(System:out:println name)
 		;(System:out:println type)
 		;(System:out:println (Arrays:toString types))
-		(define filter (MFilter name types type))
+		(define filter (MFilter name types type static_))
 		(if special
 			(filter:searchDeclared)
 			(filter:searchAll)
 		)
 		(Main:emitInvoke h (filter:getMethodCall) emitters needed special)
 	)
-	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type) Tuple2{Type MethodCall} static public
-		(Main:emitInvoke h name type emitters needed false)
+	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type static_ bool) Tuple2{Type MethodCall} static public
+		(Main:emitInvoke h name type emitters needed false static_)
 	)
 	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type special bool) Tuple2{Type MethodCall} static public
 		(define code h:code)
@@ -1662,7 +1662,7 @@
 		(define ci ClassInfo null)
 		(for ((i 0)) (= method null) (inc i)
 			(set ci ((this:fs:methodMacroNames:get name):get i))
-			(define filter (MFilter name types ci:c))
+			(define filter (MFilter name types ci:c true))
 			(filter:searchDeclared)
 			(set method (filter:getMethod))
 		)

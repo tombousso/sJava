@@ -673,7 +673,7 @@
 	)
 	((createCtor c ClassType types Type[] fields Collection{Field}) void
 		(define superC (c:getSuperclass))
-		(define filter (MFilter "<init>" types superC))
+		(define filter (MFilter "<init>" types superC false))
 		(filter:searchDeclared)
 		(define superCons (filter:getMethod))
 		(define n (alen (superCons:getGenericParameterTypes)))
@@ -788,7 +788,7 @@
 				(forEach v tok:captured
 					(emitters:add (LoadAVar v))
 				)
-				(Main:emitInvoke this "<init>" ci:c emitters Main:unknownType)
+				(Main:emitInvoke this "<init>" ci:c emitters Main:unknownType false)
 			)
 		)
 		(this:castMaybe tok:t needed)
@@ -808,7 +808,7 @@
 				(define ci ClassInfo null)
 				(for ((i 0)) (= method null) (inc i)
 					(set ci ((this:mi:ci:fs:macroNames:get tok:name):get i))
-					(define filter (MFilter tok:name types ci:c))
+					(define filter (MFilter tok:name types ci:c true))
 					(filter:searchDeclared)
 					(set method (filter:getMethod))
 				)
@@ -1089,19 +1089,22 @@
 				((as VToken tok:target):val:equals "super")
 			)
 		)
+		(define static_ true)
 		(define t
 			(if special
 				(begin
+					(set static_ false)
 					(if output (this:code:emitPushThis))
 					(this:mi:ci:c:getGenericSuperclass)
 				)
 				(this:mi:getType tok:target)
 			)
 		)
-		(if (= t null)
+		(when (= t null)
+			(set static_ false)
 			(set t (this:compile tok:target this:code Main:unknownType))
 		)
-		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) needed special):_1
+		(Main:emitInvoke this tok:method t (Main:toEmitters tok:toks) needed special static_):_1
 	)
 	((compile tok DefaultToken needed Type) Type public
 		(define output (!= this:code null))
@@ -1120,14 +1123,14 @@
 			)
 			(set method (method:getNext))
 		)
-		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) needed):_1
+		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) needed false):_1
 	)
 	((compile tok ConstructorToken needed Type) Type public
 		(define output (!= this:code null))
 		(define class ClassType (tok:type:getRawType))
 		(if output (this:code:emitNew class))
 		(if output (this:code:emitDup))
-		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) Main:unknownType):_2)
+		(define mc (Main:emitInvoke this "<init>" tok:type (Main:toEmitters tok:toks) Main:unknownType false):_2)
 		(if
 			(&&
 				(instance? tok:type ClassType)

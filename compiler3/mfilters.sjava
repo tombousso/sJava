@@ -132,17 +132,20 @@
 	(methods ArrayList{MethodCall})
 	(name String)
 	(types Type[])
-	((<init> name String types Type[] pt Type) void public
+	(static_ bool)
+	((<init> name String types Type[] pt Type static_ bool) void public
 		(super:<init> pt)
 		(set this:methods (ArrayList))
 		(set this:name name)
 		(set this:types types)
+		(set this:static_ static_)
 	)
 	((select method Method generic Type) void
 		(define c (method:getDeclaringClass))
 		(if
 			(&&
 				((method:getName):equals this:name)
+				(= (method:getStaticFlag) this:static_)
 				(||
 					(! (c:isInterface))
 					((as ClassType (generic:getRawType)):isInterface)

@@ -18,16 +18,18 @@ public class MFilter extends AFilter {
     ArrayList<MethodCall> methods = new ArrayList();
     String name;
     Type[] types;
+    boolean static_;
 
-    public MFilter(String name, Type[] types, Type pt) {
+    public MFilter(String name, Type[] types, Type pt, boolean static_) {
         super(pt);
         this.name = name;
         this.types = types;
+        this.static_ = static_;
     }
 
     void select(Method method, Type generic) {
         ClassType c = method.getDeclaringClass();
-        if(method.getName().equals(this.name) && (!c.isInterface() || ((ClassType)generic.getRawType()).isInterface() || !method.isAbstract()) && 0 == (method.getModifiers() & Access.SYNTHETIC)) {
+        if(method.getName().equals(this.name) && method.getStaticFlag() == this.static_ && (!c.isInterface() || ((ClassType)generic.getRawType()).isInterface() || !method.isAbstract()) && 0 == (method.getModifiers() & Access.SYNTHETIC)) {
             MethodCall mc = isCompatible(method, generic, this.types);
             if(mc != null) {
                 this.methods.add(mc);

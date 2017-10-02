@@ -523,9 +523,9 @@ public class Main {
         return inv?(String)oppositeOps.get(comp):comp;
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed, boolean special) {
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed, boolean special, boolean static_) {
         Type[] types = Emitter.emitAll(emitters, h, (CodeAttr)null, unknownType);
-        MFilter filter = new MFilter(name, types, type);
+        MFilter filter = new MFilter(name, types, type, static_);
         if(special) {
             filter.searchDeclared();
         } else {
@@ -535,8 +535,8 @@ public class Main {
         return emitInvoke(h, filter.getMethodCall(), emitters, needed, special);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed) {
-        return emitInvoke(h, name, type, emitters, needed, false);
+    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed, boolean static_) {
+        return emitInvoke(h, name, type, emitters, needed, false, static_);
     }
 
     public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed, boolean special) {

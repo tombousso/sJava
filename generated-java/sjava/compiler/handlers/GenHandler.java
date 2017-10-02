@@ -841,7 +841,7 @@ public class GenHandler extends Handler {
 
     void createCtor(ClassType c, Type[] types, Collection<Field> fields) {
         ClassType superC = c.getSuperclass();
-        MFilter filter = new MFilter("<init>", types, superC);
+        MFilter filter = new MFilter("<init>", types, superC, false);
         filter.searchDeclared();
         Method superCons = filter.getMethod();
         int n = superCons.getGenericParameterTypes().length;
@@ -963,7 +963,7 @@ public class GenHandler extends Handler {
                 emitters.add(new LoadAVar(v));
             }
 
-            Main.emitInvoke(this, "<init>", ci.c, emitters, Main.unknownType);
+            Main.emitInvoke(this, "<init>", ci.c, emitters, Main.unknownType, false);
         }
 
         return this.castMaybe(tok.t, needed);
@@ -989,7 +989,7 @@ public class GenHandler extends Handler {
 
             for(int i = 0; method == null; ++i) {
                 ci = (MacroInfo)((List)super.mi.ci.fs.macroNames.get(tok.name)).get(i);
-                MFilter filter = new MFilter(tok.name, types, ((ClassInfo)ci).c);
+                MFilter filter = new MFilter(tok.name, types, ((ClassInfo)ci).c, true);
                 filter.searchDeclared();
                 method = filter.getMethod();
             }
@@ -1399,8 +1399,10 @@ public class GenHandler extends Handler {
     public Type compile(CallToken tok, Type needed) {
         boolean output = this.code != null;
         boolean special = tok.target instanceof VToken && ((VToken)tok.target).val.equals("super");
+        boolean static_ = true;
         Type var10000;
         if(special) {
+            static_ = false;
             if(output) {
                 this.code.emitPushThis();
             }
@@ -1412,10 +1414,11 @@ public class GenHandler extends Handler {
 
         Type t = var10000;
         if(t == null) {
+            static_ = false;
             t = this.compile(tok.target, this.code, Main.unknownType);
         }
 
-        return (Type)Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), needed, special)._1;
+        return (Type)Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), needed, special, static_)._1;
     }
 
     public Type compile(DefaultToken tok, Type needed) {
@@ -1437,7 +1440,7 @@ public class GenHandler extends Handler {
             }
         }
 
-        return (Type)Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), needed)._1;
+        return (Type)Main.emitInvoke(this, tocall.getName(), t, Main.toEmitters(tok.toks.subList(1, tok.toks.size())), needed, false)._1;
     }
 
     public Type compile(ConstructorToken tok, Type needed) {
@@ -1451,7 +1454,7 @@ public class GenHandler extends Handler {
             this.code.emitDup();
         }
 
-        MethodCall mc = (MethodCall)Main.emitInvoke(this, "<init>", tok.type, Main.toEmitters(tok.toks), Main.unknownType)._2;
+        MethodCall mc = (MethodCall)Main.emitInvoke(this, "<init>", tok.type, Main.toEmitters(tok.toks), Main.unknownType, false)._2;
         Type var10000;
         if(tok.type instanceof ClassType && ((ClassType)tok.type).getTypeParameters() != null && ((ClassType)tok.type).getTypeParameters().length != 0) {
             TypeVariable[] tparams = ((ClassType)tok.type).getTypeParameters();

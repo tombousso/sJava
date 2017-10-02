@@ -356,7 +356,7 @@ public class ClassInfo {
 
         for(int i = 0; method == null; ++i) {
             ci = (MacroInfo)((List)this.fs.methodMacroNames.get(name)).get(i);
-            MFilter filter = new MFilter(name, types, ((ClassInfo)ci).c);
+            MFilter filter = new MFilter(name, types, ((ClassInfo)ci).c, true);
             filter.searchDeclared();
             method = filter.getMethod();
         }
