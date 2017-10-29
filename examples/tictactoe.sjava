@@ -159,51 +159,38 @@
 			(true 0)
 		)
 	)
-	((minimax player int depth int a int b int) int static
+	;returns the score of this position for player
+	((dfs player int depth int) int static
 		(define n (App:check))
-		(define max (= player App:turn))
 		(cond
-			((= n App:turn)
+			((= n player) ;player wins
 				depth
 			)
-			((!= n 0)
+			((!= n 0) ;player loses
 				(- depth)
 			)
-			(max
-				(define best -9999)
-				(for ((x 0)) (< x 3) (inc x)
-					(for ((y 0)) (< y 3) (inc y)
-						(if (= (aget App:board x y) 0)
-							(begin
-								(aset App:board x y player)
-								(set best (Math:max best (App:minimax (if (= player 1) 2 1) (- depth 1) a b)))
-								(aset App:board x y 0)
-								(set a (Math:max a best))
-								(if (<= b a) (goto ret))
-							)
-						)
-					)
-				)
-				(label ret)
-				(if (= best -9999) 0 best)
-			)
 			(true
-				(define best 9999)
+				(define score -9999)
 				(for ((x 0)) (< x 3) (inc x)
 					(for ((y 0)) (< y 3) (inc y)
-						(if (= (aget App:board x y) 0)
-							(begin
-								(aset App:board x y player)
-								(set best (Math:min best (App:minimax (if (= player 1) 2 1) (- depth 1) a b)))
-								(aset App:board x y 0)
-								(set b (Math:min b best))
-								(if (<= b a) (goto ret))
+						(when (= (aget App:board x y) 0)
+							(aset App:board x y player)
+							(set score
+								(Math:max
+									score
+									(-
+										(static:dfs
+											(if (= player 1) 2 1)
+											(- depth 1)
+										)
+									)
+								)
 							)
+							(aset App:board x y 0)
 						)
 					)
 				)
-				(label ret)
-				(if (= best 9999) 0 best)
+				(if (= score -9999) 0 score)
 			)
 		)
 	)
@@ -216,7 +203,7 @@
 				(if (= (aget App:board x y) 0)
 					(begin
 						(aset App:board x y App:turn)
-						(define n (App:minimax (if (= App:turn 1) 2 1) 10 -9999 9999))
+						(define n (- (App:dfs (if (= App:turn 1) 2 1) 10)))
 						(if (> n best)
 							(begin
 								(set best n)

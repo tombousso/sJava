@@ -528,15 +528,30 @@ public class GenHandler extends Handler {
         return this.castMaybe((Type)var10001, needed);
     }
 
-    public Type compile(FieldToken tok, Type needed) {
-        boolean output = this.code != null;
-        Type t = super.mi.getType(tok.left);
-        if(t == null) {
-            t = this.compile(tok.left, this.code, Main.unknownType);
+    Tuple2<Type, Field> getField(FieldToken tok) {
+        boolean staticTarget = true;
+        Object var10000;
+        if(tok.left instanceof VToken && ((VToken)tok.left).val.equals("static")) {
+            var10000 = super.mi.ci.c;
+        } else {
+            Type t2 = super.mi.getType(tok.left);
+            if(t2 == null) {
+                t2 = this.compile(tok.left, this.code, Main.unknownType);
+                staticTarget = false;
+            }
+
+            var10000 = t2;
         }
 
-        ClassType var5 = (ClassType)t.getRawType();
-        Field field = var5.getField(tok.right, -1);
+        Object t = var10000;
+        ClassType var5 = (ClassType)((Type)t).getRawType();
+        return new Tuple2(t, staticTarget?var5.getDeclaredField(tok.right):var5.getField(tok.right, -1));
+    }
+
+    public Type compile(FieldToken tok, Type needed) {
+        boolean output = this.code != null;
+        Tuple2 tup = this.getField(tok);
+        Field field = (Field)tup._2;
         if(field.getStaticFlag()) {
             if(output) {
                 this.code.emitGetStatic(field);
@@ -545,7 +560,7 @@ public class GenHandler extends Handler {
             this.code.emitGetField(field);
         }
 
-        Type out = Main.resolveType(t, field.getType());
+        Type out = Main.resolveType((Type)tup._1, field.getType());
         if(out != Type.voidType && output) {
             this.code.emitCheckcast(out.getRawType());
         }
@@ -1157,14 +1172,9 @@ public class GenHandler extends Handler {
         Token out = (Token)tok.toks.get(1);
         if(out instanceof FieldToken) {
             FieldToken out1 = (FieldToken)out;
-            Type t = super.mi.getType(out1.left);
-            if(t == null) {
-                t = this.compile(out1.left, this.code, Main.unknownType);
-            }
-
-            ClassType var8 = (ClassType)t.getRawType();
-            Field field = var8.getField(out1.right, -1);
-            this.compile((Token)tok.toks.get(2), this.code, Main.resolveType(t, field.getType()));
+            Tuple2 tup = this.getField(out1);
+            Field field = (Field)tup._2;
+            this.compile((Token)tok.toks.get(2), this.code, Main.resolveType((Type)tup._1, field.getType()));
             if(field.getStaticFlag()) {
                 if(output) {
                     this.code.emitPutStatic(field);
@@ -1399,8 +1409,9 @@ public class GenHandler extends Handler {
     public Type compile(CallToken tok, Type needed) {
         boolean output = this.code != null;
         boolean special = tok.target instanceof VToken && ((VToken)tok.target).val.equals("super");
+        boolean staticTarget = tok.target instanceof VToken && ((VToken)tok.target).val.equals("static");
         boolean static_ = true;
-        Type var10000;
+        Object var10000;
         if(special) {
             static_ = false;
             if(output) {
@@ -1409,16 +1420,16 @@ public class GenHandler extends Handler {
 
             var10000 = super.mi.ci.c.getGenericSuperclass();
         } else {
-            var10000 = super.mi.getType(tok.target);
+            var10000 = staticTarget?super.mi.ci.c:super.mi.getType(tok.target);
         }
 
-        Type t = var10000;
+        Object t = var10000;
         if(t == null) {
             static_ = false;
             t = this.compile(tok.target, this.code, Main.unknownType);
         }
 
-        return (Type)Main.emitInvoke(this, tok.method, t, Main.toEmitters(tok.toks), needed, special, static_)._1;
+        return (Type)Main.emitInvoke(this, tok.method, (Type)t, Main.toEmitters(tok.toks), needed, special, static_)._1;
     }
 
     public Type compile(DefaultToken tok, Type needed) {

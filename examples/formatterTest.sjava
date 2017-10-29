@@ -2,7 +2,7 @@
 
 (define-class Main () public
 	((main args String[]) void public static
-		(Main:printFormatted
+		(static:printFormatted
 			"""
 
 (include

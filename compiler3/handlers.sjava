@@ -419,19 +419,43 @@
 			needed
 		)
 	)
-	((compile tok FieldToken needed Type) Type public
-		(define output (!= this:code null))
-		(define t (this:mi:getType tok:left))
-		(if (= t null)
-			(set t (this:compile tok:left this:code Main:unknownType))
+	((getField tok FieldToken) Tuple2{Type Field}
+		(define staticTarget true)
+		(define t Type
+			(if
+				(&&
+					(instance? tok:left VToken)
+					((as VToken tok:left):val:equals "static")
+				)
+				this:mi:ci:c
+				(begin
+					(define t2 (this:mi:getType tok:left))
+					(when (= t2 null)
+						(set t2 (this:compile tok:left this:code Main:unknownType))
+						(set staticTarget false)
+					)
+					t2
+				)
+			)
 		)
 		(define class ClassType (t:getRawType))
-		(define field Field (class:getField tok:right -1))
+		(Tuple2
+			t
+			(if staticTarget
+				(class:getDeclaredField tok:right)
+				(class:getField tok:right -1)
+			)
+		)
+	)
+	((compile tok FieldToken needed Type) Type public
+		(define output (!= this:code null))
+		(define tup (this:getField tok))
+		(define field tup:_2)
 		(if (field:getStaticFlag)
 			(if output (this:code:emitGetStatic field))
 			(if output (this:code:emitGetField field))
 		)
-		(define out (Main:resolveType t (field:getType)))
+		(define out (Main:resolveType tup:_1 (field:getType)))
 		(if (!= out Type:voidType)
 			(if output (this:code:emitCheckcast (out:getRawType)))
 		)
@@ -922,13 +946,9 @@
 		(define out (tok:toks:get 1))
 		(instanceCond out
 			(FieldToken
-				(define t (this:mi:getType out:left))
-				(if (= t null)
-					(set t (this:compile out:left this:code Main:unknownType))
-				)
-				(define class ClassType (t:getRawType))
-				(define field Field (class:getField out:right -1))
-				(this:compile (tok:toks:get 2) this:code (Main:resolveType t (field:getType)))
+				(define tup (this:getField (as FieldToken out)))
+				(define field tup:_2)
+				(this:compile (tok:toks:get 2) this:code (Main:resolveType tup:_1 (field:getType)))
 				(if (field:getStaticFlag)
 					(if output (this:code:emitPutStatic field))
 					(if output (this:code:emitPutField field))
@@ -1089,15 +1109,26 @@
 				((as VToken tok:target):val:equals "super")
 			)
 		)
+		(define staticTarget
+			(&&
+				(instance? tok:target VToken)
+				((as VToken tok:target):val:equals "static")
+			)
+		)
 		(define static_ true)
 		(define t
-			(if special
-				(begin
+			(cond
+				(special
 					(set static_ false)
 					(if output (this:code:emitPushThis))
 					(this:mi:ci:c:getGenericSuperclass)
 				)
-				(this:mi:getType tok:target)
+				(staticTarget
+					this:mi:ci:c
+				)
+				(true
+					(this:mi:getType tok:target)
+				)
 			)
 		)
 		(when (= t null)
