@@ -1,5 +1,3 @@
-buildDir = "bin/"
-
 buildscript {
 	repositories {
 		jcenter()
@@ -42,63 +40,41 @@ class SJavaCompile extends AbstractCompile {
 def STD_MACROS = files("std/macros.sjava").collect { it.getCanonicalPath() }
 def STD_LIB = files("std/FunctionN.sjava", "std/TupleN.sjava").collect { it.getCanonicalPath() }
 
-task compiler1_2(type: JavaExec) {
-	onlyIf { !file("bin/1-2").exists() }
-	doFirst { file("bin/1-2").deleteDir() }
-	inputs.files("compiler1.scm", "compiler2/compiler2.sjava")
-	outputs.dir("bin/1-2")
-	main = "kawa.repl"
-	classpath = JARS
-	args = [file("compiler1.scm"), file("compiler2/compiler2.sjava")]
-}
-
-task compiler2_2(type: JavaExec, dependsOn: [compiler1_2]) {
-	doFirst { file("bin/2-2").deleteDir() }
-	inputs.files("compiler2/compiler2.sjava")
-	outputs.dir("bin/2-2")
-	main = "compiler2.Main"
-	classpath = JARS + files("bin/1-2")
-	args = [file("compiler2/compiler2.sjava"), "-d", "${projectDir}/bin/2-2/"]
-}
-
-task compiler2_3(type: JavaExec, dependsOn: [compiler2_2]) {
-	doFirst { file("bin/2-3").deleteDir() }
-	inputs.files("compiler2/macros.sjava")
-	inputs.files(STD_LIB)
-	inputs.dir("compiler3")
-	outputs.dir("bin/2-3")
-	main = "compiler2.Main"
-	classpath = JARS + files("bin/2-2")
-	args = ["${projectDir}/compiler2/macros.sjava"] + STD_LIB + fileTree("compiler3").files + ["-d", "${projectDir}/bin/2-3/"]
-}
-
-task compiler(type: SJavaCompile, dependsOn: [compiler2_3]) {
+task compiler(type: SJavaCompile) {
 	doFirst { file("bin/main").deleteDir() }
 	inputs.files(STD_MACROS)
-	source = fileTree("compiler3") + STD_LIB
+	source = fileTree("compiler") + STD_LIB
+	compilerClasspath = files("sjava.jar")
 	destinationDir = file("bin/main")
-	compilerClasspath = files("bin/2-3")
 }
 
-task compiler3_3(type: SJavaCompile, dependsOn: [compiler]) {
-	doFirst { file("bin/3-3").deleteDir() }
-	source = fileTree("compiler3")
-	destinationDir = file("bin/3-3")
-}
-
-task diff(dependsOn: [compiler2_2, compiler3_3]) {
-	doLast {
-		def good = same(file("bin/main/sjava/compiler"), file("bin/3-3/sjava/compiler"))
-		println("diff3_3: "+(good ? "good" : "bad"))
-		if (!good) throw new Exception()
-	}
-}
-
-task jar(type: Zip, dependsOn: [compiler]) {
+task compilerJar(type: Zip, dependsOn: [compiler]) {
 	archiveName = "${projectDir}/sjava.jar"
 	from(file("MANIFEST.MF"), { into("META-INF") })
 	from(fileTree("bin/main/sjava/compiler"), { into("sjava/compiler") })
 	from(fileTree("bin/main/sjava/std"), { into("sjava/std") })
+}
+
+task compiler2(type: SJavaCompile, dependsOn: [compiler]) {
+	doFirst { file("bin/compiler2").deleteDir() }
+	inputs.files(STD_MACROS)
+	source = fileTree("compiler") + STD_LIB
+	destinationDir = file("bin/compiler2")
+}
+
+task compiler3(type: SJavaCompile, dependsOn: [compiler]) {
+	doFirst { file("bin/compiler3").deleteDir() }
+	inputs.files(STD_MACROS)
+	source = fileTree("compiler") + STD_LIB
+	destinationDir = file("bin/compiler3")
+}
+
+task diff(dependsOn: [compiler2, compiler3]) {
+	doLast {
+		def good = same(file("bin/compiler2"), file("bin/compiler3"))
+		println("Result: " + (good ? "identical" : "different"))
+		if (!good) throw new Exception()
+	}
 }
 
 task java_sources(type: JavaExec, dependsOn: [compiler]) {
@@ -118,7 +94,7 @@ task java_sources(type: JavaExec, dependsOn: [compiler]) {
 	]
 }
 
-task java_compile(type: JavaCompile, dependsOn: [compiler3_3]) {
+task java_compile(type: JavaCompile, dependsOn: [compiler]) {
 	outputs.upToDateWhen { false }
 	source = fileTree(dir: "generated-java", include: "**/*.java")
 	destinationDir = file("generated-java")
@@ -126,15 +102,15 @@ task java_compile(type: JavaCompile, dependsOn: [compiler3_3]) {
 	sourceCompatibility = "1.8"
 	targetCompatibility = "1.8"
 	doLast {
-		file("bin/java-3-3").deleteDir()
+		file("bin/compilerJava").deleteDir()
 		task java_compile_test(type: SJavaCompile) {
 			compilerClasspath = files("generated-java")
-			source = fileTree("compiler3") + STD_LIB
-			destinationDir = file("bin/java-3-3")
+			source = fileTree("compiler") + STD_LIB
+			destinationDir = file("bin/compilerJava")
 		}
 		java_compile_test.execute()
-		def works = same(file("bin/main/sjava"), file("bin/java-3-3/sjava"))
-		println("java version works: "+works)
+		def works = same(file("bin/main"), file("bin/compilerJava"))
+		println("java version works: " + works)
 		if (!works) throw new Exception()
 	}
 }

@@ -1,5 +1,4 @@
-bin/*
-!bin/1-2/
+bin/
 generated-java/**/*.class
 .gradle/
 vertx/build/

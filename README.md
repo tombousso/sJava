@@ -49,10 +49,9 @@ The sJava compiler outputs Java bytecode in classfiles just like the Java compil
 Java 8 - `java`
 
 ### Hierarchy (optional)
-#### `compiler1.scm` and `compiler2.sjava` are used in order to bootstrap `compiler3`.
 
 	├── build.gradle (Gradle build script for the compilers and examples)
-	├── compiler3/ (The main compiler)
+	├── compiler/
 	│   ├── commands.sjava (BuildCommand, RunCommand, FormatCommand, etc.)
 	│   ├── emitters.sjava
 	│   ├── handlers.sjava (Bulk of the compilation code. compile methods in a Handler act on Tokens using double dispatch)
@@ -60,9 +59,6 @@ Java 8 - `java`
 	│   ├── mfilters.sjava (Figuring out which methods to call)
 	│   └── tokens.sjava
 	├── bin/
-	│   ├── 1-2/**.class (The classfiles which *compiler1* generated when it compiled *compiler2*)
-	│   ├── 2-2/**.class (The classfiles which *compiler2* generated when it compiled *itself*)
-	│   └── ...
 	├── examples/
 	│   ├── generics.sjava (A test program)
 	│   ├── generics.expected.txt (The expected output)
@@ -75,10 +71,10 @@ Java 8 - `java`
 	├── std/ (The standard library)
 	│   ├── **.sjava
 	│   └── macros.sjava (The standard macros)
-	├── sjava.jar (JAR version of *compiler3* and *std*)
+	├── sjava.jar (JAR version of *compiler* and *std*)
 	├── sjava (Unix script for *sjava.jar*)
 	├── sjava.bat (Windows script for *sjava.jar*)
-	└── generated-java/ (Auto generated Java version of compiler3 using fernflower)
+	└── generated-java/ (Auto generated Java version of *compiler* using fernflower)
 
 ### Steps
 Once you've downloaded/cloned this repo open a terminal in its root directory.  
@@ -103,11 +99,11 @@ To run `examples/tictactoe.sjava`, which uses a JavaFX GUI:
 
 Check out the code, it's about 200 lines.  
 The `run` command compiles sJava code and runs it from memory.  
-To build `compiler3` from source and update your `sjava.jar` (On Windows use `gradlew` instead of `./gradlew`):
+To build `compiler` from source and update your `sjava.jar` (On Windows use `gradlew` instead of `./gradlew`):
 
 	> ./gradlew jar
 
-If everything works you should notice a couple of new folders in your `bin/` directory including `bin/main/`, which contains the classfiles of `compiler3` and `std`.  
+If everything works you should notice a couple of new folders in your `bin/` directory including `bin/main/`, which contains the classfiles of `compiler` and `std`.  
 Have a look in `bin/main/sjava/compiler/tokens/` if you're interested in the different Token types which are used during compilation.  
 To run all of the tests in `examples/`:
 
@@ -190,12 +186,12 @@ Or build then run:
 
 The `println` macro takes in a variable number of arguments and passes them all  to `concat`, so you can see the `Arrays:toString` functionality in action.
 
-More features can be found in `examples/test.sjava`, in other examples, and in `compiler3/**.sjava`.  Also if you're adventurous you can check out `vertx/` which is a little site I made using the Vertx library and sJava.
+More features can be found in `examples/test.sjava`, in other examples, and in `compiler/**.sjava`.  Also if you're adventurous you can check out `vertx/` which is a little site I made using the Vertx library and sJava.
 
 If you've followed the walkthrough all the way until here, congrats! Let me know if you have any thoughts. The compiler still has some bugs I'm sure but overall it works reasonably well. If there's an error in compilation it will at least tell you which line is problematic, but parsing errors aren't handled right now.
 
 ### Just for fun
-`fernflower.jar` is a crazy decompiler which can actually convert the bytecode of `compiler3` into proper Java code!
+`fernflower.jar` is a crazy decompiler which can actually convert the bytecode of `compiler` into proper Java code!
 
 	> ./gradlew java_sources
 
@@ -203,12 +199,12 @@ And now that the Java files have been created:
 
 	> ./gradlew java_compile
 
-If there are no errors then the diff ran successfully meaning that the Java version of `compiler3` successfully compiled `compiler3`.
+If there are no errors then the diff ran successfully meaning that the Java version of `compiler` successfully compiled `compiler`.
 
 ## More explanations
 
 ### Kawa
-sJava borrows a lot from Kawa which is a Scheme implementation for the JVM. [Kawa](http://www.gnu.org/software/kawa/) is a really cool dynamic language (first class functions, macros, etc.) which can interact with traditional statically typed Java code. The first compiler for sJava was written in Kawa (`compiler1.scm`).  `compiler2` and `compiler3` are written in sJava.
+sJava borrows a lot from Kawa which is a Scheme implementation for the JVM. [Kawa](http://www.gnu.org/software/kawa/) is a really cool dynamic language (first class functions, macros, etc.) which can interact with traditional statically typed Java code. The first compiler for sJava was written in Kawa.
 
 ### Todo
 * verify sJava code and print friendly error messages
