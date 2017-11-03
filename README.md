@@ -101,7 +101,7 @@ Check out the code, it's about 200 lines.
 The `run` command compiles sJava code and runs it from memory.  
 To build `compiler` from source and update your `sjava.jar` (On Windows use `gradlew` instead of `./gradlew`):
 
-	> ./gradlew jar
+	> ./gradlew compilerJar
 
 If everything works you should notice a couple of new folders in your `bin/` directory including `bin/main/`, which contains the classfiles of `compiler` and `std`.  
 Have a look in `bin/main/sjava/compiler/tokens/` if you're interested in the different Token types which are used during compilation.  
