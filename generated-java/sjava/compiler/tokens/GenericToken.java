@@ -3,6 +3,7 @@ package sjava.compiler.tokens;
 import java.util.List;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
+import sjava.compiler.tokens.Token;
 
 public class GenericToken extends ParsedToken {
     public LexedParsedToken tok;
@@ -18,7 +19,7 @@ public class GenericToken extends ParsedToken {
         StringBuilder sb = new StringBuilder();
         sb.append(this.tok);
         sb.append("{");
-        sb.append(this.toksString(this.toks));
+        sb.append(Token.toksString(this.toks));
         sb.append("}");
         return sb.toString();
     }

@@ -50,7 +50,7 @@ Java 8 - `java`
 
 ### Hierarchy (optional)
 
-	├── build.gradle (Gradle build script for the compilers and examples)
+	├── build.gradle (Gradle build script for the compiler and examples)
 	├── compiler/
 	│   ├── commands.sjava (BuildCommand, RunCommand, FormatCommand, etc.)
 	│   ├── emitters.sjava
@@ -92,7 +92,6 @@ Once you've downloaded/cloned this repo open a terminal in its root directory.
 	> ./sjava run
 	usage: sjava run <MainClass> [files]
 
-(Inspired by Golang)  
 To run `examples/tictactoe.sjava`, which uses a JavaFX GUI:
 
 	> ./sjava run examples.tictactoe.Main examples/tictactoe.sjava

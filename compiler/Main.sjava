@@ -352,7 +352,7 @@
 	((compileClassMod tok LexedParsedToken c ClassType) bool static
 		(if (instance? tok VToken)
 			(begin
-				(define nmod int (Main:accessModifiers:get (as VToken tok):val))
+				(define nmod (Main:accessModifiers:get (as VToken tok):val))
 				(c:addModifiers nmod)
 				true
 			)
@@ -429,12 +429,13 @@
 			(filter:searchDeclared)
 			(filter:searchAll)
 		)
-		(Main:emitInvoke h (filter:getMethodCall) emitters needed special)
+		(define mc (filter:getMethodCall))
+		(Tuple2 (Main:emitInvoke h mc emitters needed special) mc)
 	)
 	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type static_ bool) Tuple2{Type MethodCall} static public
 		(Main:emitInvoke h name type emitters needed false static_)
 	)
-	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type special bool) Tuple2{Type MethodCall} static public
+	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type special bool) Type static public
 		(define code h:code)
 		(define output (!= code null))
 		(define method mc:m)
@@ -486,9 +487,9 @@
 		(if (&& (!= out Type:voidType) (!= needed Type:voidType))
 			(if output (code:emitCheckcast (out:getRawType)))
 		)
-		(Tuple2 (h:castMaybe out needed) mc)
+		(h:castMaybe out needed)
 	)
-	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type) Tuple2{Type MethodCall} static public
+	((emitInvoke h GenHandler mc MethodCall emitters List{Emitter} needed Type) Type static public
 		(Main:emitInvoke h mc emitters needed false)
 	)
 	((compareType types Type[]) Type public static
@@ -535,13 +536,10 @@
 					((Type:isSame a b)
 						0
 					)
-					(((a:toString):equals (b:toString))
-						0
-					)
 					;return 1 if "a" is supertype of "b"
 					(true
 						(forEach super (Main:superTypes b)
-							(if (&& (!= super b) (= (Main:compare a super) 0))
+							(if (Type:isSame a super)
 								(return 1)
 							)
 						)

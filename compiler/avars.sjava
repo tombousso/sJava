@@ -6,7 +6,10 @@
 
 (define-class AVar () public
 	(type Type public)
-	((<init> type Type) void (super:<init>) (set this:type type))
+	((<init> type Type) void
+		(super:<init>)
+		(set this:type type)
+	)
 	((load code CodeAttr) Type public this:type)
 	((store code CodeAttr) void public ())
 )
@@ -27,7 +30,10 @@
 
 (define-class Var (AVar) public
 	(var Variable)
-	((<init> var Variable type Type) void public (super:<init> type) (set this:var var))
+	((<init> var Variable type Type) void public
+		(super:<init> type)
+		(set this:var var)
+	)
 	((load code CodeAttr) Type public
 		(define output (!= code null))
 		(if output (code:emitLoad this:var))
@@ -50,7 +56,6 @@
 	((load code CodeAttr) Type public
 		(define output (!= code null))
 		(if output (code:emitLoad (code:getArg this:n)))
-		(if output (code:emitCheckcast (this:type:getRawType)))
 		this:type
 	)
 	((store code CodeAttr) void public

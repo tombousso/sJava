@@ -17,7 +17,7 @@
 	((compileAll toks List{Token} i int e int needed Object) Type[] public
 		(define l (toks:size))
 		(define types (Type[] len:(- e i)))
-		(for ((j i)) (! (>= j e)) (inc j)
+		(for ((j i)) (< j e) (inc j)
 			(aset types (- j i)
 				(this:compile (toks:get j)
 					(if (instance? needed Type[])

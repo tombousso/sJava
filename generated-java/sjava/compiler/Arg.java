@@ -20,10 +20,6 @@ public class Arg extends AVar {
             code.emitLoad(code.getArg(this.n));
         }
 
-        if(output) {
-            code.emitCheckcast(super.type.getRawType());
-        }
-
         return super.type;
     }
 

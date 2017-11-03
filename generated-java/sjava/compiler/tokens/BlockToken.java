@@ -3,6 +3,7 @@ package sjava.compiler.tokens;
 import java.util.List;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
+import sjava.compiler.tokens.Token;
 
 public class BlockToken extends ParsedToken {
     public List<LexedParsedToken> toks;
@@ -15,7 +16,7 @@ public class BlockToken extends ParsedToken {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("(");
-        sb.append(this.toksString(this.toks));
+        sb.append(Token.toksString(this.toks));
         sb.append(")");
         return sb.toString();
     }

@@ -16,6 +16,16 @@
 	((emit h GenHandler code CodeAttr needed Type) Type public
 		(h:compile this code needed)
 	)
+	((toksString l List) String static
+		(define s (StringBuffer))
+		(forEach (tok i) l
+			(s:append tok)
+			(if (!= i (- (l:size) 1))
+				(s:append " ")
+			)
+		)
+		(s:toString)
+	)
 	((<init>) void public
 		(super:<init>)
 	)
@@ -26,16 +36,6 @@
 	(transformed Token public transient)
 	((<init> line int) void public
 		(super:<init> line)
-	)
-	((toksString l List{LexedParsedToken}) String
-		(define s (StringBuffer))
-		(forEach (tok i) l
-			(s:append tok)
-			(if (!= i (- (l:size) 1))
-				(s:append " ")
-			)
-		)
-		(s:toString)
 	)
 	((firstLine) int public
 		this:line
@@ -199,7 +199,7 @@
 		(set this:toks toks)
 	)
 	((toString) String public
-		(concat "(" (this:toksString this:toks) ")")
+		(concat "(" (Token:toksString this:toks) ")")
 	)
 	((firstLine) int public
 		(if (= (this:toks:size) 0)
@@ -238,7 +238,7 @@
 		(set this:toks toks)
 	)
 	((toString) String public
-		(concat this:tok "{" (this:toksString this:toks) "}")
+		(concat this:tok "{" (Token:toksString this:toks) "}")
 	)
 	((<init>) void public
 		(super:<init>)
@@ -252,7 +252,7 @@
 		(set this:toks toks)
 	)
 	((toString) String public
-		(concat (this:toks:get 0) "[" (this:toksString (this:toks:subList 1 (this:toks:size))) "]")
+		(concat (this:toks:get 0) "[" (Token:toksString (this:toks:subList 1 (this:toks:size))) "]")
 	)
 	((<init>) void public
 		(super:<init>)

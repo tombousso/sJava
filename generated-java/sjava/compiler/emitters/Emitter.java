@@ -6,23 +6,8 @@ import java.util.Iterator;
 import java.util.List;
 import sjava.compiler.handlers.GenHandler;
 
-public class Emitter {
-    public Type emit(GenHandler h, CodeAttr code, Type needed) {
-        Type[] types = this.emitAll(h, code, needed);
-        Object var10000;
-        if(types == null) {
-            var10000 = Type.voidType;
-        } else {
-            int l = types.length;
-            var10000 = l == 0?Type.voidType:types[l - 1];
-        }
-
-        return (Type)var10000;
-    }
-
-    public Type[] emitAll(GenHandler h, CodeAttr code, Object needed) {
-        return new Type[]{this.emit(h, code, (Type)needed)};
-    }
+public abstract class Emitter {
+    public abstract Type emit(GenHandler var1, CodeAttr var2, Type var3);
 
     public static Type[] emitAll(List<Emitter> emitters, GenHandler h, CodeAttr code, Object needed) {
         Type[] types = new Type[emitters.size()];

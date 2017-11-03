@@ -459,8 +459,8 @@ public class Main {
     static boolean compileClassMod(LexedParsedToken tok, ClassType c) {
         boolean var10000;
         if(tok instanceof VToken) {
-            short nmod = ((Short)accessModifiers.get(((VToken)tok).val)).shortValue();
-            c.addModifiers(nmod);
+            Short nmod = (Short)accessModifiers.get(((VToken)tok).val);
+            c.addModifiers(nmod.shortValue());
             var10000 = true;
         } else {
             var10000 = false;
@@ -532,14 +532,15 @@ public class Main {
             filter.searchAll();
         }
 
-        return emitInvoke(h, filter.getMethodCall(), emitters, needed, special);
+        MethodCall mc = filter.getMethodCall();
+        return new Tuple2(emitInvoke(h, mc, emitters, needed, special), mc);
     }
 
     public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed, boolean static_) {
         return emitInvoke(h, name, type, emitters, needed, false, static_);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed, boolean special) {
+    public static Type emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed, boolean special) {
         CodeAttr code = h.code;
         boolean output = code != null;
         Method method = mc.m;
@@ -593,10 +594,10 @@ public class Main {
             code.emitCheckcast(out.getRawType());
         }
 
-        return new Tuple2(h.castMaybe(out, needed), mc);
+        return h.castMaybe(out, needed);
     }
 
-    public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed) {
+    public static Type emitInvoke(GenHandler h, MethodCall mc, List<Emitter> emitters, Type needed) {
         return emitInvoke(h, mc, emitters, needed, false);
     }
 
@@ -619,15 +620,13 @@ public class Main {
 
             if(Type.isSame(a, b)) {
                 var10000 = 0;
-            } else if(a.toString().equals(b.toString())) {
-                var10000 = 0;
             } else {
                 LinkedHashSet iterable = superTypes(b);
                 Iterator it = iterable.iterator();
 
                 for(int notused = 0; it.hasNext(); ++notused) {
                     Type var5 = (Type)it.next();
-                    if(var5 != b && compare(a, var5) == 0) {
+                    if(Type.isSame(a, var5)) {
                         return 1;
                     }
                 }

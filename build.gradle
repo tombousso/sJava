@@ -89,12 +89,12 @@ task java_sources(type: JavaExec, dependsOn: [compiler]) {
 		"-nls=1",
 		"-ind=    ",
 		"-dgs=1",
-		file("bin/main/sjava/"),
-		file("generated-java/sjava/")
+		file("bin/main/"),
+		file("generated-java/")
 	]
 }
 
-task java_compile(type: JavaCompile, dependsOn: [compiler]) {
+task java_compile(type: JavaCompile, dependsOn: [diff]) {
 	outputs.upToDateWhen { false }
 	source = fileTree(dir: "generated-java", include: "**/*.java")
 	destinationDir = file("generated-java")
@@ -109,7 +109,7 @@ task java_compile(type: JavaCompile, dependsOn: [compiler]) {
 			destinationDir = file("bin/compilerJava")
 		}
 		java_compile_test.execute()
-		def works = same(file("bin/main"), file("bin/compilerJava"))
+		def works = same(file("bin/compiler2"), file("bin/compilerJava"))
 		println("java version works: " + works)
 		if (!works) throw new Exception()
 	}
