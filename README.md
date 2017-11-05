@@ -64,10 +64,11 @@ Java 8 - `java`
 	│   ├── generics.expected.txt (The expected output)
 	│   └── ...
 	├── lib/
+	│   ├── asm.jar
 	│   ├── commons-cli-1.3.1.jar
 	│   ├── commons-io-2.5.jar
 	│   ├── commons-lang-3.4.jar
-	│   └── kawa-2.1.9.jar
+	│   └── kawa.jar
 	├── std/ (The standard library)
 	│   ├── **.sjava
 	│   └── macros.sjava (The standard macros)

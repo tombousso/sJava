@@ -14,6 +14,6 @@ public class AVar {
         return this.type;
     }
 
-    public void store(CodeAttr var1) {
+    public void store(CodeAttr code) {
     }
 }

@@ -7,8 +7,6 @@ import java.util.List;
 import sjava.compiler.handlers.GenHandler;
 
 public abstract class Emitter {
-    public abstract Type emit(GenHandler var1, CodeAttr var2, Type var3);
-
     public static Type[] emitAll(List<Emitter> emitters, GenHandler h, CodeAttr code, Object needed) {
         Type[] types = new Type[emitters.size()];
         Iterator it = emitters.iterator();
@@ -22,4 +20,6 @@ public abstract class Emitter {
 
         return types;
     }
+
+    public abstract Type emit(GenHandler var1, CodeAttr var2, Type var3);
 }

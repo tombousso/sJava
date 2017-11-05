@@ -16,8 +16,6 @@ public abstract class Command {
         this.options.addOption(Option.builder("h").longOpt("help").build());
     }
 
-    public abstract String name();
-
     String helpHeader() {
         return "";
     }
@@ -25,8 +23,6 @@ public abstract class Command {
     String helpFooter() {
         return "";
     }
-
-    abstract String helpArgs();
 
     public void printHelp() {
         HelpFormatter var10000 = new HelpFormatter();
@@ -46,6 +42,10 @@ public abstract class Command {
             throw new RuntimeException(var4);
         }
     }
+
+    public abstract String name();
+
+    abstract String helpArgs();
 
     public abstract void run(CommandLine var1, List<String> var2);
 }

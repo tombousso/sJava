@@ -1,4 +1,5 @@
 bin/
+build/
 generated-java/**/*.class
 .gradle/
 vertx/build/

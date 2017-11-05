@@ -59,78 +59,6 @@ public abstract class Handler {
         return types;
     }
 
-    public abstract Type compile(EmptyToken var1, Type var2);
-
-    public abstract Type compile(SToken var1, Type var2);
-
-    public abstract Type compile(CToken var1, Type var2);
-
-    public abstract Type compile(NToken var1, Type var2);
-
-    public abstract Type compile(FieldToken var1, Type var2);
-
-    public abstract Type compile(QuoteToken2 var1, Type var2);
-
-    public abstract Type compile(ConstToken var1, Type var2);
-
-    public abstract Type compile(VToken var1, Type var2);
-
-    public abstract Type compile(IncludeToken var1, Type var2);
-
-    public abstract Type compile(ObjectToken var1, Type var2);
-
-    public abstract Type compile(MacroIncludeToken var1, Type var2);
-
-    public abstract Type compile(BeginToken var1, Type var2);
-
-    public abstract Type compile(SpecialBeginToken var1, Type var2);
-
-    public abstract Type compile(LabelToken var1, Type var2);
-
-    public abstract Type compile(GotoToken var1, Type var2);
-
-    public abstract Type compile(DefineToken var1, Type var2);
-
-    public abstract Type compile(TryToken var1, Type var2);
-
-    public abstract Type compile(InstanceToken var1, Type var2);
-
-    public abstract Type compile(SetToken var1, Type var2);
-
-    public abstract Type compile(ASetToken var1, Type var2);
-
-    public abstract Type compile(AGetToken var1, Type var2);
-
-    public abstract Type compile(ALenToken var1, Type var2);
-
-    public abstract Type compile(AsToken var1, Type var2);
-
-    public abstract Type compile(NumOpToken var1, Type var2);
-
-    public abstract Type compile(ShiftToken var1, Type var2);
-
-    public abstract Type compile(IfToken var1, Type var2);
-
-    public abstract Type compile(CompareToken var1, Type var2);
-
-    public abstract Type compile(ThrowToken var1, Type var2);
-
-    public abstract Type compile(ClassToken var1, Type var2);
-
-    public abstract Type compile(SynchronizedToken var1, Type var2);
-
-    public abstract Type compile(TypeToken var1, Type var2);
-
-    public abstract Type compile(ReturnToken var1, Type var2);
-
-    public abstract Type compile(CallToken var1, Type var2);
-
-    public abstract Type compile(DefaultToken var1, Type var2);
-
-    public abstract Type compile(ConstructorToken var1, Type var2);
-
-    public abstract Type compile(ArrayConstructorToken var1, Type var2);
-
     public Type compile(Token tok, Type needed) {
         Type var10000;
         if(tok instanceof EmptyToken) {
@@ -216,6 +144,78 @@ public abstract class Handler {
 
         return var10000;
     }
+
+    public abstract Type compile(EmptyToken var1, Type var2);
+
+    public abstract Type compile(SToken var1, Type var2);
+
+    public abstract Type compile(CToken var1, Type var2);
+
+    public abstract Type compile(NToken var1, Type var2);
+
+    public abstract Type compile(FieldToken var1, Type var2);
+
+    public abstract Type compile(QuoteToken2 var1, Type var2);
+
+    public abstract Type compile(ConstToken var1, Type var2);
+
+    public abstract Type compile(VToken var1, Type var2);
+
+    public abstract Type compile(IncludeToken var1, Type var2);
+
+    public abstract Type compile(ObjectToken var1, Type var2);
+
+    public abstract Type compile(MacroIncludeToken var1, Type var2);
+
+    public abstract Type compile(BeginToken var1, Type var2);
+
+    public abstract Type compile(SpecialBeginToken var1, Type var2);
+
+    public abstract Type compile(LabelToken var1, Type var2);
+
+    public abstract Type compile(GotoToken var1, Type var2);
+
+    public abstract Type compile(DefineToken var1, Type var2);
+
+    public abstract Type compile(TryToken var1, Type var2);
+
+    public abstract Type compile(InstanceToken var1, Type var2);
+
+    public abstract Type compile(SetToken var1, Type var2);
+
+    public abstract Type compile(ASetToken var1, Type var2);
+
+    public abstract Type compile(AGetToken var1, Type var2);
+
+    public abstract Type compile(ALenToken var1, Type var2);
+
+    public abstract Type compile(AsToken var1, Type var2);
+
+    public abstract Type compile(NumOpToken var1, Type var2);
+
+    public abstract Type compile(ShiftToken var1, Type var2);
+
+    public abstract Type compile(IfToken var1, Type var2);
+
+    public abstract Type compile(CompareToken var1, Type var2);
+
+    public abstract Type compile(ThrowToken var1, Type var2);
+
+    public abstract Type compile(ClassToken var1, Type var2);
+
+    public abstract Type compile(SynchronizedToken var1, Type var2);
+
+    public abstract Type compile(TypeToken var1, Type var2);
+
+    public abstract Type compile(ReturnToken var1, Type var2);
+
+    public abstract Type compile(CallToken var1, Type var2);
+
+    public abstract Type compile(DefaultToken var1, Type var2);
+
+    public abstract Type compile(ConstructorToken var1, Type var2);
+
+    public abstract Type compile(ArrayConstructorToken var1, Type var2);
 
     public abstract Type castMaybe(Type var1, Type var2);
 }

@@ -18,8 +18,6 @@ public abstract class AFilter {
         this.foundSigs = new HashSet();
     }
 
-    abstract void select(Method var1, Type var2);
-
     void search(Type t) {
         for(Method m = ((ClassType)t.getRawType()).getDeclaredMethods(); m != null; m = m.getNext()) {
             StringBuilder sb = new StringBuilder();
@@ -56,4 +54,6 @@ public abstract class AFilter {
     void searchArray() {
         this.search(Type.objectType);
     }
+
+    abstract void select(Method var1, Type var2);
 }
