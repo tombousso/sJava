@@ -1,0 +1,47 @@
+(package examples.intf)
+
+(define-class A () interface)
+
+(define-class B () interface)
+
+(define-class K (A) interface)
+
+(define-class L (A) interface)
+
+(define-class M (A B) interface)
+
+(define-class N (A B) interface)
+
+(define-class O (N) interface)
+
+(define-class Main () public
+	((main args String[]) void public static
+		(println
+			(include
+				`,(concat
+					(type
+						`(begin
+							(define k K)
+							(define l L)
+							(if true k l)
+						)
+					)
+					"\n"
+					(type
+						`(begin
+							(define m M)
+							(define o O)
+							(if true m o)
+						)
+					)
+					"\n"
+					(type
+						`(begin
+							(if true (as CharSequence "") "")
+						)
+					)
+				)
+			)
+		)
+	)
+)

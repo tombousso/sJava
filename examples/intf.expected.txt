@@ -1,0 +1,3 @@
+ClassType examples.intf.A
+ClassType java.lang.Object
+ClassType java.lang.CharSequence

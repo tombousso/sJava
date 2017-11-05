@@ -1,11 +1,21 @@
 (import gnu.bytecode.*)
 (import java.util.*)
-(import %tokens%)
+(import sjava.compiler.tokens.*)
 
+(define-macro (when cond @rest)
+	`(if ,cond
+		(begin
+			,rest
+		)
+	)
+)
 (define-macro (while cond @block)
 	`(begin
 		(label start)
-		(if ,cond (begin ,block (goto start)))
+		(when ,cond
+			,block
+			(goto start)
+		)
 	)
 )
 (define-macro (inc v n)
@@ -19,13 +29,6 @@
 )
 (define-macro (dec v)
 	(macro dec v `1)
-)
-(define-macro (when cond @rest)
-	`(if ,cond
-		(begin
-			,rest
-		)
-	)
 )
 (define-macro (forEach vars iterable @block)
 	(define item VToken
@@ -104,7 +107,9 @@
 	`(begin
 		(define collection ,collection)
 		(define out ((unquote o)[] len:,len))
-		(forEach (,item ,i) collection (aset out ,i (begin ,block)))
+		(forEach (,item ,i) collection
+			(aset out ,i (begin ,block))
+		)
 		out
 	)
 )
@@ -230,17 +235,15 @@
 	(define mname (as VToken (as ColonToken (call:toks:get 0)):right):val)
 	(define nargs (alen (mi:method:getParameterTypes)))
 	(forEach omi mi:ci:methods
-		(if
+		(when
 			(&&
 				((omi:method:getName):equals mname) (!= mi omi)
 				(= nargs (alen (omi:method:getParameterTypes)))
 			)
-			(begin
-				(define t (aget (omi:method:getParameterTypes) (- special 1)))
-				(conds:add
-					`((instance? ,arg ,t)
-						,call
-					)
+			(define t (aget (omi:method:getParameterTypes) (- special 1)))
+			(conds:add
+				`((instance? ,arg ,t)
+					,call
 				)
 			)
 		)

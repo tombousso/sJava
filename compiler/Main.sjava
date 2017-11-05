@@ -581,6 +581,9 @@
 	((superIntfs sc LinkedHashSet{Type}) LinkedHashSet{Type} public static
 		(define o (LinkedHashSet{Type}))
 		(forEach superA sc
+			(if (superA:isInterface)
+				(o:add superA)
+			)
 			(define q (ArrayDeque{Type}))
 			(q:addAll (Main:getGenericInterfaces superA))
 			(while (! (q:isEmpty))
@@ -600,7 +603,7 @@
 		(define supersA (Main:superClasses a))
 		(define supersB (Main:superClasses b))
 		(forEach t supersA
-			(if (supersB:contains t)
+			(if (&& (!= t Type:javalangObjectType) (supersB:contains t))
 				(return t)
 			)
 		)
@@ -608,8 +611,9 @@
 		(define intfsB (Main:superIntfs supersB))
 		(intfsA:retainAll intfsB)
 		(forEach intf1 intfsA
+			(define supers (static:superIntfs (static:superClasses intf1)))
 			(forEach intf2 intfsA
-				(if (! ((as ClassType (intf2:getRawType)):implementsInterface (as ClassType (intf1:getRawType))))
+				(if (! (supers:contains intf2))
 					(goto next)
 				)
 			)
@@ -617,7 +621,6 @@
 			(label next)
 		)
 		Type:objectType
-		;(throw (RuntimeException))
 	)
 	((commonType a Type b Type) Type public static
 		(define aReturns
@@ -1326,12 +1329,9 @@
 					)
 					((first:val:equals "import")
 						(define import (as VToken (tok:toks:get 1)):val)
-						(if (import:equals "%tokens%")
-							(this:starImports:add "sjava.compiler.tokens.")
-							(if (import:endsWith "*")
-								(this:starImports:add (import:substring 0 (- (import:length) 1)))
-								(this:imports:put (import:substring (+ (import:lastIndexOf ".") 1)) import)
-							)
+						(if (import:endsWith "*")
+							(this:starImports:add (import:substring 0 (- (import:length) 1)))
+							(this:imports:put (import:substring (+ (import:lastIndexOf ".") 1)) import)
 						)
 					)
 					((first:val:equals "define-macro")
