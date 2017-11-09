@@ -325,20 +325,20 @@ public class ClassInfo {
 
     }
 
-    void runMethodMacros() {
+    void runClassMacros() {
         List iterable = this.toks;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             LexedParsedToken tok = (LexedParsedToken)it.next();
             if(tok instanceof BlockToken && (LexedParsedToken)((BlockToken)tok).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)tok).toks.get(0))).val.endsWith("!")) {
-                this.runMethodMacro((BlockToken)tok);
+                this.runClassMacro((BlockToken)tok);
             }
         }
 
     }
 
-    void runMethodMacro(BlockToken tok) {
+    void runClassMacro(BlockToken tok) {
         String name = ((VToken)((LexedParsedToken)tok.toks.get(0))).val;
         name = name.substring(0, name.length() - 1);
         byte o = 1;
@@ -355,7 +355,7 @@ public class ClassInfo {
         Object ci = (ClassInfo)null;
 
         for(int i = 0; method == null; ++i) {
-            ci = (MacroInfo)((List)this.fs.methodMacroNames.get(name)).get(i);
+            ci = (MacroInfo)((List)this.fs.cs.classMacroNames.get(name)).get(i);
             MFilter filter = new MFilter(name, types, ((ClassInfo)ci).c, true);
             filter.searchDeclared();
             method = filter.getMethod();

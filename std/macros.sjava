@@ -274,7 +274,7 @@
 	)
 	out
 )
-(define-method-macro (get @rest)
+(define-class-macro (get @rest)
 	(define s (as VToken (aget rest 0)):val)
 	(define f (ci:c:getField s -1))
 	(define tok `(this:,$s))
@@ -282,7 +282,7 @@
 	(define tup (sjava.compiler.Main:extractModifiers (Arrays:asList rest) 1))
 	(ci:addMethod (concat "get" (Character:toUpperCase (s:charAt 0)) (s:substring 1 (s:length))) (f:getType) tup:_1 tok:toks scope)
 )
-(define-method-macro (set @rest)
+(define-class-macro (set @rest)
 	(define s (as VToken (aget rest 0)):val)
 	(define f (ci:c:getField s -1))
 	(define tok `((set this:,$s ,$s)))
@@ -292,7 +292,7 @@
 	(ci:addMethod (concat "set" (Character:toUpperCase (s:charAt 0)) (s:substring 1 (s:length))) Type:voidType tup:_1 tok:toks scope)
 )
 ;first block after modifiers must be supercall
-(define-method-macro (ctor params @rest)
+(define-class-macro (ctor params @rest)
 	(define scope (LinkedHashMap))
 	(define arg 1)
 	(define sets (ArrayList{Token}))

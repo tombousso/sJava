@@ -28,10 +28,10 @@ import sjava.compiler.AMethodInfo;
 import sjava.compiler.AVar;
 import sjava.compiler.CastVar;
 import sjava.compiler.ClassInfo;
+import sjava.compiler.ClassMacroInfo;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
-import sjava.compiler.MethodMacroInfo;
 import sjava.compiler.emitters.Emitter;
 import sjava.compiler.emitters.Goto;
 import sjava.compiler.emitters.LoadAVar;
@@ -667,7 +667,7 @@ public class GenHandler extends Handler {
                         this.code.emitDup();
                     }
 
-                    if(super.mi.ci instanceof MethodMacroInfo) {
+                    if(super.mi.ci instanceof ClassMacroInfo) {
                         if(output) {
                             this.code.emitPushInt(0);
                         }
@@ -1003,7 +1003,7 @@ public class GenHandler extends Handler {
             Object ci = (ClassInfo)null;
 
             for(int i = 0; method == null; ++i) {
-                ci = (MacroInfo)((List)super.mi.ci.fs.macroNames.get(tok.name)).get(i);
+                ci = (MacroInfo)((List)super.mi.ci.fs.cs.macroNames.get(tok.name)).get(i);
                 MFilter filter = new MFilter(tok.name, types, ((ClassInfo)ci).c, true);
                 filter.searchDeclared();
                 method = filter.getMethod();

@@ -212,24 +212,28 @@
 	((compile files HashMap{File List{LexedParsedToken}}) List{FileScope} public static
 		(define cs (CompileScope))
 		(define fileScopes (ArrayList{FileScope}))
+		(define macros (ArrayList{MacroInfo}))
 
 		(forEach entry (files:entrySet)
 			(define toks (entry:getValue))
 			(define fs (FileScope cs ((entry:getKey):toString) toks))
 			(fileScopes:add fs)
-			(fs:compileRoot)
+			(fs:compileRoot macros)
 		)
 
 		(forEach fs fileScopes
 			(fs:compileDefs)
 		)
 
-		(forEach fs fileScopes
-			(fs:compileMacros)
+		(forEach macro macros
+			(macro:compileMethods)
+			;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
+			(macro:addToClassLoader cs:mcl)
+			(set macro:rc (macro:getClazz cs:mcl))
 		)
 
 		(forEach fs fileScopes
-			(fs:runMethodMacros)
+			(fs:runClassMacros)
 		)
 
 		(forEach fs fileScopes
@@ -1176,8 +1180,8 @@
 
 (define-class CompileScope () public
 	(locals HashMap{String ClassType})
-	(macroNames HashMap{String List{MacroInfo}})
-	(methodMacroNames HashMap{String List{MacroInfo}})
+	(macroNames HashMap{String List{MacroInfo}} public)
+	(classMacroNames HashMap{String List{MacroInfo}})
 	(mcl ArrayClassLoader)
 	(found HashMap{String Boolean})
 	(macroIndex int)
@@ -1185,7 +1189,7 @@
 		(super:<init>)
 		(set this:locals (HashMap))
 		(set this:macroNames (HashMap))
-		(set this:methodMacroNames (HashMap))
+		(set this:classMacroNames (HashMap))
 		(set this:mcl (Main:getClassLoader))
 		(set this:found (HashMap))
 		(set this:macroIndex 0)
@@ -1212,19 +1216,15 @@
 )
 
 (define-class FileScope () public
-	(cs CompileScope)
+	(cs CompileScope public)
 	(path String public)
 	(toks List{LexedParsedToken})
 	(locals HashMap{String ClassType})
 	(imports HashMap{String String})
 	(starImports ArrayList{String})
-	(includes ClassInfo public)
+	(includes MacroInfo public)
 	(newClasses List{ClassInfo} public)
 	(package_ String)
-	(macros ArrayList{MacroInfo})
-	(macroNames HashMap{String List{MacroInfo}} public)
-	(methodMacros ArrayList{MacroInfo})
-	(methodMacroNames HashMap{String List{MacroInfo}} public)
 	((<init> cs CompileScope path String toks List{LexedParsedToken}) void
 		(super:<init>)
 		(set this:cs cs)
@@ -1235,7 +1235,6 @@
 		(this:starImports:add "java.lang.")
 		(this:starImports:add "sjava.std.")
 		(set this:newClasses (ArrayList{ClassInfo}))
-		(set this:macros (ArrayList))
 		(set this:package_
 			(if
 				(&&
@@ -1251,19 +1250,8 @@
 		(define includes (MacroInfo "Includes" this))
 		(set this:includes includes)
 		(includes:c:setModifiers Access:PUBLIC)
-		(set this:methodMacros (ArrayList))
 
 		(set this:locals cs:locals)
-		(set this:macroNames cs:macroNames)
-		(set this:methodMacroNames cs:methodMacroNames)
-	)
-	((compileMacros) void
-		(forEach macro this:macros
-			(macro:compileMethods)
-			;(Files:write (Paths:get (("macros/":concat (macro:c:getName)):concat ".class") (String[])) (macro:getClassfile) (OpenOption[]))
-			(macro:addToClassLoader this:cs:mcl)
-			(set macro:rc (macro:getClazz this:cs:mcl))
-		)
 	)
 	((getNewType tok Token) ClassType
 		(instanceCond tok
@@ -1284,9 +1272,9 @@
 			(true null)
 		)
 	)
-	((compileRoot) void
+	((compileRoot macros List{MacroInfo}) void
 		(forEach tok this:toks
-			(this:compileRoot (as BlockToken tok))
+			(this:compileRoot macros (as BlockToken tok))
 		)
 	)
 	((getMacroParams out List{Type} params BlockToken scope Map) bool
@@ -1307,7 +1295,7 @@
 		)
 		varargs
 	)
-	((compileRoot tok BlockToken) void
+	((compileRoot macros List{MacroInfo} tok BlockToken) void
 		(if (instance? (tok:toks:get 0) VToken)
 			(begin
 				(define first VToken (tok:toks:get 0))
@@ -1345,20 +1333,20 @@
 						(if varargs (set mods (| mods Access:TRANSIENT)))
 						(define cname (concat "Macros" this:cs:macroIndex))
 						(inc this:cs:macroIndex)
-						(define macros (MacroInfo cname this))
-						(macros:c:setModifiers Access:PUBLIC)
-						(define macro (macros:addMethod name types (Main:getCompilerType "tokens.LexedParsedToken") mods (tok:toks:subList 2 (tok:toks:size)) scope))
-						(if (this:macroNames:containsKey name)
-							((this:macroNames:get name):add macros)
+						(define macroi (MacroInfo cname this))
+						(macroi:c:setModifiers Access:PUBLIC)
+						(define macro (macroi:addMethod name types (Main:getCompilerType "tokens.LexedParsedToken") mods (tok:toks:subList 2 (tok:toks:size)) scope))
+						(if (this:cs:macroNames:containsKey name)
+							((this:cs:macroNames:get name):add macroi)
 							(begin
 								(define al (ArrayList{MacroInfo}))
-								(al:add macros)
-								(this:macroNames:put name al)
+								(al:add macroi)
+								(this:cs:macroNames:put name al)
 							)
 						)
-						(this:macros:add macros)
+						(macros:add macroi)
 					)
-					((first:val:equals "define-method-macro")
+					((first:val:equals "define-class-macro")
 						(define scope (LinkedHashMap))
 						(define params BlockToken (tok:toks:get 1))
 						(define name (as VToken (params:toks:get 0)):val)
@@ -1368,21 +1356,22 @@
 						(define varargs (this:getMacroParams types params scope))
 						(if varargs (set mods (| mods Access:TRANSIENT)))
 						(define cname "Macros")
-						(define macros (MethodMacroInfo cname this))
+						(define macros (ClassMacroInfo cname this))
 						(macros:c:setModifiers Access:PUBLIC)
 						(define macro (macros:addMethod name types Type:voidType mods (tok:toks:subList 2 (tok:toks:size)) scope))
-						(if (this:methodMacroNames:containsKey name)
-							((this:methodMacroNames:get name):add macros)
+						(if (this:cs:classMacroNames:containsKey name)
+							((this:cs:classMacroNames:get name):add macros)
 							(begin
 								(define al (ArrayList{MacroInfo}))
 								(al:add macros)
-								(this:methodMacroNames:put name al)
+								(this:cs:classMacroNames:put name al)
 							)
 						)
-						(this:methodMacros:add macros)
 						(macros:methods:add macro)
 					)
-					((! (first:val:equals "package")) (throw (RuntimeException first:val)))
+					((! (first:val:equals "package"))
+						(throw (RuntimeException first:val))
+					)
 				)
 			)
 		)
@@ -1392,9 +1381,9 @@
 			(ci:compileDefs)
 		)
 	)
-	((runMethodMacros) void
+	((runClassMacros) void
 		(forEach ci this:newClasses
-			(ci:runMethodMacros)
+			(ci:runClassMacros)
 		)
 	)
 	((compileInclude tok IncludeToken) void public
@@ -1635,7 +1624,7 @@
 			(mi:compileMethodBody (GenHandler mi))
 		)
 	)
-	((runMethodMacros) void
+	((runClassMacros) void
 		(forEach tok this:toks
 			(if
 				(&&
@@ -1643,11 +1632,11 @@
 					(instance? ((as BlockToken tok):toks:get 0) VToken)
 					((as VToken ((as BlockToken tok):toks:get 0)):val:endsWith "!")
 				)
-				(this:runMethodMacro (as BlockToken tok))
+				(this:runClassMacro (as BlockToken tok))
 			)
 		)
 	)
-	((runMethodMacro tok BlockToken) void
+	((runClassMacro tok BlockToken) void
 		(define name (as VToken (tok:toks:get 0)):val)
 		(set name (name:substring 0 (- (name:length) 1)))
 		(define o 1)
@@ -1659,7 +1648,7 @@
 		(define method Method null)
 		(define ci ClassInfo null)
 		(for ((i 0)) (= method null) (inc i)
-			(set ci ((this:fs:methodMacroNames:get name):get i))
+			(set ci ((this:fs:cs:classMacroNames:get name):get i))
 			(define filter (MFilter name types ci:c true))
 			(filter:searchDeclared)
 			(set method (filter:getMethod))
@@ -1720,7 +1709,7 @@
 	)
 )
 
-(define-class MethodMacroInfo (MacroInfo) public
+(define-class ClassMacroInfo (MacroInfo) public
 	((<init> name String fs FileScope) void
 		(super:<init> name fs)
 	)
@@ -1954,7 +1943,7 @@
 						)
 					)
 				)
-				((this:ci:fs:macroNames:containsKey val)
+				((this:ci:fs:cs:macroNames:containsKey val)
 					(return (MacroIncludeToken block:line val (ArrayList rest)))
 				)
 				((val:equals "begin")

@@ -9,8 +9,8 @@ import sjava.compiler.Main;
 
 public class CompileScope {
     HashMap<String, ClassType> locals = new HashMap();
-    HashMap<String, List<MacroInfo>> macroNames = new HashMap();
-    HashMap<String, List<MacroInfo>> methodMacroNames = new HashMap();
+    public HashMap<String, List<MacroInfo>> macroNames = new HashMap();
+    HashMap<String, List<MacroInfo>> classMacroNames = new HashMap();
     ArrayClassLoader mcl = Main.getClassLoader();
     HashMap<String, Boolean> found = new HashMap();
     int macroIndex = 0;

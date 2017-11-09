@@ -34,6 +34,7 @@ import sjava.compiler.CompileScope;
 import sjava.compiler.FileScope;
 import sjava.compiler.Formatter;
 import sjava.compiler.Lexer;
+import sjava.compiler.MacroInfo;
 import sjava.compiler.Parser;
 import sjava.compiler.commands.BuildCommand;
 import sjava.compiler.commands.Command;
@@ -288,6 +289,7 @@ public class Main {
     public static List<FileScope> compile(HashMap<File, List<LexedParsedToken>> files) {
         CompileScope cs = new CompileScope();
         ArrayList fileScopes = new ArrayList();
+        ArrayList macros = new ArrayList();
         Set iterable = files.entrySet();
         Iterator it = iterable.iterator();
 
@@ -296,7 +298,7 @@ public class Main {
             List toks = (List)entry.getValue();
             FileScope fs = new FileScope(cs, ((File)entry.getKey()).toString(), toks);
             fileScopes.add(fs);
-            fs.compileRoot();
+            fs.compileRoot(macros);
         }
 
         Iterator it1 = fileScopes.iterator();
@@ -306,25 +308,27 @@ public class Main {
             fs1.compileDefs();
         }
 
-        Iterator it2 = fileScopes.iterator();
+        Iterator it2 = macros.iterator();
 
         for(int notused2 = 0; it2.hasNext(); ++notused2) {
-            FileScope fs2 = (FileScope)it2.next();
-            fs2.compileMacros();
+            MacroInfo macro = (MacroInfo)it2.next();
+            macro.compileMethods();
+            macro.addToClassLoader(cs.mcl);
+            macro.rc = macro.getClazz(cs.mcl);
         }
 
         Iterator it3 = fileScopes.iterator();
 
         for(int notused3 = 0; it3.hasNext(); ++notused3) {
-            FileScope fs3 = (FileScope)it3.next();
-            fs3.runMethodMacros();
+            FileScope fs2 = (FileScope)it3.next();
+            fs2.runClassMacros();
         }
 
         Iterator it4 = fileScopes.iterator();
 
         for(int notused4 = 0; it4.hasNext(); ++notused4) {
-            FileScope fs4 = (FileScope)it4.next();
-            List iterable1 = fs4.newClasses;
+            FileScope fs3 = (FileScope)it4.next();
+            List iterable1 = fs3.newClasses;
             Iterator it5 = iterable1.iterator();
 
             for(int notused5 = 0; it5.hasNext(); ++notused5) {
@@ -679,6 +683,10 @@ public class Main {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Type superA = (Type)it.next();
+            if(superA.isInterface()) {
+                o.add(superA);
+            }
+
             ArrayDeque q = new ArrayDeque();
             q.addAll(getGenericInterfaces(superA));
 
@@ -705,7 +713,7 @@ public class Main {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Type t = (Type)it.next();
-            if(supersB.contains(t)) {
+            if(t != Type.javalangObjectType && supersB.contains(t)) {
                 return t;
             }
         }
@@ -715,15 +723,16 @@ public class Main {
         intfsA.retainAll(intfsB);
         Iterator it1 = intfsA.iterator();
 
-        label31:
+        label33:
         for(int notused1 = 0; it1.hasNext(); ++notused1) {
             Type intf1 = (Type)it1.next();
+            LinkedHashSet supers = superIntfs(superClasses(intf1));
             Iterator it2 = intfsA.iterator();
 
             for(int notused2 = 0; it2.hasNext(); ++notused2) {
                 Type intf2 = (Type)it2.next();
-                if(!((ClassType)intf2.getRawType()).implementsInterface((ClassType)intf1.getRawType())) {
-                    continue label31;
+                if(!supers.contains(intf2)) {
+                    continue label33;
                 }
             }
 

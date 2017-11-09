@@ -557,7 +557,7 @@
 						(begin
 							(if output (this:code:emitDup))
 							(cond
-								((instance? this:mi:ci MethodMacroInfo)
+								((instance? this:mi:ci ClassMacroInfo)
 									(if output (this:code:emitPushInt 0))
 								)
 								((instance? this:mi:ci MacroInfo)
@@ -831,7 +831,7 @@
 				(define method Method null)
 				(define ci ClassInfo null)
 				(for ((i 0)) (= method null) (inc i)
-					(set ci ((this:mi:ci:fs:macroNames:get tok:name):get i))
+					(set ci ((this:mi:ci:fs:cs:macroNames:get tok:name):get i))
 					(define filter (MFilter tok:name types ci:c true))
 					(filter:searchDeclared)
 					(set method (filter:getMethod))

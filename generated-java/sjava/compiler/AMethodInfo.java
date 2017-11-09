@@ -347,7 +347,7 @@ public class AMethodInfo {
                     return new LambdaToken(block.line, this.getType((LexedParsedToken)rest.get(0)), scope, params1, rest.subList(2, rest.size()), sam);
                 }
 
-                if(this.ci.fs.macroNames.containsKey(val)) {
+                if(this.ci.fs.cs.macroNames.containsKey(val)) {
                     return new MacroIncludeToken(block.line, val, new ArrayList(rest));
                 }
 

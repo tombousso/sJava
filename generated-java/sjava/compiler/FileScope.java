@@ -15,10 +15,10 @@ import java.util.Map;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
+import sjava.compiler.ClassMacroInfo;
 import sjava.compiler.CompileScope;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
-import sjava.compiler.MethodMacroInfo;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
@@ -28,19 +28,15 @@ import sjava.compiler.tokens.Token;
 import sjava.compiler.tokens.VToken;
 
 public class FileScope {
-    CompileScope cs;
+    public CompileScope cs;
     public String path;
     List<LexedParsedToken> toks;
     HashMap<String, ClassType> locals;
     HashMap<String, String> imports;
     ArrayList<String> starImports;
-    public ClassInfo includes;
+    public MacroInfo includes;
     public List<ClassInfo> newClasses;
     String package_;
-    ArrayList<MacroInfo> macros;
-    public HashMap<String, List<MacroInfo>> macroNames;
-    ArrayList<MacroInfo> methodMacros;
-    public HashMap<String, List<MacroInfo>> methodMacroNames;
 
     FileScope(CompileScope cs, String path, List<LexedParsedToken> toks) {
         this.cs = cs;
@@ -51,28 +47,11 @@ public class FileScope {
         this.starImports.add("java.lang.");
         this.starImports.add("sjava.std.");
         this.newClasses = new ArrayList();
-        this.macros = new ArrayList();
         this.package_ = toks.size() > 0 && (LexedParsedToken)toks.get(0) instanceof BlockToken && (LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(0))).val.equals("package")?((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(1))).val.concat("."):"";
         MacroInfo includes = new MacroInfo("Includes", this);
         this.includes = includes;
         includes.c.setModifiers(Access.PUBLIC);
-        this.methodMacros = new ArrayList();
         this.locals = cs.locals;
-        this.macroNames = cs.macroNames;
-        this.methodMacroNames = cs.methodMacroNames;
-    }
-
-    void compileMacros() {
-        ArrayList iterable = this.macros;
-        Iterator it = iterable.iterator();
-
-        for(int notused = 0; it.hasNext(); ++notused) {
-            MacroInfo macro = (MacroInfo)it.next();
-            macro.compileMethods();
-            macro.addToClassLoader(this.cs.mcl);
-            macro.rc = macro.getClazz(this.cs.mcl);
-        }
-
     }
 
     ClassType getNewType(Token tok) {
@@ -103,13 +82,13 @@ public class FileScope {
         return var10000;
     }
 
-    void compileRoot() {
+    void compileRoot(List<MacroInfo> macros) {
         List iterable = this.toks;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             LexedParsedToken tok = (LexedParsedToken)it.next();
-            this.compileRoot((BlockToken)tok);
+            this.compileRoot(macros, (BlockToken)tok);
         }
 
     }
@@ -137,7 +116,7 @@ public class FileScope {
         return varargs;
     }
 
-    void compileRoot(BlockToken tok) {
+    void compileRoot(List<MacroInfo> macros, BlockToken tok) {
         if((LexedParsedToken)tok.toks.get(0) instanceof VToken) {
             VToken first = (VToken)((LexedParsedToken)tok.toks.get(0));
             if(first.val.equals("define-class")) {
@@ -159,13 +138,11 @@ public class FileScope {
 
                 ci.toks = tok.toks.subList(i, tok.toks.size());
             } else if(first.val.equals("import")) {
-                String var8 = ((VToken)((LexedParsedToken)tok.toks.get(1))).val;
-                if(var8.equals("%tokens%")) {
-                    this.starImports.add("sjava.compiler.tokens.");
-                } else if(var8.endsWith("*")) {
-                    this.starImports.add(var8.substring(0, var8.length() - 1));
+                String var9 = ((VToken)((LexedParsedToken)tok.toks.get(1))).val;
+                if(var9.endsWith("*")) {
+                    this.starImports.add(var9.substring(0, var9.length() - 1));
                 } else {
-                    this.imports.put(var8.substring(var8.lastIndexOf(".") + 1), var8);
+                    this.imports.put(var9.substring(var9.lastIndexOf(".") + 1), var9);
                 }
             } else if(first.val.equals("define-macro")) {
                 LinkedHashMap scope = new LinkedHashMap();
@@ -184,19 +161,19 @@ public class FileScope {
                 sb.append(this.cs.macroIndex);
                 String cname = sb.toString();
                 ++this.cs.macroIndex;
-                MacroInfo macros = new MacroInfo(cname, this);
-                macros.c.setModifiers(Access.PUBLIC);
-                macros.addMethod(name1, types, Main.getCompilerType("tokens.LexedParsedToken"), mods, tok.toks.subList(2, tok.toks.size()), scope);
-                if(this.macroNames.containsKey(name1)) {
-                    ((List)this.macroNames.get(name1)).add(macros);
+                MacroInfo macroi = new MacroInfo(cname, this);
+                macroi.c.setModifiers(Access.PUBLIC);
+                macroi.addMethod(name1, types, Main.getCompilerType("tokens.LexedParsedToken"), mods, tok.toks.subList(2, tok.toks.size()), scope);
+                if(this.cs.macroNames.containsKey(name1)) {
+                    ((List)this.cs.macroNames.get(name1)).add(macroi);
                 } else {
                     ArrayList al = new ArrayList();
-                    al.add(macros);
-                    this.macroNames.put(name1, al);
+                    al.add(macroi);
+                    this.cs.macroNames.put(name1, al);
                 }
 
-                this.macros.add(macros);
-            } else if(first.val.equals("define-method-macro")) {
+                macros.add(macroi);
+            } else if(first.val.equals("define-class-macro")) {
                 LinkedHashMap scope1 = new LinkedHashMap();
                 BlockToken params1 = (BlockToken)((LexedParsedToken)tok.toks.get(1));
                 String name2 = ((VToken)((LexedParsedToken)params1.toks.get(0))).val;
@@ -209,18 +186,17 @@ public class FileScope {
                 }
 
                 String cname1 = "Macros";
-                MethodMacroInfo macros1 = new MethodMacroInfo(cname1, this);
+                ClassMacroInfo macros1 = new ClassMacroInfo(cname1, this);
                 macros1.c.setModifiers(Access.PUBLIC);
                 AMethodInfo macro = macros1.addMethod(name2, types1, Type.voidType, mods1, tok.toks.subList(2, tok.toks.size()), scope1);
-                if(this.methodMacroNames.containsKey(name2)) {
-                    ((List)this.methodMacroNames.get(name2)).add(macros1);
+                if(this.cs.classMacroNames.containsKey(name2)) {
+                    ((List)this.cs.classMacroNames.get(name2)).add(macros1);
                 } else {
                     ArrayList al1 = new ArrayList();
                     al1.add(macros1);
-                    this.methodMacroNames.put(name2, al1);
+                    this.cs.classMacroNames.put(name2, al1);
                 }
 
-                this.methodMacros.add(macros1);
                 macros1.methods.add(macro);
             } else if(!first.val.equals("package")) {
                 throw new RuntimeException(first.val);
@@ -240,13 +216,13 @@ public class FileScope {
 
     }
 
-    void runMethodMacros() {
+    void runClassMacros() {
         List iterable = this.newClasses;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
             ClassInfo ci = (ClassInfo)it.next();
-            ci.runMethodMacros();
+            ci.runClassMacros();
         }
 
     }
