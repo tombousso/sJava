@@ -733,12 +733,12 @@
 					(begin
 						(set ci
 							(ClassInfo
+								this:mi:ci:fs
 								(concat
 									(this:mi:ci:c:getName)
 									"$"
 									(this:mi:ci:anonClasses:size)
 								)
-								this:mi:ci:fs
 							)
 						)
 						(set tok:ci ci)
@@ -753,7 +753,7 @@
 						(define toks (ArrayList tok:toks))
 						(if (= tok:t null)
 							(begin
-								(define fakemi (MethodInfo (ClassInfo (as ClassType null) this:mi:ci:fs) null null scope))
+								(define fakemi (MethodInfo (ClassInfo this:mi:ci:fs (as ClassType null)) null null scope))
 								(define beginTok (this:mi:transformBlockToks (BeginToken 0 toks)))
 								(define captureH (CaptureVHandler fakemi this:mi (LinkedHashMap)))
 								(set tok:ret (Main:tryBox (captureH:compile beginTok null Main:unknownType)))

@@ -31,7 +31,6 @@ public class FileScope {
     public CompileScope cs;
     public String path;
     List<LexedParsedToken> toks;
-    HashMap<String, ClassType> locals;
     HashMap<String, String> imports;
     ArrayList<String> starImports;
     public MacroInfo includes;
@@ -48,10 +47,9 @@ public class FileScope {
         this.starImports.add("sjava.std.");
         this.newClasses = new ArrayList();
         this.package_ = toks.size() > 0 && (LexedParsedToken)toks.get(0) instanceof BlockToken && (LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(0) instanceof VToken && ((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(0))).val.equals("package")?((VToken)((LexedParsedToken)((BlockToken)((LexedParsedToken)toks.get(0))).toks.get(1))).val.concat("."):"";
-        MacroInfo includes = new MacroInfo("Includes", this);
+        MacroInfo includes = new MacroInfo(this, "Includes");
         this.includes = includes;
         includes.c.setModifiers(Access.PUBLIC);
-        this.locals = cs.locals;
     }
 
     ClassType getNewType(Token tok) {
@@ -117,15 +115,15 @@ public class FileScope {
     }
 
     void compileRoot(List<MacroInfo> macros, BlockToken tok) {
-        if((LexedParsedToken)tok.toks.get(0) instanceof VToken) {
-            VToken first = (VToken)((LexedParsedToken)tok.toks.get(0));
-            if(first.val.equals("define-class")) {
+        LexedParsedToken first = (LexedParsedToken)tok.toks.get(0);
+        if(first instanceof VToken) {
+            if(((VToken)first).val.equals("define-class")) {
                 ClassType c = this.getNewType((LexedParsedToken)tok.toks.get(1));
                 String name = c.getName();
-                ClassInfo ci = new ClassInfo(c, this);
+                ClassInfo ci = new ClassInfo(this, c);
                 ci.supers = (BlockToken)((LexedParsedToken)tok.toks.get(2));
                 this.newClasses.add(ci);
-                this.locals.put(name, ci.c);
+                this.cs.locals.put(name, ci.c);
                 boolean run = true;
                 int i = 3;
 
@@ -137,14 +135,14 @@ public class FileScope {
                 }
 
                 ci.toks = tok.toks.subList(i, tok.toks.size());
-            } else if(first.val.equals("import")) {
+            } else if(((VToken)first).val.equals("import")) {
                 String var9 = ((VToken)((LexedParsedToken)tok.toks.get(1))).val;
                 if(var9.endsWith("*")) {
                     this.starImports.add(var9.substring(0, var9.length() - 1));
                 } else {
                     this.imports.put(var9.substring(var9.lastIndexOf(".") + 1), var9);
                 }
-            } else if(first.val.equals("define-macro")) {
+            } else if(((VToken)first).val.equals("define-macro")) {
                 LinkedHashMap scope = new LinkedHashMap();
                 BlockToken params = (BlockToken)((LexedParsedToken)tok.toks.get(1));
                 String name1 = ((VToken)((LexedParsedToken)params.toks.get(0))).val;
@@ -161,7 +159,7 @@ public class FileScope {
                 sb.append(this.cs.macroIndex);
                 String cname = sb.toString();
                 ++this.cs.macroIndex;
-                MacroInfo macroi = new MacroInfo(cname, this);
+                MacroInfo macroi = new MacroInfo(this, cname);
                 macroi.c.setModifiers(Access.PUBLIC);
                 macroi.addMethod(name1, types, Main.getCompilerType("tokens.LexedParsedToken"), mods, tok.toks.subList(2, tok.toks.size()), scope);
                 if(this.cs.macroNames.containsKey(name1)) {
@@ -173,7 +171,7 @@ public class FileScope {
                 }
 
                 macros.add(macroi);
-            } else if(first.val.equals("define-class-macro")) {
+            } else if(((VToken)first).val.equals("define-class-macro")) {
                 LinkedHashMap scope1 = new LinkedHashMap();
                 BlockToken params1 = (BlockToken)((LexedParsedToken)tok.toks.get(1));
                 String name2 = ((VToken)((LexedParsedToken)params1.toks.get(0))).val;
@@ -186,7 +184,7 @@ public class FileScope {
                 }
 
                 String cname1 = "Macros";
-                ClassMacroInfo macros1 = new ClassMacroInfo(cname1, this);
+                ClassMacroInfo macros1 = new ClassMacroInfo(this, cname1);
                 macros1.c.setModifiers(Access.PUBLIC);
                 AMethodInfo macro = macros1.addMethod(name2, types1, Type.voidType, mods1, tok.toks.subList(2, tok.toks.size()), scope1);
                 if(this.cs.classMacroNames.containsKey(name2)) {
@@ -198,8 +196,8 @@ public class FileScope {
                 }
 
                 macros1.methods.add(macro);
-            } else if(!first.val.equals("package")) {
-                throw new RuntimeException(first.val);
+            } else if(!((VToken)first).val.equals("package")) {
+                throw new RuntimeException(((VToken)first).val);
             }
         }
 

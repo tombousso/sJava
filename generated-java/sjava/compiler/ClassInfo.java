@@ -39,8 +39,8 @@ import sjava.compiler.tokens.VToken;
 import sjava.std.Tuple2;
 
 public class ClassInfo {
-    public ClassType c;
     public FileScope fs;
+    public ClassType c;
     BlockToken supers;
     List<LexedParsedToken> toks;
     public List<AMethodInfo> methods;
@@ -49,7 +49,7 @@ public class ClassInfo {
     HashMap<String, TypeVariable> tvs;
     byte[] classfile;
 
-    public ClassInfo(ClassType c, FileScope fs) {
+    public ClassInfo(FileScope fs, ClassType c) {
         this.fs = fs;
         this.c = c;
         this.methods = new ArrayList();
@@ -73,8 +73,8 @@ public class ClassInfo {
 
     }
 
-    public ClassInfo(String name, FileScope fs) {
-        this(new ClassType(name), fs);
+    public ClassInfo(FileScope fs, String name) {
+        this(fs, new ClassType(name));
     }
 
     byte[] getClassfile() {
@@ -153,14 +153,14 @@ public class ClassInfo {
             var10000 = (TypeVariable)this.tvs.get(name);
         } else if(Main.constTypes.containsKey(name)) {
             var10000 = (Type)Main.constTypes.get(name);
-        } else if(allowNew && this.fs.locals.containsKey(name)) {
-            var10000 = (ClassType)this.fs.locals.get(name);
-        } else if(allowNew && !abs && this.fs.locals.containsKey(this.fs.package_.concat(name))) {
-            var10000 = (ClassType)this.fs.locals.get(this.fs.package_.concat(name));
+        } else if(allowNew && this.fs.cs.locals.containsKey(name)) {
+            var10000 = (ClassType)this.fs.cs.locals.get(name);
+        } else if(allowNew && !abs && this.fs.cs.locals.containsKey(this.fs.package_.concat(name))) {
+            var10000 = (ClassType)this.fs.cs.locals.get(this.fs.package_.concat(name));
         } else if(this.fs.imports.containsKey(name)) {
             String fullName = (String)this.fs.imports.get(name);
-            if(allowNew && this.fs.locals.containsKey(fullName)) {
-                var10000 = (ClassType)this.fs.locals.get(fullName);
+            if(allowNew && this.fs.cs.locals.containsKey(fullName)) {
+                var10000 = (ClassType)this.fs.cs.locals.get(fullName);
             } else {
                 if(!this.fs.cs.classExists(fullName)) {
                     throw new RuntimeException();
@@ -176,8 +176,8 @@ public class ClassInfo {
             for(int notused = 0; it.hasNext(); ++notused) {
                 String starImport = (String)it.next();
                 String fullName1 = starImport.concat(name);
-                if(allowNew && this.fs.locals.containsKey(fullName1)) {
-                    matches.add((ClassType)this.fs.locals.get(fullName1));
+                if(allowNew && this.fs.cs.locals.containsKey(fullName1)) {
+                    matches.add((ClassType)this.fs.cs.locals.get(fullName1));
                 } else if(this.fs.cs.classExists(fullName1)) {
                     matches.add(Type.getType(fullName1));
                 }

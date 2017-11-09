@@ -29,6 +29,7 @@ import sjava.compiler.AVar;
 import sjava.compiler.CastVar;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.ClassMacroInfo;
+import sjava.compiler.FileScope;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
@@ -896,11 +897,12 @@ public class GenHandler extends Handler {
         ArrayList emitters = new ArrayList(tok.superArgs);
         if(ci == null) {
             if(output) {
+                FileScope var10002 = super.mi.ci.fs;
                 StringBuilder sb = new StringBuilder();
                 sb.append(super.mi.ci.c.getName());
                 sb.append("$");
                 sb.append(super.mi.ci.anonClasses.size());
-                ci = new ClassInfo(sb.toString(), super.mi.ci.fs);
+                ci = new ClassInfo(var10002, sb.toString());
                 tok.ci = ci;
                 super.mi.ci.anonClasses.add(ci);
             }
@@ -912,7 +914,7 @@ public class GenHandler extends Handler {
                 ArrayList generics = new ArrayList(params);
                 ArrayList toks = new ArrayList(tok1.toks);
                 if(tok1.t == null) {
-                    MethodInfo fakemi = new MethodInfo(new ClassInfo((ClassType)null, super.mi.ci.fs), (List)null, (Method)null, scope);
+                    MethodInfo fakemi = new MethodInfo(new ClassInfo(super.mi.ci.fs, (ClassType)null), (List)null, (Method)null, scope);
                     BlockToken2 beginTok = super.mi.transformBlockToks(new BeginToken(0, toks));
                     CaptureVHandler captureH = new CaptureVHandler(fakemi, super.mi, new LinkedHashMap());
                     tok1.ret = Main.tryBox(captureH.compile(beginTok, (CodeAttr)null, Main.unknownType));
