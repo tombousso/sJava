@@ -158,6 +158,19 @@
 		)
 
 		(println (int[3] 99))
+
+		(define a Object 3)
+		(if (&& (instance? a Comparable) (instance? a Object))
+			(println (> (a:compareTo 2) 0))
+		)
+		(if (|| (! (instance? a Integer)) (! (instance? a Object)))
+			(println 2)
+			(println (* a 2))
+		)
+		(if (! (instance? a Integer))
+			(println 2)
+			(println (* a 2))
+		)
 	)
 	((toggle1 x int) int static
 		(cond

@@ -22,7 +22,7 @@
 	(binOps HashMap{String Integer} static public)
 	(compare2Ops HashMap{String Integer} public static)
 	(compare1Ops HashMap{String Integer} public static)
-	(oppositeOps HashMap{String String} static)
+	(oppositeOps HashMap{String String} public static)
 	(precs String[][] static) ;precedence to special token array
 	(specialChars HashMap{String Character} static public)
 	(MP int static) ;max precedence
@@ -417,12 +417,6 @@
 	((isCompare s String) bool static public
 		(|| (s:equals "!") (s:equals "&&") (s:equals "||") (Main:compare2Ops:containsKey s))
 	)
-	((invertComp inv bool comp String) String public static
-		(if inv
-			(Main:oppositeOps:get comp)
-			comp
-		)
-	)
 	((emitInvoke h GenHandler name String type Type emitters List{Emitter} needed Type special bool static_ bool) Tuple2{Type MethodCall} static public
 		(define types (Emitter:emitAll emitters h null Main:unknownType))
 		;(System:out:println name)
@@ -547,7 +541,12 @@
 								(return 1)
 							)
 						)
-						-1
+						(forEach super (Main:superTypes a)
+							(if (Type:isSame b super)
+								(return -1)
+							)
+						)
+						-2
 					)
 				)
 			)

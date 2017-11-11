@@ -61,7 +61,7 @@ public class Main {
     public static HashMap<String, Integer> binOps;
     public static HashMap<String, Integer> compare2Ops;
     public static HashMap<String, Integer> compare1Ops;
-    static HashMap<String, String> oppositeOps;
+    public static HashMap<String, String> oppositeOps;
     static String[][] precs;
     public static HashMap<String, Character> specialChars;
     static int MP;
@@ -523,10 +523,6 @@ public class Main {
         return s.equals("!") || s.equals("&&") || s.equals("||") || compare2Ops.containsKey(s);
     }
 
-    public static String invertComp(boolean inv, String comp) {
-        return inv?(String)oppositeOps.get(comp):comp;
-    }
-
     public static Tuple2<Type, MethodCall> emitInvoke(GenHandler h, String name, Type type, List<Emitter> emitters, Type needed, boolean special, boolean static_) {
         Type[] types = Emitter.emitAll(emitters, h, (CodeAttr)null, unknownType);
         MFilter filter = new MFilter(name, types, type, static_);
@@ -612,30 +608,40 @@ public class Main {
     public static int compare(Type a, Type b) {
         int var10000;
         if(!(a instanceof ClassType) && !(a instanceof ParameterizedType) || !(b instanceof ClassType) && !(b instanceof ParameterizedType)) {
-            var10000 = a.compare(b);
+            var10000 = ((Type)a).compare((Type)b);
         } else {
             if(a instanceof ClassType && b instanceof ParameterizedType && ((ClassType)a).getTypeParameters() != null && ((ClassType)a).getTypeParameters().length != 0) {
-                b = b.getRawType();
+                b = ((ParameterizedType)b).getRawType();
             }
 
             if(a instanceof ParameterizedType && b instanceof ClassType && ((ClassType)b).getTypeParameters() != null && ((ClassType)b).getTypeParameters().length != 0) {
-                a = a.getRawType();
+                a = ((ParameterizedType)a).getRawType();
             }
 
-            if(Type.isSame(a, b)) {
+            if(Type.isSame((Type)a, (Type)b)) {
                 var10000 = 0;
             } else {
-                LinkedHashSet iterable = superTypes(b);
+                LinkedHashSet iterable = superTypes((Type)b);
                 Iterator it = iterable.iterator();
 
                 for(int notused = 0; it.hasNext(); ++notused) {
                     Type var5 = (Type)it.next();
-                    if(Type.isSame(a, var5)) {
+                    if(Type.isSame((Type)a, var5)) {
                         return 1;
                     }
                 }
 
-                var10000 = -1;
+                LinkedHashSet iterable1 = superTypes((Type)a);
+                Iterator it1 = iterable1.iterator();
+
+                for(int notused1 = 0; it1.hasNext(); ++notused1) {
+                    Type var9 = (Type)it1.next();
+                    if(Type.isSame((Type)b, var9)) {
+                        return -1;
+                    }
+                }
+
+                var10000 = -2;
             }
         }
 

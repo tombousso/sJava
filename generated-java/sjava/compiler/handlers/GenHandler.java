@@ -283,7 +283,7 @@ public class GenHandler extends Handler {
             Tuple2 cast2 = (Tuple2)null;
             boolean isFalseGoto = trueE instanceof Nothing && falseE instanceof Goto;
             Label falseLabel = isFalseGoto?((Goto)falseE).label:new Label();
-            String invCompare = Main.invertComp(inv, compare);
+            String invCompare = inv?(String)Main.oppositeOps.get(compare):compare;
             if(Main.compare1Ops.containsKey(invCompare)) {
                 for(int j = 0; j != toks.size(); ++j) {
                     Token tok = (Token)toks.get(j);
@@ -375,28 +375,7 @@ public class GenHandler extends Handler {
             Label falseL = new Label();
             Goto falseG = new Goto(falseL);
             super.mi.pushScope(this.code, new HashMap());
-            if((inv || !compare.equals("&&")) && (!inv || !compare.equals("||"))) {
-                int i1 = 0;
-
-                while(true) {
-                    if(i1 == toks.size() - 1) {
-                        falseCasts.addAll((List)this.emitIf(inv, (Token)toks.get(toks.size() - 1), Nothing.inst, falseG, Type.voidType)._2);
-                        break;
-                    }
-
-                    Tuple3 a1 = this.emitIf(!inv, (Token)toks.get(i1), Nothing.inst, trueG, Type.voidType);
-                    List iterable1 = (List)a1._2;
-                    Iterator it1 = iterable1.iterator();
-
-                    for(int notused1 = 0; it1.hasNext(); ++notused1) {
-                        Tuple2 cast1 = (Tuple2)it1.next();
-                        this.putCast(cast1);
-                    }
-
-                    falseCasts.addAll((List)a1._2);
-                    ++i1;
-                }
-            } else {
+            if(!inv && compare.equals("&&") || inv && compare.equals("||")) {
                 int i = 0;
 
                 while(true) {
@@ -417,6 +396,27 @@ public class GenHandler extends Handler {
                     trueCasts.addAll((List)a._2);
                     ++i;
                 }
+            } else {
+                int i1 = 0;
+
+                while(true) {
+                    if(i1 == toks.size() - 1) {
+                        falseCasts.addAll((List)this.emitIf(inv, (Token)toks.get(toks.size() - 1), Nothing.inst, falseG, Type.voidType)._3);
+                        break;
+                    }
+
+                    Tuple3 a1 = this.emitIf(!inv, (Token)toks.get(i1), Nothing.inst, trueG, Type.voidType);
+                    List iterable1 = (List)a1._2;
+                    Iterator it1 = iterable1.iterator();
+
+                    for(int notused1 = 0; it1.hasNext(); ++notused1) {
+                        Tuple2 cast1 = (Tuple2)it1.next();
+                        this.putCast(cast1);
+                    }
+
+                    falseCasts.addAll((List)a1._2);
+                    ++i1;
+                }
             }
 
             super.mi.popScope(this.code);
@@ -428,7 +428,22 @@ public class GenHandler extends Handler {
 
     void putCast(Tuple2<VToken, Type> cast) {
         if(cast != null) {
-            super.mi.putVar((VToken)cast._1, new CastVar(super.mi.getVar((VToken)cast._1), (Type)cast._2));
+            AVar ovar = super.mi.getVar((VToken)cast._1);
+            Type type = (Type)cast._2;
+            int comp = Main.compare(ovar.type, type);
+            if(ovar instanceof CastVar) {
+                ovar = ((CastVar)ovar).v;
+            }
+
+            if(comp != 1) {
+                return;
+            }
+
+            if(ovar instanceof CastVar) {
+                super.mi.removeVar((VToken)cast._1);
+            }
+
+            super.mi.putVar((VToken)cast._1, new CastVar(ovar, type));
         }
 
     }
@@ -1196,13 +1211,17 @@ public class GenHandler extends Handler {
             }
 
             VToken out2 = (VToken)out;
+            AVar var = super.mi.getVar(out2);
+            Type varType = var.type;
+            if(var instanceof CastVar) {
+                varType = ((CastVar)var).v.type;
+            }
 
-            AVar var;
-            for(var = super.mi.getVar(out2); var instanceof CastVar; var = super.mi.getVar(out2)) {
+            this.compile((Token)tok.toks.get(2), this.code, varType);
+            if(var instanceof CastVar) {
                 super.mi.removeVar(out2);
             }
 
-            this.compile((Token)tok.toks.get(2), this.code, var.type);
             var.store(this.code);
         }
 
