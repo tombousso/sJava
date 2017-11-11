@@ -28,7 +28,7 @@ import sjava.compiler.AMethodInfo;
 import sjava.compiler.AVar;
 import sjava.compiler.CastVar;
 import sjava.compiler.ClassInfo;
-import sjava.compiler.ClassMacroInfo;
+import sjava.compiler.ClassMacroMethodInfo;
 import sjava.compiler.FileScope;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
@@ -668,12 +668,18 @@ public class GenHandler extends Handler {
                         this.code.emitDup();
                     }
 
-                    if(super.mi.ci instanceof ClassMacroInfo) {
+                    if(super.mi instanceof ClassMacroMethodInfo) {
                         if(output) {
                             this.code.emitPushInt(0);
                         }
-                    } else if(super.mi.ci instanceof MacroInfo && output) {
-                        this.code.emitLoad(this.code.getArg(1));
+                    } else {
+                        if(!(super.mi.ci instanceof MacroInfo)) {
+                            throw new RuntimeException();
+                        }
+
+                        if(output) {
+                            this.code.emitLoad(this.code.getArg(1));
+                        }
                     }
 
                     if(output) {
@@ -914,7 +920,7 @@ public class GenHandler extends Handler {
                 ArrayList generics = new ArrayList(params);
                 ArrayList toks = new ArrayList(tok1.toks);
                 if(tok1.t == null) {
-                    MethodInfo fakemi = new MethodInfo(new ClassInfo(super.mi.ci.fs, (ClassType)null), (List)null, (Method)null, scope);
+                    MethodInfo fakemi = new MethodInfo(new ClassInfo(super.mi.ci.fs, (ClassType)null), (List)null, scope, (Method)null);
                     BlockToken2 beginTok = super.mi.transformBlockToks(new BeginToken(0, toks));
                     CaptureVHandler captureH = new CaptureVHandler(fakemi, super.mi, new LinkedHashMap());
                     tok1.ret = Main.tryBox(captureH.compile(beginTok, (CodeAttr)null, Main.unknownType));

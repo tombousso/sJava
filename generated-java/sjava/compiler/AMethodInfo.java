@@ -70,7 +70,7 @@ import sjava.compiler.tokens.UnquoteToken;
 import sjava.compiler.tokens.VToken;
 import sjava.std.Tuple3;
 
-public class AMethodInfo {
+public abstract class AMethodInfo {
     public ClassInfo ci;
     public BeginToken block;
     public Method method;
@@ -80,7 +80,7 @@ public class AMethodInfo {
     ArrayDeque<Map<String, Label>> labels;
     boolean compiled;
 
-    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, Method method, LinkedHashMap<String, Arg> firstScope) {
+    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, LinkedHashMap<String, Arg> firstScope, Method method) {
         this.ci = ci;
         if(toks != null && toks.size() != 0) {
             this.block = new BeginToken(((LexedParsedToken)toks.get(0)).line, new ArrayList(toks));
@@ -101,6 +101,10 @@ public class AMethodInfo {
         this.firstScope = firstScope;
         this.labels = new ArrayDeque();
         this.compiled = false;
+    }
+
+    AMethodInfo(ClassInfo ci, List<LexedParsedToken> toks, LinkedHashMap<String, Arg> firstScope, String name, List<Type> params, Type ret, int mods) {
+        this(ci, toks, firstScope, toks != null?ci.c.addMethod(name, (Type[])params.toArray(new Type[0]), ret, mods):(Method)null);
     }
 
     public void pushScope(CodeAttr code, Map label) {

@@ -403,10 +403,7 @@ public class ClassInfo {
             scope.put("this", new Arg(this.c, 0, 0));
         }
 
-        Type[] atypes = new Type[params.size()];
-        params.toArray(atypes);
-        Method method = this.c.addMethod(name, atypes, ret, mods);
-        MethodInfo out = new MethodInfo(this, toks, method, scope);
+        MethodInfo out = new MethodInfo(this, toks, scope, name, params, ret, mods);
         this.methods.add(out);
         return out;
     }

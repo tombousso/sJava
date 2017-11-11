@@ -1334,11 +1334,7 @@
 					(define macro (macroi:addMethod name types (Main:getCompilerType "tokens.LexedParsedToken") mods (tok:toks:subList 2 (tok:toks:size)) scope))
 					(if (this:cs:macroNames:containsKey name)
 						((this:cs:macroNames:get name):add macroi)
-						(begin
-							(define al (ArrayList{MacroInfo}))
-							(al:add macroi)
-							(this:cs:macroNames:put name al)
-						)
+						(this:cs:macroNames:put name (ArrayList (Arrays:asList macroi)))
 					)
 					(macros:add macroi)
 				)
@@ -1352,18 +1348,13 @@
 					(define varargs (this:getMacroParams types params scope))
 					(if varargs (set mods (| mods Access:TRANSIENT)))
 					(define cname "Macros")
-					(define macros (ClassMacroInfo this cname))
-					(macros:c:setModifiers Access:PUBLIC)
-					(define macro (macros:addMethod name types Type:voidType mods (tok:toks:subList 2 (tok:toks:size)) scope))
+					(define macroi (MacroInfo this cname))
+					(macroi:c:setModifiers Access:PUBLIC)
+					(define macro (macroi:addClassMacroMethod name types Type:voidType mods (tok:toks:subList 2 (tok:toks:size)) scope))
 					(if (this:cs:classMacroNames:containsKey name)
-						((this:cs:classMacroNames:get name):add macros)
-						(begin
-							(define al (ArrayList{MacroInfo}))
-							(al:add macros)
-							(this:cs:classMacroNames:put name al)
-						)
+						((this:cs:classMacroNames:get name):add macroi)
+						(this:cs:classMacroNames:put name (ArrayList (Arrays:asList macroi)))
 					)
-					(macros:methods:add macro)
 				)
 				((! (first:val:equals "package"))
 					(throw (RuntimeException first:val))
@@ -1676,10 +1667,7 @@
 		(if (&& addThis (= (& mods Access:STATIC) 0))
 			(scope:put "this" (Arg this:c 0 0))
 		)
-		(define atypes (Type[] len:(params:size)))
-		(params:toArray atypes)
-		(define method (this:c:addMethod name atypes ret mods))
-		(define out (MethodInfo this toks method scope))
+		(define out (MethodInfo this toks scope name params ret mods))
 		(this:methods:add out)
 		out
 	)
@@ -1702,15 +1690,14 @@
 	((getType tok Token) Type public
 		(super:getType tok false)
 	)
-)
-
-(define-class ClassMacroInfo (MacroInfo) public
-	((<init> fs FileScope name String) void
-		(super:<init> fs name)
+	((addClassMacroMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap) AMethodInfo public
+		(define out (ClassMacroMethodInfo this toks scope name params ret mods))
+		(this:methods:add out)
+		out
 	)
 )
 
-(define-class AMethodInfo () public
+(define-class AMethodInfo () public abstract
 	(ci ClassInfo public)
 	(block BeginToken public)
 	(method Method public)
@@ -1719,13 +1706,14 @@
 	(firstScope Map{String Arg})
 	(labels ArrayDeque{Map{String Label}})
 	(compiled bool)
-	((<init> ci ClassInfo toks List{LexedParsedToken} method Method firstScope LinkedHashMap{String Arg}) void
+	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} method Method) void
 		(super:<init>)
 		(set this:ci ci)
-		(if (&& (!= toks null) (!= (toks:size) 0))
+		(when (&& (!= toks null) (!= (toks:size) 0))
 			(set this:block (BeginToken (toks:get 0):line (ArrayList{Token} toks)))
 		)
 		(set this:method method)
+
 		(set this:levels (ArrayList))
 		(this:ensureLevels 0)
 		(set this:capturedLevels (ArrayList))
@@ -1735,6 +1723,17 @@
 		(set this:firstScope firstScope)
 		(set this:labels (ArrayDeque))
 		(set this:compiled false)
+	)
+	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
+		(this:<init>
+			ci
+			toks
+			firstScope
+			(if (!= toks null)
+				(ci:c:addMethod name (params:toArray (Type[])) ret mods)
+				null
+			)
+		)
 	)
 	((pushScope code CodeAttr label Map) void public
 		(define output (!= code null))
@@ -1818,27 +1817,25 @@
 		(this:ci:getType tok)
 	)
 	((compileMethodBody h GenHandler) void public
-		(if (&& (! this:compiled) (! (this:method:isAbstract)))
-			(begin
-				(this:transformBlockToks this:block)
-				(h:compile this:block null (this:method:getReturnType))
+		(when (&& (! this:compiled) (! (this:method:isAbstract)))
+			(this:transformBlockToks this:block)
+			(h:compile this:block null (this:method:getReturnType))
 
-				(define filter (BridgeFilter this:method))
-				(filter:searchAll)
+			(define filter (BridgeFilter this:method))
+			(filter:searchAll)
 
-				(define code (this:method:startCode))
-				(forEach entry (this:firstScope:entrySet)
-					(define arg (entry:getValue))
-					((code:getArg arg:n):setName (entry:getKey))
-				)
-				(define ret (h:compile this:block code (this:method:getReturnType)))
-				(code:popScope)
-
-				(if (code:reachableHere)
-					(code:emitReturn)
-				)
-				(set this:compiled true)
+			(define code (this:method:startCode))
+			(forEach entry (this:firstScope:entrySet)
+				(define arg (entry:getValue))
+				((code:getArg arg:n):setName (entry:getKey))
 			)
+			(define ret (h:compile this:block code (this:method:getReturnType)))
+			(code:popScope)
+
+			(if (code:reachableHere)
+				(code:emitReturn)
+			)
+			(set this:compiled true)
 		)
 	)
 	((toString) String public
@@ -2199,7 +2196,16 @@
 )
 
 (define-class MethodInfo (AMethodInfo) public
-	((<init> ci ClassInfo toks List{LexedParsedToken} method Method scope LinkedHashMap) void public
-		(super:<init> ci toks method scope)
+	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} method Method) void public
+		(super:<init> ci toks firstScope method)
+	)
+	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
+		(super:<init> ci toks firstScope name params ret mods)
+	)
+)
+
+(define-class ClassMacroMethodInfo (AMethodInfo) public
+	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
+		(super:<init> ci toks firstScope name params ret mods)
 	)
 )

@@ -15,7 +15,6 @@ import java.util.Map;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.ClassInfo;
-import sjava.compiler.ClassMacroInfo;
 import sjava.compiler.CompileScope;
 import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
@@ -165,9 +164,7 @@ public class FileScope {
                 if(this.cs.macroNames.containsKey(name1)) {
                     ((List)this.cs.macroNames.get(name1)).add(macroi);
                 } else {
-                    ArrayList al = new ArrayList();
-                    al.add(macroi);
-                    this.cs.macroNames.put(name1, al);
+                    this.cs.macroNames.put(name1, new ArrayList(Arrays.asList(new Object[]{macroi})));
                 }
 
                 macros.add(macroi);
@@ -184,18 +181,14 @@ public class FileScope {
                 }
 
                 String cname1 = "Macros";
-                ClassMacroInfo macros1 = new ClassMacroInfo(this, cname1);
-                macros1.c.setModifiers(Access.PUBLIC);
-                AMethodInfo macro = macros1.addMethod(name2, types1, Type.voidType, mods1, tok.toks.subList(2, tok.toks.size()), scope1);
+                MacroInfo macroi1 = new MacroInfo(this, cname1);
+                macroi1.c.setModifiers(Access.PUBLIC);
+                macroi1.addClassMacroMethod(name2, types1, Type.voidType, mods1, tok.toks.subList(2, tok.toks.size()), scope1);
                 if(this.cs.classMacroNames.containsKey(name2)) {
-                    ((List)this.cs.classMacroNames.get(name2)).add(macros1);
+                    ((List)this.cs.classMacroNames.get(name2)).add(macroi1);
                 } else {
-                    ArrayList al1 = new ArrayList();
-                    al1.add(macros1);
-                    this.cs.classMacroNames.put(name2, al1);
+                    this.cs.classMacroNames.put(name2, new ArrayList(Arrays.asList(new Object[]{macroi1})));
                 }
-
-                macros1.methods.add(macro);
             } else if(!((VToken)first).val.equals("package")) {
                 throw new RuntimeException(((VToken)first).val);
             }
