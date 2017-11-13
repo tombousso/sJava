@@ -689,30 +689,17 @@
 	)
 	((compile tok IncludeToken needed Type) Type public
 		(define output (!= this:code null))
-		(if (= tok:ret null)
-			(begin
-				(this:mi:ci:fs:compileInclude tok)
-				(try
-					(set tok:ret
-						(this:mi:transformBlock
-							(as LexedParsedToken
-								(
-									((this:mi:ci:fs:includes:getClazz):getMethod (tok:mi:method:getName)
-										(Class[]
-											(class AMethodInfo)
-											Integer:TYPE
-											(class GenHandler)
-										)
-									):invoke
-									null
-									(Object[] this:mi 0 this)
-								)
-							)
+		(when (= tok:ret null)
+			(this:mi:ci:fs:compileInclude tok)
+			(set tok:ret
+				(this:mi:transformBlock
+					(as LexedParsedToken
+						(static:callMethod
+							this:mi:ci:fs:includes
+							tok:mi:method
+							(Object[] this:mi 0 this)
 						)
 					)
-					(e NoSuchMethodException (throw (RuntimeException e)))
-					(e IllegalAccessException (throw (RuntimeException e)))
-					(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
 				)
 			)
 		)
@@ -840,51 +827,45 @@
 		)
 		(this:castMaybe tok:t needed)
 	)
+	((callMacro pre Type[] toks List name String macros Map{String List{MacroInfo}} argsA Object[]) Object public static
+		(define types (Type[] len:(+ (alen pre) (toks:size))))
+		(Arrays:fill types (Main:getCompilerType "tokens.LexedParsedToken"))
+		(System:arraycopy pre 0 types 0 (alen pre))
+
+		(define method Method null)
+		(define ci ClassInfo null)
+		(for ((i 0)) (= method null) (inc i)
+			(set ci ((macros:get name):get i))
+			(define filter (MFilter name types ci:c true))
+			(filter:searchDeclared)
+			(set method (filter:getMethod))
+		)
+		(ci:compileMethods)
+
+		(define args (ArrayList (Arrays:asList argsA)))
+		(args:addAll toks)
+		(static:callMethod ci method (args:toArray))
+	)
+	((callMethod ci ClassInfo method Method args Object[]) Object public static
+		(define params (method:getGenericParameterTypes))
+		(define classes (mapA t params (t:getReflectClass)))
+		(try
+			(begin
+				(define clazz (ci:getClazz))
+				(define ret ((method:getReturnType):getReflectClass))
+				(define mt (java.lang.invoke.MethodType:methodType ret classes))
+				(define mh (Main:mhl:findStatic clazz (method:getName) mt))
+				(mh:invokeWithArguments args)
+			)
+			(e Throwable (throw (RuntimeException e)))
+		)
+	)
 	((compile tok MacroIncludeToken needed Type) Type public
 		(define output (!= this:code null))
 		(when (= tok:ret null)
-			;dupped with runMethodMacro
-			(define o 3)
-			(define l (tok:toks:size))
-			(define types (Type[] len:(+ o l) (Main:getCompilerType "AMethodInfo") Type:intType (Main:getCompilerType "handlers.GenHandler")))
-			(for ((j 0)) (!= j l) (inc j)
-				(aset types (+ o j) (Main:getCompilerType "tokens.LexedParsedToken"))
-			)
-			(define method Method null)
-			(define ci ClassInfo null)
-			(for ((i 0)) (= method null) (inc i)
-				(set ci ((this:mi:ci:fs:cs:macroNames:get tok:name):get i))
-				(define filter (MFilter tok:name types ci:c true))
-				(filter:searchDeclared)
-				(set method (filter:getMethod))
-			)
-			(define params (method:getGenericParameterTypes))
-			(define classes (mapA t params (t:getReflectClass)))
-			(define args (ArrayList (Arrays:asList (Object[] this:mi (this:mi:levels:size) this))))
-			(args:addAll
-				(if (!= (& (method:getModifiers) Access:TRANSIENT) 0)
-					(begin
-						(define var (- (alen params) o 1))
-						(define al (ArrayList (tok:toks:subList 0 var)))
-						(define out (LexedParsedToken[] len:(- (tok:toks:size) var)))
-						((tok:toks:subList var (tok:toks:size)):toArray out)
-						(al:add out)
-						al
-					)
-					(as ArrayList tok:toks)
-				)
-			)
-			(try
-				(begin
-					(define clazz (ci:getClazz))
-					(define method (clazz:getMethod tok:name classes))
-					(define ret (as LexedParsedToken (method:invoke null (args:toArray))))
-					(set tok:ret (this:mi:transformBlock ret))
-				)
-				(e NoSuchMethodException (throw (RuntimeException e)))
-				(e IllegalAccessException (throw (RuntimeException e)))
-				(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
-			)
+			(define pre (Type[] (Main:getCompilerType "AMethodInfo") Type:intType (Main:getCompilerType "handlers.GenHandler")))
+			(define args (Object[] this:mi (this:mi:levels:size) this))
+			(set tok:ret (this:mi:transformBlock (as LexedParsedToken (static:callMacro pre tok:toks tok:name this:mi:ci:fs:cs:macroNames args))))
 		)
 		(define out (this:compile tok:ret this:code needed))
 		(this:castMaybe out needed)
@@ -1269,7 +1250,7 @@
 		(define output (!= this:code null))
 		(define found (this:mi:getVar tok))
 		(if (instance? found VCaptured)
-			(this:assignField (as VCaptured found) this:code)
+			(this:assignField found this:code)
 		)
 		(this:castMaybe
 			(if (= found null)

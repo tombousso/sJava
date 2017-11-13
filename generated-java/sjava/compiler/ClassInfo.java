@@ -5,16 +5,13 @@ import gnu.bytecode.AnnotationEntry;
 import gnu.bytecode.ArrayClassLoader;
 import gnu.bytecode.ArrayType;
 import gnu.bytecode.ClassType;
-import gnu.bytecode.Method;
 import gnu.bytecode.ParameterizedType;
 import gnu.bytecode.RuntimeAnnotationsAttr;
 import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,11 +21,9 @@ import org.apache.commons.io.FileUtils;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.Arg;
 import sjava.compiler.FileScope;
-import sjava.compiler.MacroInfo;
 import sjava.compiler.Main;
 import sjava.compiler.MethodInfo;
 import sjava.compiler.handlers.GenHandler;
-import sjava.compiler.mfilters.MFilter;
 import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
@@ -341,61 +336,8 @@ public class ClassInfo {
     void runClassMacro(BlockToken tok) {
         String name = ((VToken)((LexedParsedToken)tok.toks.get(0))).val;
         name = name.substring(0, name.length() - 1);
-        byte o = 1;
-        int l = tok.toks.size() - 1;
-        Type[] var10000 = new Type[o + l];
-        var10000[0] = Main.getCompilerType("ClassInfo");
-        Type[] types = var10000;
-
-        for(int j = 0; j != l; ++j) {
-            types[o + j] = Main.getCompilerType("tokens.LexedParsedToken");
-        }
-
-        Method method = (Method)null;
-        Object ci = (ClassInfo)null;
-
-        for(int i = 0; method == null; ++i) {
-            ci = (MacroInfo)((List)this.fs.cs.classMacroNames.get(name)).get(i);
-            MFilter filter = new MFilter(name, types, ((ClassInfo)ci).c, true);
-            filter.searchDeclared();
-            method = filter.getMethod();
-        }
-
-        ((ClassInfo)ci).compileMethods();
-        Type[] params = method.getGenericParameterTypes();
-        Class[] out = new Class[params.length];
-        Type[] array = params;
-
-        for(int i1 = 0; i1 != array.length; ++i1) {
-            Type t = array[i1];
-            out[i1] = t.getReflectClass();
-        }
-
-        Class[] classes = out;
-        ArrayList args = new ArrayList(Arrays.asList(new Object[]{this}));
-        ArrayList var10001;
-        if((method.getModifiers() & Access.TRANSIENT) != 0) {
-            int var = params.length - o;
-            ArrayList al = new ArrayList(tok.toks.subList(1, var));
-            LexedParsedToken[] out1 = new LexedParsedToken[tok.toks.size() - var];
-            tok.toks.subList(var, tok.toks.size()).toArray(out1);
-            al.add(out1);
-            var10001 = al;
-        } else {
-            var10001 = (ArrayList)tok.toks.subList(1, tok.toks.size());
-        }
-
-        args.addAll(var10001);
-
-        try {
-            ((ClassInfo)ci).getClazz().getMethod(name, classes).invoke((Object)null, args.toArray());
-        } catch (NoSuchMethodException var25) {
-            throw new RuntimeException(var25);
-        } catch (IllegalAccessException var26) {
-            throw new RuntimeException(var26);
-        } catch (InvocationTargetException var27) {
-            throw new RuntimeException(var27);
-        }
+        Type[] pre = new Type[]{Main.getCompilerType("ClassInfo")};
+        GenHandler.callMacro(pre, tok.toks.subList(1, tok.toks.size()), name, this.fs.cs.classMacroNames, new Object[]{this});
     }
 
     public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope, boolean addThis) {

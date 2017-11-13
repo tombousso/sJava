@@ -29,6 +29,7 @@
 	(ML int static) ;max length of a special token
 	(s2prec HashMap{String Integer} static) ;special token to precedence
 	(commands Map{String Command} static)
+	(mhl java.lang.invoke.MethodHandles$Lookup public static)
 	((<clinit>) void static
 		(set Main:unknownType (Type:getType "unknownType"))
 		(set Main:returnType (Type:getType "returnType"))
@@ -132,6 +133,8 @@
 				(Main:s2prec:put b i)
 			)
 		)
+
+		(set static:mhl (java.lang.invoke.MethodHandles:publicLookup))
 	)
 	((addCommandToMap c Command) void static
 		(Main:commands:put (c:name) c)
@@ -1624,43 +1627,8 @@
 	((runClassMacro tok BlockToken) void
 		(define name (as VToken (tok:toks:get 0)):val)
 		(set name (name:substring 0 (- (name:length) 1)))
-		(define o 1)
-		(define l (- (tok:toks:size) 1))
-		(define types (Type[] len:(+ o l) (Main:getCompilerType "ClassInfo")))
-		(for ((j 0)) (!= j l) (inc j)
-			(aset types (+ o j) (Main:getCompilerType "tokens.LexedParsedToken"))
-		)
-		(define method Method null)
-		(define ci ClassInfo null)
-		(for ((i 0)) (= method null) (inc i)
-			(set ci ((this:fs:cs:classMacroNames:get name):get i))
-			(define filter (MFilter name types ci:c true))
-			(filter:searchDeclared)
-			(set method (filter:getMethod))
-		)
-		(ci:compileMethods)
-		(define params (method:getGenericParameterTypes))
-		(define classes (mapA t params (t:getReflectClass)))
-		(define args (ArrayList (Arrays:asList (Object[] this))))
-		(args:addAll
-			(if (!= (& (method:getModifiers) Access:TRANSIENT) 0)
-				(begin
-					(define var (- (alen params) o))
-					(define al (ArrayList (tok:toks:subList 1 var)))
-					(define out (LexedParsedToken[] len:(- (tok:toks:size) var)))
-					((tok:toks:subList var (tok:toks:size)):toArray out)
-					(al:add out)
-					al
-				)
-				(as ArrayList (tok:toks:subList 1 (tok:toks:size)))
-			)
-		)
-		(try
-			(((ci:getClazz):getMethod name classes):invoke null (args:toArray))
-			(e NoSuchMethodException (throw (RuntimeException e)))
-			(e IllegalAccessException (throw (RuntimeException e)))
-			(e java.lang.reflect.InvocationTargetException (throw (RuntimeException e)))
-		)
+		(define pre (Type[] (Main:getCompilerType "ClassInfo")))
+		(GenHandler:callMacro pre (tok:toks:subList 1 (tok:toks:size)) name this:fs:cs:classMacroNames (Object[] this))
 	)
 	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap addThis bool) AMethodInfo public
 		(if (&& addThis (= (& mods Access:STATIC) 0))

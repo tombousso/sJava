@@ -13,6 +13,8 @@ import gnu.bytecode.TypeVariable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,6 +70,7 @@ public class Main {
     static int ML;
     static HashMap<String, Integer> s2prec;
     static Map<String, Command> commands;
+    public static Lookup mhl;
 
     static {
         unboxMethods.put(Type.shortType.boxedType(), Type.javalangNumberType.getDeclaredMethod("shortValue", 0));
@@ -155,6 +158,7 @@ public class Main {
             }
         }
 
+        mhl = MethodHandles.publicLookup();
     }
 
     static void addCommandToMap(Command c) {

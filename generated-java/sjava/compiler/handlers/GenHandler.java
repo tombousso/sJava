@@ -14,7 +14,8 @@ import gnu.bytecode.Type;
 import gnu.bytecode.TypeVariable;
 import gnu.bytecode.Variable;
 import java.io.PrintStream;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -861,16 +862,7 @@ public class GenHandler extends Handler {
         boolean output = this.code != null;
         if(tok.ret == null) {
             super.mi.ci.fs.compileInclude(tok);
-
-            try {
-                tok.ret = super.mi.transformBlock((LexedParsedToken)super.mi.ci.fs.includes.getClazz().getMethod(tok.mi.method.getName(), new Class[]{AMethodInfo.class, Integer.TYPE, GenHandler.class}).invoke((Object)null, new Object[]{super.mi, Integer.valueOf(0), this}));
-            } catch (NoSuchMethodException var7) {
-                throw new RuntimeException(var7);
-            } catch (IllegalAccessException var8) {
-                throw new RuntimeException(var8);
-            } catch (InvocationTargetException var9) {
-                throw new RuntimeException(var9);
-            }
+            tok.ret = super.mi.transformBlock((LexedParsedToken)callMethod(super.mi.ci.fs.includes, tok.mi.method, new Object[]{super.mi, Integer.valueOf(0), this}));
         }
 
         return this.castMaybe(this.compile(tok.ret, this.code, needed), needed);
@@ -1007,72 +999,60 @@ public class GenHandler extends Handler {
         return this.castMaybe(tok.t, needed);
     }
 
+    public static Object callMacro(Type[] pre, List toks, String name, Map<String, List<MacroInfo>> macros, Object[] argsA) {
+        Type[] types = new Type[pre.length + toks.size()];
+        Arrays.fill(types, Main.getCompilerType("tokens.LexedParsedToken"));
+        System.arraycopy(pre, 0, types, 0, pre.length);
+        Method method = (Method)null;
+        Object ci = (ClassInfo)null;
+
+        for(int i = 0; method == null; ++i) {
+            ci = (MacroInfo)((List)macros.get(name)).get(i);
+            MFilter filter = new MFilter(name, types, ((ClassInfo)ci).c, true);
+            filter.searchDeclared();
+            method = filter.getMethod();
+        }
+
+        ((ClassInfo)ci).compileMethods();
+        ArrayList args = new ArrayList(Arrays.asList(argsA));
+        args.addAll(toks);
+        return callMethod((ClassInfo)ci, method, args.toArray());
+    }
+
+    public static Object callMethod(ClassInfo ci, Method method, Object[] args) {
+        Type[] params = method.getGenericParameterTypes();
+        Class[] out = new Class[params.length];
+        Type[] array = params;
+
+        for(int i = 0; i != array.length; ++i) {
+            Type t = array[i];
+            out[i] = t.getReflectClass();
+        }
+
+        Class[] classes = out;
+
+        try {
+            Class clazz = ci.getClazz();
+            Class ret = method.getReturnType().getReflectClass();
+            MethodType mt = MethodType.methodType(ret, classes);
+            MethodHandle mh = Main.mhl.findStatic(clazz, method.getName(), mt);
+            Object var10 = mh.invokeWithArguments(args);
+            return var10;
+        } catch (Throwable var16) {
+            throw new RuntimeException(var16);
+        }
+    }
+
     public Type compile(MacroIncludeToken tok, Type needed) {
         boolean output = this.code != null;
         if(tok.ret == null) {
-            byte o = 3;
-            int l = tok.toks.size();
-            Type[] var10000 = new Type[o + l];
-            var10000[0] = Main.getCompilerType("AMethodInfo");
-            var10000[1] = Type.intType;
-            var10000[2] = Main.getCompilerType("handlers.GenHandler");
-            Type[] types = var10000;
-
-            for(int j = 0; j != l; ++j) {
-                types[o + j] = Main.getCompilerType("tokens.LexedParsedToken");
-            }
-
-            Method method = (Method)null;
-            Object ci = (ClassInfo)null;
-
-            for(int i = 0; method == null; ++i) {
-                ci = (MacroInfo)((List)super.mi.ci.fs.cs.macroNames.get(tok.name)).get(i);
-                MFilter filter = new MFilter(tok.name, types, ((ClassInfo)ci).c, true);
-                filter.searchDeclared();
-                method = filter.getMethod();
-            }
-
-            Type[] params = method.getGenericParameterTypes();
-            Class[] out = new Class[params.length];
-            Type[] array = params;
-
-            for(int i1 = 0; i1 != array.length; ++i1) {
-                Type t = array[i1];
-                out[i1] = t.getReflectClass();
-            }
-
-            Class[] classes = out;
-            ArrayList args = new ArrayList(Arrays.asList(new Object[]{super.mi, Integer.valueOf(super.mi.levels.size()), this}));
-            ArrayList var10001;
-            if((method.getModifiers() & Access.TRANSIENT) != 0) {
-                int var = params.length - o - 1;
-                ArrayList al = new ArrayList(tok.toks.subList(0, var));
-                LexedParsedToken[] out1 = new LexedParsedToken[tok.toks.size() - var];
-                tok.toks.subList(var, tok.toks.size()).toArray(out1);
-                al.add(out1);
-                var10001 = al;
-            } else {
-                var10001 = (ArrayList)tok.toks;
-            }
-
-            args.addAll(var10001);
-
-            try {
-                Class clazz = ((ClassInfo)ci).getClazz();
-                java.lang.reflect.Method method1 = clazz.getMethod(tok.name, classes);
-                LexedParsedToken ret = (LexedParsedToken)method1.invoke((Object)null, args.toArray());
-                tok.ret = super.mi.transformBlock(ret);
-            } catch (NoSuchMethodException var30) {
-                throw new RuntimeException(var30);
-            } catch (IllegalAccessException var31) {
-                throw new RuntimeException(var31);
-            } catch (InvocationTargetException var32) {
-                throw new RuntimeException(var32);
-            }
+            Type[] pre = new Type[]{Main.getCompilerType("AMethodInfo"), Type.intType, Main.getCompilerType("handlers.GenHandler")};
+            Object[] args = new Object[]{super.mi, Integer.valueOf(super.mi.levels.size()), this};
+            tok.ret = super.mi.transformBlock((LexedParsedToken)callMacro(pre, tok.toks, tok.name, super.mi.ci.fs.cs.macroNames, args));
         }
 
-        Type out2 = this.compile(tok.ret, this.code, needed);
-        return this.castMaybe(out2, needed);
+        Type out = this.compile(tok.ret, this.code, needed);
+        return this.castMaybe(out, needed);
     }
 
     public Type compile(BeginToken tok, Type needed) {
