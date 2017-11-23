@@ -553,6 +553,14 @@
 					)
 				)
 			)
+			((&& (instance? a ArrayType) (instance? b ArrayType))
+				(define ca (a:getComponentType))
+				(define cb (b:getComponentType))
+				(if (^ (instance? ca PrimType) (instance? cb PrimType))
+					-2
+					(static:compare ca cb)
+				)
+			)
 			(true
 				(a:compare b)
 			)

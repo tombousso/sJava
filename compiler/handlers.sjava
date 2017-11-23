@@ -1101,7 +1101,12 @@
 	((compile tok ReturnToken needed Type) Type public
 		(define output (!= this:code null))
 		(if (!= tok:tok null)
-			(this:compile tok:tok this:code Main:unknownType)
+			(this:compile tok:tok this:code
+				(if (!= this:mi:method null)
+					(this:mi:method:getReturnType)
+					Main:unknownType
+				)
+			)
 		)
 		(if output (this:code:emitReturn))
 		Main:returnType
