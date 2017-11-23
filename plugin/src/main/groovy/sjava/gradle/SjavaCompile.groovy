@@ -22,7 +22,7 @@ class SjavaCompile extends DefaultTask {
 
 	@OutputDirectory
 	File getDestinationDir() {
-		return project.file("build/classes/main")
+		return project.file("build/classes/sjava/main")
 	}
 
 	@TaskAction

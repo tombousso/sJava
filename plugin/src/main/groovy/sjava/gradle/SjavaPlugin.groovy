@@ -8,5 +8,10 @@ class SjavaPlugin implements Plugin<Project> {
 		project.plugins.apply(JavaPlugin)
 		def task = project.task(type: SjavaCompile, "compileSjava")
 		project.getTasksByName("classes", false)[0].dependsOn(task)
+		def dependency = project.files(task.getDestinationDir())
+		project.dependencies {
+			compile dependency
+			runtimeClasspath dependency
+		}
 	}
 }
