@@ -1403,7 +1403,7 @@ public class GenHandler extends Handler {
     public Type compile(ReturnToken tok, Type needed) {
         boolean output = this.code != null;
         if(tok.tok != null) {
-            this.compile(tok.tok, this.code, Main.unknownType);
+            this.compile(tok.tok, this.code, super.mi.method != null?super.mi.method.getReturnType():Main.unknownType);
         }
 
         if(output) {
@@ -1488,14 +1488,20 @@ public class GenHandler extends Handler {
     public Type compile(ArrayConstructorToken tok, Type needed) {
         boolean output = this.code != null;
         ArrayType array = (ArrayType)tok.type;
-        if(tok.len != null) {
-            this.compile(tok.len, this.code, Main.unknownType);
+        if(tok.lens.size() != 0) {
+            List iterable = tok.lens;
+            Iterator it = iterable.iterator();
+
+            for(int notused = 0; it.hasNext(); ++notused) {
+                Token len = (Token)it.next();
+                this.compile(len, this.code, Type.intType);
+            }
         } else if(output) {
             this.code.emitPushInt(tok.toks.size());
         }
 
         if(output) {
-            this.code.emitNewArray(array.elements.getRawType());
+            this.code.emitNewArray(array.elements.getRawType(), Math.max(tok.lens.size(), 1));
         }
 
         for(int i = 0; i != tok.toks.size(); ++i) {

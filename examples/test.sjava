@@ -158,6 +158,7 @@
 		)
 
 		(println (int[3] 99))
+		(println (Arrays:deepToString (int[3][2])))
 
 		(define a Object 3)
 		(if (&& (instance? a Comparable) (instance? a Object))

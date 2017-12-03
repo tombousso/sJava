@@ -537,22 +537,25 @@ public abstract class AMethodInfo {
                     if(!(type instanceof ArrayType)) {
                         return new ConstructorToken(block1.line, type, this.transformToks(rest));
                     } else {
-                        Token len = (Token)null;
+                        ArrayList lens = new ArrayList();
                         if(rest.size() != 0 && (LexedParsedToken)rest.get(0) instanceof ColonToken && ((ColonToken)((LexedParsedToken)rest.get(0))).left instanceof VToken && ((VToken)((ColonToken)((LexedParsedToken)rest.get(0))).left).val.equals("len")) {
-                            len = this.transformBlock(((ColonToken)((LexedParsedToken)rest.get(0))).right);
+                            lens.add(this.transformBlock(((ColonToken)((LexedParsedToken)rest.get(0))).right));
                             rest = rest.subList(1, rest.size());
                         } else {
-                            ArrayToken tok;
-                            for(tok = (ArrayToken)((LexedParsedToken)block1.toks.get(0)); (LexedParsedToken)tok.toks.get(0) instanceof ArrayToken; tok = (ArrayToken)((LexedParsedToken)tok.toks.get(0))) {
-                                ;
+                            ArrayToken tok = (ArrayToken)((LexedParsedToken)block1.toks.get(0));
+                            if(tok.toks.size() > 1) {
+                                lens.add(0, this.transformBlock((LexedParsedToken)tok.toks.get(1)));
                             }
 
-                            if(tok.toks.size() > 1) {
-                                len = this.transformBlock((LexedParsedToken)tok.toks.get(1));
+                            while((LexedParsedToken)tok.toks.get(0) instanceof ArrayToken) {
+                                tok = (ArrayToken)((LexedParsedToken)tok.toks.get(0));
+                                if(tok.toks.size() > 1) {
+                                    lens.add(0, this.transformBlock((LexedParsedToken)tok.toks.get(1)));
+                                }
                             }
                         }
 
-                        return new ArrayConstructorToken(block1.line, (ArrayType)type, len, this.transformToks(rest));
+                        return new ArrayConstructorToken(block1.line, (ArrayType)type, lens, this.transformToks(rest));
                     }
                 } else {
                     if((LexedParsedToken)block1.toks.get(0) instanceof VToken) {

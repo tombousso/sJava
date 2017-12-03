@@ -1,4 +1,4 @@
-# sJava - Java dialect using S-expressions
+# sJava - Java dialect using S-expressions [![Build Status](https://travis-ci.org/tombousso/sJava.svg?branch=master)](https://travis-ci.org/tombousso/sJava)
 Here's a hello world program in sJava (examples/helloworld.sjava):
 
 	(define-class Main () public

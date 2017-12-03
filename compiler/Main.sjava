@@ -2061,7 +2061,7 @@
 						(if (!= type null)
 							(if (instance? type ArrayType)
 								(begin
-									(define len Token null)
+									(define lens (ArrayList{Token}))
 									(if
 										(&&
 											(!= (rest:size) 0)
@@ -2070,20 +2070,23 @@
 											((as VToken (as ColonToken (rest:get 0)):left):val:equals "len")
 										)
 										(begin
-											(set len (this:transformBlock (as ColonToken (rest:get 0)):right))
+											(lens:add (this:transformBlock (as ColonToken (rest:get 0)):right))
 											(set rest (rest:subList 1 (rest:size)))
 										)
 										(begin
 											(define tok ArrayToken (block:toks:get 0))
+											(if (> (tok:toks:size) 1)
+												(lens:add 0 (this:transformBlock (tok:toks:get 1)))
+											)
 											(while (instance? (tok:toks:get 0) ArrayToken)
 												(set tok (tok:toks:get 0))
-											)
-											(if (> (tok:toks:size) 1)
-												(set len (this:transformBlock (tok:toks:get 1)))
+												(if (> (tok:toks:size) 1)
+													(lens:add 0 (this:transformBlock (tok:toks:get 1)))
+												)
 											)
 										)
 									)
-									(return (ArrayConstructorToken block:line type len (this:transformToks rest)))
+									(return (ArrayConstructorToken block:line type lens (this:transformToks rest)))
 								)
 								(return (ConstructorToken block:line type (this:transformToks rest)))
 							)

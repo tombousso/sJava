@@ -616,12 +616,12 @@
 
 (define-class ArrayConstructorToken (Token) public
 	(type Type public)
-	(len Token public)
+	(lens List{Token} public)
 	(toks List{Token} public)
-	((<init> line int type Type len Token toks List{Token}) void public
+	((<init> line int type Type lens List{Token} toks List{Token}) void public
 		(super:<init> line)
 		(set this:type type)
-		(set this:len len)
+		(set this:lens lens)
 		(set this:toks toks)
 	)
 )

@@ -1189,11 +1189,15 @@
 	((compile tok ArrayConstructorToken needed Type) Type public
 		(define output (!= this:code null))
 		(define array ArrayType tok:type)
-		(if (!= tok:len null)
-			(this:compile tok:len this:code Main:unknownType)
+		(if (!= (tok:lens:size) 0)
+			(begin
+				(forEach len tok:lens
+					(this:compile len this:code Type:intType)
+				)
+			)
 			(if output (this:code:emitPushInt (tok:toks:size)))
 		)
-		(if output (this:code:emitNewArray (array:elements:getRawType)))
+		(if output (this:code:emitNewArray (array:elements:getRawType) (Math:max (tok:lens:size) 1)))
 		(for ((i 0)) (!= i (tok:toks:size)) (inc i)
 			(if output (this:code:emitDup))
 			(if output (this:code:emitPushInt i))

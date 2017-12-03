@@ -60,7 +60,7 @@ public class Parser {
             var10000 = new BlockToken(t.line, toks);
         } else if(!w.equals("\'") && !w.equals("`") && !w.equals(",$") && !w.equals(",")) {
             if(this.ignoreComments && t instanceof CommentToken) {
-                return null;
+                return (LexedParsedToken)null;
             }
 
             var10000 = t;

@@ -18,6 +18,15 @@
 		)
 	)
 )
+(define-macro (do-while cond @block)
+	`(begin
+		(label start)
+		,block
+		(when ,cond
+			(goto start)
+		)
+	)
+)
 (define-macro (inc v n)
 	`(set ,v (+ ,v ,n))
 )

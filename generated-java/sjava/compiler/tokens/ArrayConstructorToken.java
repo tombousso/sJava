@@ -6,13 +6,13 @@ import sjava.compiler.tokens.Token;
 
 public class ArrayConstructorToken extends Token {
     public Type type;
-    public Token len;
+    public List<Token> lens;
     public List<Token> toks;
 
-    public ArrayConstructorToken(int line, Type type, Token len, List<Token> toks) {
+    public ArrayConstructorToken(int line, Type type, List<Token> lens, List<Token> toks) {
         super(line);
         this.type = type;
-        this.len = len;
+        this.lens = lens;
         this.toks = toks;
     }
 }
