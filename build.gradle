@@ -19,18 +19,19 @@ class SJavaCompile extends AbstractCompile {
 	String targetCompatibility = "1.8"
 	String sourceCompatibility = "1.8"
 	@InputFiles
-	def compilerClasspath = project.files("bin/main")
-	@InputFiles
-	def compilerLibs = project.ext.JARS
+	def compilerClasspath = project.files("bin/main") + project.ext.JARS
 	@OutputDirectory
 	File destinationDir
 	@InputFiles
 	FileCollection classpath = project.files()
 	@TaskAction
 	void compile() {
-		def classpath_ = classpath
+		SJavaCompile.compile(project, classpath, source, destinationDir, compilerClasspath)
+	}
+	static def compile(project, classpath_, source, destinationDir, compilerClasspath) {
+		def classpath__ = compilerClasspath + classpath_
 		project.javaexec {
-			classpath = compilerClasspath + compilerLibs + classpath_
+			classpath = classpath__
 			main = "sjava.compiler.Main"
 			args = ["build"] + source + ["-d", destinationDir]
 		}
@@ -44,7 +45,7 @@ task compiler(type: SJavaCompile) {
 	doFirst { file("bin/main").deleteDir() }
 	inputs.files(STD_MACROS)
 	source = fileTree("compiler") + STD_LIB
-	compilerClasspath = files("sjava.jar")
+	compilerClasspath = files("sjava.jar") + project.ext.JARS
 	destinationDir = file("bin/main")
 }
 
@@ -103,12 +104,13 @@ task java_compile(type: JavaCompile, dependsOn: [diff]) {
 	targetCompatibility = "1.8"
 	doLast {
 		file("bin/compilerJava").deleteDir()
-		task java_compile_test(type: SJavaCompile) {
-			compilerClasspath = files("generated-java")
-			source = fileTree("compiler") + STD_LIB
-			destinationDir = file("bin/compilerJava")
-		}
-		java_compile_test.execute()
+		SJavaCompile.compile(
+			project,
+			files(),
+			fileTree("compiler") + STD_LIB,
+			file("bin/compilerJava"),
+			files("generated-java") + project.ext.JARS
+		)
 		def works = same(file("bin/compiler2"), file("bin/compilerJava"))
 		println("java version works: " + works)
 		if (!works) throw new Exception()

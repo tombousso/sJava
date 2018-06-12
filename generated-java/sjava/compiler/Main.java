@@ -611,7 +611,15 @@ public class Main {
 
     public static int compare(Type a, Type b) {
         int var10000;
-        if((a instanceof ClassType || a instanceof ParameterizedType) && (b instanceof ClassType || b instanceof ParameterizedType)) {
+        if(!(a instanceof ClassType) && !(a instanceof ParameterizedType) || !(b instanceof ClassType) && !(b instanceof ParameterizedType)) {
+            if(a instanceof ArrayType && b instanceof ArrayType) {
+                Type ca = ((ArrayType)a).getComponentType();
+                Type cb = ((ArrayType)b).getComponentType();
+                var10000 = ca instanceof PrimType ^ cb instanceof PrimType?-2:compare(ca, cb);
+            } else {
+                var10000 = ((Type)a).compare((Type)b);
+            }
+        } else {
             if(a instanceof ClassType && b instanceof ParameterizedType && ((ClassType)a).getTypeParameters() != null && ((ClassType)a).getTypeParameters().length != 0) {
                 b = ((ParameterizedType)b).getRawType();
             }
@@ -645,12 +653,6 @@ public class Main {
 
                 var10000 = -2;
             }
-        } else if(a instanceof ArrayType && b instanceof ArrayType) {
-            Type ca = ((ArrayType)a).getComponentType();
-            Type cb = ((ArrayType)b).getComponentType();
-            var10000 = ca instanceof PrimType ^ cb instanceof PrimType?-2:compare(ca, cb);
-        } else {
-            var10000 = ((Type)a).compare((Type)b);
         }
 
         return var10000;
