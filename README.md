@@ -186,7 +186,7 @@ Or build then run:
 
 The `println` macro takes in a variable number of arguments and passes them all  to `concat`, so you can see the `Arrays:toString` functionality in action.
 
-More features can be found in `examples/test.sjava`, in other examples, and in `compiler/**.sjava`.  Also if you're adventurous you can check out `vertx/` which is a little site I made using the Vertx library and sJava.
+More features can be found in `examples/test.sjava`, in other examples, and in `compiler/**.sjava`.
 
 If you've followed the walkthrough all the way until here, congrats! Let me know if you have any thoughts. The compiler still has some bugs I'm sure but overall it works reasonably well. If there's an error in compilation it will at least tell you which line is problematic, but parsing errors aren't handled right now.
 
