@@ -1,13 +1,13 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
 
 public class SingleQuoteToken extends ParsedToken {
-    public List<LexedParsedToken> toks;
+    public ImList<LexedParsedToken> toks;
 
-    public SingleQuoteToken(int line, List<LexedParsedToken> toks) {
+    public SingleQuoteToken(int line, ImList<LexedParsedToken> toks) {
         super(line);
         this.toks = toks;
     }

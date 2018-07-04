@@ -7,6 +7,60 @@
 (import java.util.*)
 (import gnu.bytecode.*)
 
+(define-class ImList{T} (AbstractList{T}) public
+	(EMPTY_LIST ImList public static)
+	((<clinit>) void public static
+		(set ImList:EMPTY_LIST (ImList Collections:EMPTY_LIST))
+	)
+	(l List{T})
+	(i int)
+	(sz int)
+	((<init> l List{T} i int sz int) void public
+		(super:<init>)
+		(set this:l (Collections:unmodifiableList l))
+		(set this:i i)
+		(set this:sz sz)
+		(if (|| (< i 0) (< sz 0) (> (+ i sz) (l:size)))
+			(throw (RuntimeException))
+		)
+	)
+	((<init> l List{T} i int) void public
+		(this:<init> l i (l:size))
+	)
+	((<init> l List{T}) void public
+		(this:<init> l 0)
+	)
+	((skip k int) ImList{T} public
+		(ImList{T} this:l (+ this:i k) (- this:sz k))
+	)
+	((take k int) ImList{T} public
+		(ImList{T} this:l this:i k)
+	)
+	((skipLast k int) ImList{T} public
+		(ImList{T} this:l this:i (- this:sz k))
+	)
+	((get i int) T public
+		(if (|| (< i 0) (>= i this:sz))
+			(throw (RuntimeException))
+		)
+		(this:l:get (+ this:i i))
+	)
+	((update i int el T) ImList{T} public
+		(if (|| (< i 0) (>= i this:sz))
+			(throw (RuntimeException))
+		)
+		(define l (ArrayList this:l))
+		(l:set (+ this:i i) el)
+		(ImList{T} l this:i this:sz)
+	)
+	((size) int public
+		this:sz
+	)
+	((iterator) Iterator{T} public
+		((this:l:subList this:i (+ this:i this:sz)):iterator)
+	)
+)
+
 (define-class Token (Emitter) public
 	(line int public)
 	((<init> line int) void
@@ -193,8 +247,8 @@
 )
 
 (define-class BlockToken (ParsedToken) public
-	(toks List{LexedParsedToken} public)
-	((<init> line int toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -219,10 +273,10 @@
 )
 
 (define-class BlockToken2 (Token) public
+	(toks ImList{Token} public)
 	(labels HashMap public)
-	(toks List{Token} public)
 	(isTransformed bool public)
-	((<init> line int toks List{Token}) void public
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:toks toks)
 		(set this:labels (HashMap))
@@ -231,8 +285,8 @@
 
 (define-class GenericToken (ParsedToken) public
 	(tok LexedParsedToken public)
-	(toks List{LexedParsedToken} public)
-	((<init> line int tok LexedParsedToken toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int tok LexedParsedToken toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:tok tok)
 		(set this:toks toks)
@@ -246,13 +300,13 @@
 )
 
 (define-class ArrayToken (ParsedToken) public
-	(toks List{LexedParsedToken} public)
-	((<init> line int toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
 	((toString) String public
-		(concat (this:toks:get 0) "[" (Token:toksString (this:toks:subList 1 (this:toks:size))) "]")
+		(concat (this:toks:get 0) "[" (Token:toksString (this:toks:skip 1)) "]")
 	)
 	((<init>) void public
 		(super:<init>)
@@ -289,8 +343,8 @@
 )
 
 (define-class SingleQuoteToken (ParsedToken) public
-	(toks List{LexedParsedToken} public)
-	((<init> line int toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -303,8 +357,8 @@
 )
 
 (define-class QuoteToken (ParsedToken) public
-	(toks List{LexedParsedToken} public)
-	((<init> line int toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -326,8 +380,8 @@
 
 (define-class UnquoteToken (ParsedToken) public
 	(var bool public)
-	(toks List{LexedParsedToken} public)
-	((<init> line int toks List{LexedParsedToken} var bool) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int toks ImList{LexedParsedToken} var bool) void public
 		(super:<init> line)
 		(set this:toks toks)
 		(set this:var var)
@@ -343,8 +397,8 @@
 (define-class IncludeToken (Token) public
 	(mi AMethodInfo public)
 	(ret Token public)
-	(toks List{LexedParsedToken} public)
-	((<init> line int toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -354,9 +408,9 @@
 	(ci ClassInfo public)
 	(captured Collection{AVar} public)
 	(t Type public)
-	(toks List{LexedParsedToken} public)
-	(superArgs List{LexedParsedToken} public)
-	((<init> line int t Type superArgs List{LexedParsedToken} toks List{LexedParsedToken}) void public
+	(toks ImList{LexedParsedToken} public)
+	(superArgs ImList{LexedParsedToken} public)
+	((<init> line int t Type superArgs ImList{LexedParsedToken} toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:t t)
 		(set this:superArgs superArgs)
@@ -368,8 +422,8 @@
 	(sam Method public)
 	(scope LinkedHashMap public)
 	(params List{Type} public)
-	((<init> line int t Type scope LinkedHashMap params List{Type} toks List{LexedParsedToken} sam Method) void public
-		(super:<init> line t Collections:EMPTY_LIST toks)
+	((<init> line int t Type scope LinkedHashMap params List{Type} toks ImList{LexedParsedToken} sam Method) void public
+		(super:<init> line t ImList:EMPTY_LIST toks)
 		(set this:scope scope)
 		(set this:params params)
 		(set this:sam sam)
@@ -380,8 +434,8 @@
 	(ret Type public)
 	(scope LinkedHashMap public)
 	(params List{Type} public)
-	((<init> line int t Type scope LinkedHashMap params List{Type} toks List{LexedParsedToken}) void public
-		(super:<init> line t Collections:EMPTY_LIST toks)
+	((<init> line int t Type scope LinkedHashMap params List{Type} toks ImList{LexedParsedToken}) void public
+		(super:<init> line t ImList:EMPTY_LIST toks)
 		(set this:scope scope)
 		(set this:params params)
 	)
@@ -390,8 +444,8 @@
 (define-class MacroIncludeToken (Token) public
 	(ret Token public)
 	(name String public)
-	(toks List{Token} public)
-	((<init> line int name String toks List{Token}) void public
+	(toks ImList{LexedParsedToken} public)
+	((<init> line int name String toks ImList{LexedParsedToken}) void public
 		(super:<init> line)
 		(set this:name name)
 		(set this:toks toks)
@@ -399,13 +453,13 @@
 )
 
 (define-class BeginToken (BlockToken2) public
-	((<init> line int toks List{Token}) void public
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line toks)
 	)
 )
 
 (define-class SpecialBeginToken (BlockToken2) public
-	((<init> line int toks List{Token}) void public
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line toks)
 	)
 )
@@ -440,9 +494,9 @@
 
 (define-class TryToken (Token) public
 	(tok Token public)
-	(catches List{Tuple3{VToken Type List{Token}}} public)
-	(finallyToks List{Token} public)
-	((<init> line int tok Token catches List finallyToks List{Token}) void public
+	(catches ImList{Tuple3{VToken Type ImList{Token}}} public)
+	(finallyToks ImList{Token} public)
+	((<init> line int tok Token catches ImList finallyToks ImList{Token}) void public
 		(super:<init> line)
 		(set this:tok tok)
 		(set this:catches catches)
@@ -461,8 +515,8 @@
 )
 
 (define-class SetToken (Token) public
-	(toks List{Token} public)
-	((<init> line int toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -481,8 +535,8 @@
 )
 
 (define-class AGetToken (Token) public
-	(toks List{Token} public)
-	((<init> line int toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -508,8 +562,8 @@
 
 (define-class NumOpToken (Token) public
 	(op String public)
-	(toks List{Token} public)
-	((<init> line int op String toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int op String toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:op op)
 		(set this:toks toks)
@@ -529,8 +583,8 @@
 )
 
 (define-class IfToken (Token) public
-	(toks List{Token} public)
-	((<init> line int toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -538,8 +592,8 @@
 
 (define-class CompareToken (Token) public
 	(compare String public)
-	(toks List{Token} public)
-	((<init> line int compare String toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int compare String toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:compare compare)
 		(set this:toks toks)
@@ -563,7 +617,7 @@
 )
 
 (define-class SynchronizedToken (BlockToken2) public
-	((<init> line int toks List{Token}) void public
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line toks)
 	)
 )
@@ -587,8 +641,8 @@
 (define-class CallToken (Token) public
 	(target Token public)
 	(method String public)
-	(toks List{Token} public)
-	((<init> line int target Token method String toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int target Token method String toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:target target)
 		(set this:method method)
@@ -597,8 +651,8 @@
 )
 
 (define-class DefaultToken (Token) public
-	(toks List{Token} public)
-	((<init> line int toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:toks toks)
 	)
@@ -606,8 +660,8 @@
 
 (define-class ConstructorToken (Token) public
 	(type Type public)
-	(toks List{Token} public)
-	((<init> line int type Type toks List{Token}) void public
+	(toks ImList{Token} public)
+	((<init> line int type Type toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:type type)
 		(set this:toks toks)
@@ -616,9 +670,9 @@
 
 (define-class ArrayConstructorToken (Token) public
 	(type Type public)
-	(lens List{Token} public)
-	(toks List{Token} public)
-	((<init> line int type Type lens List{Token} toks List{Token}) void public
+	(lens ImList{Token} public)
+	(toks ImList{Token} public)
+	((<init> line int type Type lens ImList{Token} toks ImList{Token}) void public
 		(super:<init> line)
 		(set this:type type)
 		(set this:lens lens)
@@ -628,6 +682,6 @@
 
 (define-class EmptyToken (BlockToken2) public
 	((<init> line int) void public
-		(super:<init> line Collections:EMPTY_LIST)
+		(super:<init> line ImList:EMPTY_LIST)
 	)
 )

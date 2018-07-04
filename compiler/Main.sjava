@@ -172,7 +172,7 @@
 		)
 		(println)
 	)
-	((parse code String lexer Lexer parser Parser) List{LexedParsedToken} public static
+	((parse code String lexer Lexer parser Parser) ImList{LexedParsedToken} public static
 		(parser:parseAll (lexer:lex code))
 	)
 	((compile files Collection{File} dir String) void public static
@@ -197,7 +197,7 @@
 		)
 		(mFiles:add (File (concat pre "/std/macros.sjava")))
 		(mFiles:addAll files)
-		(define files (LinkedHashMap{File List{LexedParsedToken}}))
+		(define files (LinkedHashMap{File ImList{LexedParsedToken}}))
 
 		(forEach file mFiles
 			(define code String null)
@@ -210,7 +210,7 @@
 		)
 		(Main:compile files)
 	)
-	((compile files HashMap{File List{LexedParsedToken}}) List{FileScope} public static
+	((compile files HashMap{File ImList{LexedParsedToken}}) List{FileScope} public static
 		(define cs (CompileScope))
 		(define fileScopes (ArrayList{FileScope}))
 		(define macros (ArrayList{MacroInfo}))
@@ -731,20 +731,20 @@
 	((toEmitters l List) List{Emitter} public static
 		l
 	)
-	((toLexedParsed l List) List{LexedParsedToken} public static
+	((toLexedParsed l ImList) ImList{LexedParsedToken} public static
 		l
 	)
 	((typeToTok t Type) LexedParsedToken public static
 		(instanceCond t
 			(ArrayType
-				(ArrayToken -1 (ArrayList (Arrays:asList (Main:typeToTok (t:getComponentType)))))
+				(ArrayToken -1 (ImList (Arrays:asList (Main:typeToTok (t:getComponentType)))))
 			)
 			(ParameterizedType
 				(define toks (ArrayList{LexedParsedToken}))
 				(forEach ta (t:getTypeArgumentTypes)
 					(toks:add (Main:typeToTok ta))
 				)
-				(GenericToken -1 (Main:typeToTok (t:getRawType)) toks)
+				(GenericToken -1 (Main:typeToTok (t:getRawType)) (ImList toks))
 			)
 			(true
 				(VToken -1 (t:getName))
@@ -771,7 +771,7 @@
 	((formatCode code String) String public static
 		(concat (Formatter:formatToks (Main:parse code (Lexer) (Parser false))) #\newline)
 	)
-	((formatToks block LexedParsedToken tabs int before String after String sb StringBuffer toks List{LexedParsedToken}) int static
+	((formatToks block LexedParsedToken tabs int before String after String sb StringBuffer toks ImList{LexedParsedToken}) int static
 		(sb:append before)
 		(define line 0)
 		(define prevMultiline false)
@@ -816,7 +816,7 @@
 		(set line block:endLine)
 		line
 	)
-	((formatToks toks List{LexedParsedToken}) String static
+	((formatToks toks ImList{LexedParsedToken}) String static
 		(define sb (StringBuffer))
 		(define line (if (!= (toks:size) 0) (toks:get 0):line 1))
 		(forEach (tok i) toks
@@ -839,7 +839,7 @@
 			)
 			(ArrayToken
 				(set line (Formatter:formatTok (tok:toks:get 0) line line tabs sb))
-				(set line (Formatter:formatToks tok tabs "[" "]" sb (tok:toks:subList 1 (tok:toks:size))))
+				(set line (Formatter:formatToks tok tabs "[" "]" sb (tok:toks:skip 1)))
 			)
 			(ColonToken
 				(set line (Formatter:formatTok tok:left line line tabs sb))
@@ -1106,14 +1106,14 @@
 	((peek n int) LexedToken
 		(this:toks:get (+ this:i n))
 	)
-	((subToks end String) ArrayList{LexedParsedToken}
+	((subToks end String) ImList{LexedParsedToken}
 		(define toks (ArrayList{LexedParsedToken}))
 		(while (! ((this:peek 0):what:equals end))
 			(define t (this:parse 0))
 			(if (!= t null) (toks:add t))
 		)
 		(this:next)
-		toks
+		(ImList toks)
 	)
 	((parse prec int) LexedParsedToken
 		(define t (this:next))
@@ -1125,7 +1125,7 @@
 					(BlockToken t:line toks)
 				)
 				((|| (w:equals "'") (w:equals "`") (w:equals ",$") (w:equals ","))
-					(define al (Arrays:asList (this:parse 0)))
+					(define al (ImList (Arrays:asList (this:parse 0))))
 					(if (|| (w:equals ",") (w:equals ",$"))
 						(UnquoteToken t:line al (w:equals ",$"))
 						(if (w:equals "'")
@@ -1159,9 +1159,9 @@
 				)
 				((w:equals "[")
 					(this:next)
-					(define toks (this:subToks "]"))
+					(define toks (ArrayList (this:subToks "]")))
 					(toks:add 0 left)
-					(set left (ArrayToken t:line toks))
+					(set left (ArrayToken t:line (ImList toks)))
 				)
 				(true
 					(set cont false)
@@ -1174,7 +1174,7 @@
 	((prec) int
 		(this:peek 0):prec
 	)
-	((parseAll toks List{LexedToken}) List{LexedParsedToken}
+	((parseAll toks List{LexedToken}) ImList{LexedParsedToken}
 		(set this:i 0)
 		(set this:toks toks)
 		(define out (ArrayList{LexedParsedToken}))
@@ -1182,7 +1182,7 @@
 			(define t (this:parse 0))
 			(if (!= t null) (out:add t))
 		)
-		out
+		(ImList out)
 	)
 )
 
@@ -1226,13 +1226,13 @@
 (define-class FileScope () public
 	(cs CompileScope public)
 	(path String public)
-	(toks List{LexedParsedToken})
+	(toks ImList{LexedParsedToken})
 	(imports HashMap{String String})
 	(starImports ArrayList{String})
 	(includes MacroInfo public)
 	(newClasses List{ClassInfo} public)
 	(package_ String)
-	((<init> cs CompileScope path String toks List{LexedParsedToken}) void
+	((<init> cs CompileScope path String toks ImList{LexedParsedToken}) void
 		(super:<init>)
 		(set this:cs cs)
 		(set this:path path)
@@ -1285,7 +1285,7 @@
 	((getMacroParams out List{Type} params BlockToken scope Map) bool
 		(define varargs false)
 		(define o (out:size))
-		(forEach (tok i) (params:toks:subList 1 (params:toks:size))
+		(forEach (tok i) (params:toks:skip 1)
 			(define t Object (Main:getCompilerType "tokens.LexedParsedToken"))
 			(define name (as VToken tok):val)
 			(if (name:contains "@")
@@ -1317,7 +1317,7 @@
 						(set run (Main:compileClassMod (tok:toks:get i) ci:c))
 						(if run (inc i))
 					)
-					(set ci:toks (tok:toks:subList i (tok:toks:size)))
+					(set ci:toks (tok:toks:skip i))
 				)
 				((first:val:equals "import")
 					(define import (as VToken (tok:toks:get 1)):val)
@@ -1339,7 +1339,7 @@
 					(inc this:cs:macroIndex)
 					(define macroi (MacroInfo this cname))
 					(macroi:c:setModifiers Access:PUBLIC)
-					(define macro (macroi:addMethod name types (Main:getCompilerType "tokens.LexedParsedToken") mods (tok:toks:subList 2 (tok:toks:size)) scope))
+					(define macro (macroi:addMethod name types (Main:getCompilerType "tokens.LexedParsedToken") mods (tok:toks:skip 2) scope))
 					(if (this:cs:macroNames:containsKey name)
 						((this:cs:macroNames:get name):add macroi)
 						(this:cs:macroNames:put name (ArrayList (Arrays:asList macroi)))
@@ -1358,7 +1358,7 @@
 					(define cname "Macros")
 					(define macroi (MacroInfo this cname))
 					(macroi:c:setModifiers Access:PUBLIC)
-					(define macro (macroi:addClassMacroMethod name types Type:voidType mods (tok:toks:subList 2 (tok:toks:size)) scope))
+					(define macro (macroi:addClassMacroMethod name types Type:voidType mods (tok:toks:skip 2) scope))
 					(if (this:cs:classMacroNames:containsKey name)
 						((this:cs:classMacroNames:get name):add macroi)
 						(this:cs:classMacroNames:put name (ArrayList (Arrays:asList macroi)))
@@ -1395,7 +1395,7 @@
 	(fs FileScope public)
 	(c ClassType public)
 	(supers BlockToken)
-	(toks List{LexedParsedToken})
+	(toks ImList{LexedParsedToken})
 	(methods List{AMethodInfo} public)
 	(anonClasses List{ClassInfo} public)
 	(rc Class)
@@ -1568,7 +1568,7 @@
 								(define first VToken (toks:get 0))
 								(if (first:val:equals "throws")
 									(set exceptions
-										(mapA tok (toks:subList 1 (toks:size))
+										(mapA tok (toks:skip 1)
 											(as ClassType (this:getType tok))
 										)
 									)
@@ -1578,7 +1578,7 @@
 							)
 						)
 						(define types (Main:getParams this (as BlockToken first) scope 1 n))
-						(define mi (this:addMethod (as VToken ((as BlockToken first):toks:get 0)):val types (this:getType (tok:toks:get 1)) mods (tok:toks:subList i (tok:toks:size)) scope))
+						(define mi (this:addMethod (as VToken ((as BlockToken first):toks:get 0)):val types (this:getType (tok:toks:get 1)) mods (tok:toks:skip i) scope))
 						(if (!= exceptions null) (mi:method:setExceptions exceptions))
 						(forEach annotation annotations
 							(RuntimeAnnotationsAttr:maybeAddAnnotation mi:method annotation)
@@ -1634,9 +1634,9 @@
 		(define name (as VToken (tok:toks:get 0)):val)
 		(set name (name:substring 0 (- (name:length) 1)))
 		(define pre (Type[] (Main:getCompilerType "ClassInfo")))
-		(GenHandler:callMacro pre (tok:toks:subList 1 (tok:toks:size)) name this:fs:cs:classMacroNames (Object[] this))
+		(GenHandler:callMacro pre (tok:toks:skip 1) name this:fs:cs:classMacroNames (Object[] this))
 	)
-	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap addThis bool) AMethodInfo public
+	((addMethod name String params List{Type} ret Type mods int toks ImList{LexedParsedToken} scope LinkedHashMap addThis bool) AMethodInfo public
 		(if (&& addThis (= (& mods Access:STATIC) 0))
 			(scope:put "this" (Arg this:c 0 0))
 		)
@@ -1644,10 +1644,10 @@
 		(this:methods:add out)
 		out
 	)
-	((addMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap) AMethodInfo public
+	((addMethod name String params List{Type} ret Type mods int toks ImList{LexedParsedToken} scope LinkedHashMap) AMethodInfo public
 		(this:addMethod name params ret mods toks scope true)
 	)
-	((addMethod name String ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap{String Arg}) AMethodInfo public
+	((addMethod name String ret Type mods int toks ImList{LexedParsedToken} scope LinkedHashMap{String Arg}) AMethodInfo public
 		(define params (ArrayList{Type}))
 		(forEach arg (scope:values)
 			(params:add arg:type)
@@ -1663,7 +1663,7 @@
 	((getType tok Token) Type public
 		(super:getType tok false)
 	)
-	((addClassMacroMethod name String params List{Type} ret Type mods int toks List{LexedParsedToken} scope LinkedHashMap) AMethodInfo public
+	((addClassMacroMethod name String params List{Type} ret Type mods int toks ImList{LexedParsedToken} scope LinkedHashMap) AMethodInfo public
 		(define out (ClassMacroMethodInfo this toks scope name params ret mods))
 		(this:methods:add out)
 		out
@@ -1679,11 +1679,13 @@
 	(firstScope Map{String Arg})
 	(labels ArrayDeque{Map{String Label}})
 	(compiled bool)
-	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} method Method) void
+	(toks ImList{LexedParsedToken})
+	((<init> ci ClassInfo toks ImList{LexedParsedToken} firstScope LinkedHashMap{String Arg} method Method) void
 		(super:<init>)
+		(set this:toks (if (= toks null) null (ImList toks)))
 		(set this:ci ci)
 		(when (&& (!= toks null) (!= (toks:size) 0))
-			(set this:block (BeginToken (toks:get 0):line (ArrayList{Token} toks)))
+			(set this:block (BeginToken (toks:get 0):line null))
 		)
 		(set this:method method)
 
@@ -1697,7 +1699,7 @@
 		(set this:labels (ArrayDeque))
 		(set this:compiled false)
 	)
-	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
+	((<init> ci ClassInfo toks ImList{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
 		(this:<init>
 			ci
 			toks
@@ -1791,7 +1793,7 @@
 	)
 	((compileMethodBody h GenHandler) void public
 		(when (&& (! this:compiled) (! (this:method:isAbstract)))
-			(this:transformBlockToks this:block)
+			(this:transformBlockToks this:block this:toks)
 			(h:compile this:block null (this:method:getReturnType))
 
 			(define filter (BridgeFilter this:method))
@@ -1814,10 +1816,8 @@
 	((toString) String public
 		(concat (super:toString) ":" this:method)
 	)
-	((transformBlockTok block BlockToken2 transform bool i int) Token public
-		(define tok LexedParsedToken (block:toks:get i))
+	((transformBlockTok block BlockToken2 transform bool tok LexedParsedToken) Token public
 		(define ntok (this:transformBlock tok transform))
-		(block:toks:set i ntok)
 		(if (&& transform (instance? tok BlockToken) (> ((as BlockToken tok):toks:size) 0) (instance? ((as BlockToken tok):toks:get 0) VToken))
 			(begin
 				(define val (as VToken ((as BlockToken tok):toks:get 0)):val)
@@ -1828,25 +1828,27 @@
 		)
 		ntok
 	)
-	((transformBlockToks block BlockToken2 transform bool i int) BlockToken2 public
+	((transformBlockToks block BlockToken2 toks ImList{LexedParsedToken} transform bool i int) BlockToken2 public
 		(if (! block:isTransformed)
 			(begin
-				(while (!= i (block:toks:size))
-					(this:transformBlockTok block transform i)
+				(define newToks (ArrayList (toks:take i)))
+				(while (!= i (toks:size))
+					(newToks:add (this:transformBlockTok block transform (as LexedParsedToken (toks:get i))))
 					(inc i)
 				)
+				(set block:toks (ImList newToks))
 				(set block:isTransformed true)
 			)
 		)
 		block
 	)
-	((transformBlockToks block BlockToken2 transform bool) BlockToken2 public
-		(this:transformBlockToks block transform 0)
+	((transformBlockToks block BlockToken2 toks ImList{LexedParsedToken} transform bool) BlockToken2 public
+		(this:transformBlockToks block toks transform 0)
 	)
-	((transformBlockToks block BlockToken2) BlockToken2 public
-		(this:transformBlockToks block true)
+	((transformBlockToks block BlockToken2 toks ImList{LexedParsedToken}) BlockToken2 public
+		(this:transformBlockToks block toks true)
 	)
-	((transformToks l List{LexedParsedToken} transform bool) List{Token} public
+	((transformToks l ImList{LexedParsedToken} transform bool) ImList{Token} public
 		(define out (ArrayList{Token}))
 		(forEach t l
 			(out:add
@@ -1858,33 +1860,33 @@
 				)
 			)
 		)
-		out
+		(ImList out)
 	)
-	((transformToks l List{LexedParsedToken}) List{Token} public
+	((transformToks l ImList{LexedParsedToken}) ImList{Token} public
 		(this:transformToks l true)
 	)
 	((transformForm block BlockToken transform bool) Token public
 		(define val (as VToken (block:toks:get 0)):val)
-		(define rest (block:toks:subList 1 (block:toks:size)))
+		(define rest (block:toks:skip 1))
 		(cond
 			((val:equals "unquote")
-				(return (this:transformBlock (UnquoteToken block:line (ArrayList rest) false)))
+				(return (this:transformBlock (UnquoteToken block:line rest false)))
 			)
 			((val:equals "varunquote")
-				(return (this:transformBlock (UnquoteToken block:line (ArrayList rest) true)))
+				(return (this:transformBlock (UnquoteToken block:line rest true)))
 			)
 			((val:equals "include")
-				(return (IncludeToken block:line (ArrayList rest)))
+				(return (IncludeToken block:line rest))
 			)
 		)
 		(if transform
 			(cond
 				((val:equals "quote")
-					(return (this:transformBlock (QuoteToken block:line (ArrayList rest))))
+					(return (this:transformBlock (QuoteToken block:line rest)))
 				)
 				((val:equals "object")
 					(define superTok BlockToken (rest:get 0))
-					(return (ObjectToken block:line (this:getType (superTok:toks:get 0)) (superTok:toks:subList 1 (superTok:toks:size)) (rest:subList 1 (rest:size))))
+					(return (ObjectToken block:line (this:getType (superTok:toks:get 0)) (superTok:toks:skip 1) (rest:skip 1)))
 				)
 				((val:equals "lambda")
 					(define scope (LinkedHashMap))
@@ -1892,7 +1894,7 @@
 					(if FunctionN
 						(begin
 							(define params (Main:getParams this:ci (as BlockToken (rest:get 0)) scope 0 1))
-							(return (LambdaFnToken block:line null scope params (rest:subList 1 (rest:size))))
+							(return (LambdaFnToken block:line null scope params (rest:skip 1)))
 						)
 						(begin
 							(define t (this:getType (rest:get 0)))
@@ -1904,18 +1906,18 @@
 								(scope:put (as VToken arg):val (Arg param (+ i 1) 0))
 								(params:add param)
 							)
-							(return (LambdaToken block:line (this:getType (rest:get 0)) scope params (rest:subList 2 (rest:size)) sam))
+							(return (LambdaToken block:line (this:getType (rest:get 0)) scope params (rest:skip 2) sam))
 						)
 					)
 				)
 				((this:ci:fs:cs:macroNames:containsKey val)
-					(return (MacroIncludeToken block:line val (ArrayList rest)))
+					(return (MacroIncludeToken block:line val rest))
 				)
 				((val:equals "begin")
-					(return (this:transformBlockToks (BeginToken block:line (ArrayList rest))))
+					(return (this:transformBlockToks (BeginToken block:line null) rest))
 				)
 				((val:equals "sbegin")
-					(return (this:transformBlockToks (SpecialBeginToken block:line (ArrayList rest))))
+					(return (this:transformBlockToks (SpecialBeginToken block:line null) rest))
 				)
 				((val:equals "label")
 					(return (LabelToken block:line (as VToken (block:toks:get 1)):val))
@@ -1953,25 +1955,25 @@
 							((as VToken ((as BlockToken (rest:get (- (rest:size) 1))):toks:get 0)):val:equals "finally")
 						)
 					)
-					(define finallyToks List{Token} null)
+					(define finallyToks ImList{Token} null)
 					(if hasFinally
 						(begin
 							(define finallyToks (as BlockToken (rest:get (- (rest:size) 1))):toks)
-							(set finallyToks (this:transformToks (finallyToks:subList 1 (finallyToks:size))))
-							(set rest (rest:subList 0 (- (rest:size) 1)))
+							(set finallyToks (this:transformToks (finallyToks:skip 1)))
+							(set rest (rest:skipLast 1))
 						)
 					)
 					(define catches
-						(mapA catch (rest:subList 1 (rest:size))
+						(mapA catch (rest:skip 1)
 							(define catch BlockToken catch)
 							(Tuple3
 								(as VToken (catch:toks:get 0))
 								(this:getType (catch:toks:get 1))
-								(this:transformToks (catch:toks:subList 2 (catch:toks:size)))
+								(this:transformToks (catch:toks:skip 2))
 							)
 						)
 					)
-					(return (TryToken block:line (this:transformBlock (rest:get 0)) (Arrays:asList catches) finallyToks))
+					(return (TryToken block:line (this:transformBlock (rest:get 0)) (ImList (Arrays:asList catches)) finallyToks))
 				)
 				((val:equals "instance?")
 					(return (InstanceToken block:line (this:transformBlock (block:toks:get 1)) (this:getType (block:toks:get 2))))
@@ -1984,7 +1986,7 @@
 					(define array
 						(if (= arrayN 1)
 							(this:transformBlock (rest:get 0))
-							(AGetToken block:line (this:transformToks (rest:subList 0 arrayN)))
+							(AGetToken block:line (this:transformToks (rest:take arrayN)))
 						)
 					)
 					(return (ASetToken block:line array (this:transformBlock (rest:get arrayN)) (this:transformBlock (rest:get (+ arrayN 1)))))
@@ -2017,7 +2019,7 @@
 					(return (ClassToken block:line (this:getType (block:toks:get 1))))
 				)
 				((val:equals "synchronized")
-					(return (this:transformBlockToks (SynchronizedToken block:line (ArrayList block:toks))))
+					(return (this:transformBlockToks (SynchronizedToken block:line null) block:toks))
 				)
 				((val:equals "type")
 					(return (TypeToken block:line (this:transformBlock (block:toks:get 1))))
@@ -2032,12 +2034,12 @@
 							(mapA (tok i) rest
 								(if (= i 0)
 									tok
-									(UnquoteToken tok:line (Arrays:asList (LexedParsedToken[] tok)) false)
+									(UnquoteToken tok:line (ImList (Arrays:asList (LexedParsedToken[] tok))) false)
 								)
 							)
 						)
 					)
-					(return (QuoteToken2 block:line (BlockToken block:line l)))
+					(return (QuoteToken2 block:line (BlockToken block:line (ImList l))))
 				)
 			)
 		)
@@ -2050,11 +2052,11 @@
 					((= (block:toks:size) 0)
 						(if transform
 							(return (EmptyToken block:line))
-							(return (BlockToken block:line Collections:EMPTY_LIST))
+							(return (BlockToken block:line (ImList Collections:EMPTY_LIST)))
 						)
 					)
 					(true
-						(define rest (block:toks:subList 1 (block:toks:size)))
+						(define rest (block:toks:skip 1))
 						(define type (if transform (this:getType (block:toks:get 0)) null))
 						(if (!= type null)
 							(if (instance? type ArrayType)
@@ -2069,7 +2071,7 @@
 										)
 										(begin
 											(lens:add (this:transformBlock (as ColonToken (rest:get 0)):right))
-											(set rest (rest:subList 1 (rest:size)))
+											(set rest (rest:skip 1))
 										)
 										(begin
 											(define tok ArrayToken (block:toks:get 0))
@@ -2084,7 +2086,7 @@
 											)
 										)
 									)
-									(return (ArrayConstructorToken block:line type lens (this:transformToks rest)))
+									(return (ArrayConstructorToken block:line type (ImList lens) (this:transformToks rest)))
 								)
 								(return (ConstructorToken block:line type (this:transformToks rest)))
 							)
@@ -2101,7 +2103,7 @@
 										block:line
 										(this:transformBlock first:left true)
 										(as VToken first:right):val
-										(this:transformToks (block:toks:subList 1 (block:toks:size)))
+										(this:transformToks (block:toks:skip 1))
 									)
 								)
 								(return out)
@@ -2139,7 +2141,7 @@
 				)
 			)
 			(UnquoteToken
-				(return (UnquoteToken block:line (ArrayList block:toks) block:var))
+				(return (UnquoteToken block:line block:toks block:var))
 			)
 			(GenericToken
 				(if transform
@@ -2172,16 +2174,16 @@
 )
 
 (define-class MethodInfo (AMethodInfo) public
-	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} method Method) void public
+	((<init> ci ClassInfo toks ImList{LexedParsedToken} firstScope LinkedHashMap{String Arg} method Method) void public
 		(super:<init> ci toks firstScope method)
 	)
-	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
+	((<init> ci ClassInfo toks ImList{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
 		(super:<init> ci toks firstScope name params ret mods)
 	)
 )
 
 (define-class ClassMacroMethodInfo (AMethodInfo) public
-	((<init> ci ClassInfo toks List{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
+	((<init> ci ClassInfo toks ImList{LexedParsedToken} firstScope LinkedHashMap{String Arg} name String params List{Type} ret Type mods int) void
 		(super:<init> ci toks firstScope name params ret mods)
 	)
 )

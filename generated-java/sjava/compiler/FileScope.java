@@ -21,6 +21,7 @@ import sjava.compiler.Main;
 import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.IncludeToken;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.Token;
@@ -29,14 +30,14 @@ import sjava.compiler.tokens.VToken;
 public class FileScope {
     public CompileScope cs;
     public String path;
-    List<LexedParsedToken> toks;
+    ImList<LexedParsedToken> toks;
     HashMap<String, String> imports;
     ArrayList<String> starImports;
     public MacroInfo includes;
     public List<ClassInfo> newClasses;
     String package_;
 
-    FileScope(CompileScope cs, String path, List<LexedParsedToken> toks) {
+    FileScope(CompileScope cs, String path, ImList<LexedParsedToken> toks) {
         this.cs = cs;
         this.path = path;
         this.toks = toks;
@@ -57,7 +58,7 @@ public class FileScope {
             GenericToken tok1 = (GenericToken)tok;
             ClassType c = new ClassType(this.package_.concat(((VToken)tok1.tok).val));
             TypeVariable[] tparams = new TypeVariable[tok1.toks.size()];
-            List iterable = tok1.toks;
+            ImList iterable = tok1.toks;
             Iterator it = iterable.iterator();
 
             for(int i = 0; it.hasNext(); ++i) {
@@ -80,7 +81,7 @@ public class FileScope {
     }
 
     void compileRoot(List<MacroInfo> macros) {
-        List iterable = this.toks;
+        ImList iterable = this.toks;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
@@ -93,7 +94,7 @@ public class FileScope {
     boolean getMacroParams(List<Type> out, BlockToken params, Map scope) {
         boolean varargs = false;
         int o = out.size();
-        List iterable = params.toks.subList(1, params.toks.size());
+        ImList iterable = params.toks.skip(1);
         Iterator it = iterable.iterator();
 
         for(int i = 0; it.hasNext(); ++i) {
@@ -133,7 +134,7 @@ public class FileScope {
                     }
                 }
 
-                ci.toks = tok.toks.subList(i, tok.toks.size());
+                ci.toks = tok.toks.skip(i);
             } else if(((VToken)first).val.equals("import")) {
                 String var9 = ((VToken)((LexedParsedToken)tok.toks.get(1))).val;
                 if(var9.endsWith("*")) {
@@ -160,7 +161,7 @@ public class FileScope {
                 ++this.cs.macroIndex;
                 MacroInfo macroi = new MacroInfo(this, cname);
                 macroi.c.setModifiers(Access.PUBLIC);
-                macroi.addMethod(name1, types, Main.getCompilerType("tokens.LexedParsedToken"), mods, tok.toks.subList(2, tok.toks.size()), scope);
+                macroi.addMethod(name1, types, Main.getCompilerType("tokens.LexedParsedToken"), mods, tok.toks.skip(2), scope);
                 if(this.cs.macroNames.containsKey(name1)) {
                     ((List)this.cs.macroNames.get(name1)).add(macroi);
                 } else {
@@ -183,7 +184,7 @@ public class FileScope {
                 String cname1 = "Macros";
                 MacroInfo macroi1 = new MacroInfo(this, cname1);
                 macroi1.c.setModifiers(Access.PUBLIC);
-                macroi1.addClassMacroMethod(name2, types1, Type.voidType, mods1, tok.toks.subList(2, tok.toks.size()), scope1);
+                macroi1.addClassMacroMethod(name2, types1, Type.voidType, mods1, tok.toks.skip(2), scope1);
                 if(this.cs.classMacroNames.containsKey(name2)) {
                     ((List)this.cs.classMacroNames.get(name2)).add(macroi1);
                 } else {

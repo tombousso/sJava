@@ -1,16 +1,16 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
 import sjava.compiler.tokens.Token;
 
 public class BlockToken extends ParsedToken {
-    public List<LexedParsedToken> toks;
+    public ImList<LexedParsedToken> toks;
 
-    public BlockToken(int line, List<LexedParsedToken> toks) {
+    public BlockToken(int line, ImList<LexedParsedToken> toks) {
         super(line);
-        this.toks = toks;
+        this.toks = new ImList(toks);
     }
 
     public String toString() {

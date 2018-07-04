@@ -8,6 +8,7 @@ import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.ColonToken;
 import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.LexedToken;
 import sjava.compiler.tokens.QuoteToken;
@@ -37,7 +38,7 @@ public class Parser {
         return (LexedToken)this.toks.get(this.i + n);
     }
 
-    ArrayList<LexedParsedToken> subToks(String end) {
+    ImList<LexedParsedToken> subToks(String end) {
         ArrayList toks = new ArrayList();
 
         while(!this.peek(0).what.equals(end)) {
@@ -48,7 +49,7 @@ public class Parser {
         }
 
         this.next();
-        return toks;
+        return new ImList(toks);
     }
 
     LexedParsedToken parse(int prec) {
@@ -56,7 +57,7 @@ public class Parser {
         String w = t.what;
         Object var10000;
         if(w.equals("(")) {
-            ArrayList toks = this.subToks(")");
+            ImList toks = this.subToks(")");
             var10000 = new BlockToken(t.line, toks);
         } else if(!w.equals("\'") && !w.equals("`") && !w.equals(",$") && !w.equals(",")) {
             if(this.ignoreComments && t instanceof CommentToken) {
@@ -65,7 +66,7 @@ public class Parser {
 
             var10000 = t;
         } else {
-            List al = Arrays.asList(new Object[]{this.parse(0)});
+            ImList al = new ImList(Arrays.asList(new Object[]{this.parse(0)}));
             var10000 = !w.equals(",") && !w.equals(",$")?(w.equals("\'")?new SingleQuoteToken(t.line, al):new QuoteToken(t.line, al)):new UnquoteToken(t.line, al, w.equals(",$"));
         }
 
@@ -84,13 +85,13 @@ public class Parser {
                 left = new ColonToken(t.line, (LexedParsedToken)left, right);
             } else if(w1.equals("{")) {
                 this.next();
-                ArrayList toks1 = this.subToks("}");
+                ImList toks1 = this.subToks("}");
                 left = new GenericToken(t.line, (LexedParsedToken)left, toks1);
             } else if(w1.equals("[")) {
                 this.next();
-                ArrayList toks2 = this.subToks("]");
+                ArrayList toks2 = new ArrayList(this.subToks("]"));
                 toks2.add(0, left);
-                left = new ArrayToken(t.line, toks2);
+                left = new ArrayToken(t.line, new ImList(toks2));
             } else {
                 cont = false;
             }
@@ -107,7 +108,7 @@ public class Parser {
         return this.peek(0).prec;
     }
 
-    List<LexedParsedToken> parseAll(List<LexedToken> toks) {
+    ImList<LexedParsedToken> parseAll(List<LexedToken> toks) {
         this.i = 0;
         this.toks = toks;
         ArrayList out = new ArrayList();
@@ -119,6 +120,6 @@ public class Parser {
             }
         }
 
-        return out;
+        return new ImList(out);
     }
 }

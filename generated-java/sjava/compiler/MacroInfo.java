@@ -7,6 +7,7 @@ import sjava.compiler.AMethodInfo;
 import sjava.compiler.ClassInfo;
 import sjava.compiler.ClassMacroMethodInfo;
 import sjava.compiler.FileScope;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.Token;
 
@@ -19,7 +20,7 @@ public class MacroInfo extends ClassInfo {
         return super.getType(tok, false);
     }
 
-    public AMethodInfo addClassMacroMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope) {
+    public AMethodInfo addClassMacroMethod(String name, List<Type> params, Type ret, int mods, ImList<LexedParsedToken> toks, LinkedHashMap scope) {
         ClassMacroMethodInfo out = new ClassMacroMethodInfo(this, toks, scope, name, params, ret, mods);
         super.methods.add(out);
         return out;

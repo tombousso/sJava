@@ -49,6 +49,7 @@ import sjava.compiler.mfilters.MethodCall;
 import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.VToken;
 import sjava.std.Tuple2;
@@ -222,7 +223,7 @@ public class Main {
         var10000.println(sb5.toString());
     }
 
-    public static List<LexedParsedToken> parse(String code, Lexer lexer, Parser parser) {
+    public static ImList<LexedParsedToken> parse(String code, Lexer lexer, Parser parser) {
         return parser.parseAll(lexer.lex(code));
     }
 
@@ -290,7 +291,7 @@ public class Main {
         return compile((HashMap)files1);
     }
 
-    public static List<FileScope> compile(HashMap<File, List<LexedParsedToken>> files) {
+    public static List<FileScope> compile(HashMap<File, ImList<LexedParsedToken>> files) {
         CompileScope cs = new CompileScope();
         ArrayList fileScopes = new ArrayList();
         ArrayList macros = new ArrayList();
@@ -299,7 +300,7 @@ public class Main {
 
         for(int notused = 0; it.hasNext(); ++notused) {
             Entry entry = (Entry)it.next();
-            List toks = (List)entry.getValue();
+            ImList toks = (ImList)entry.getValue();
             FileScope fs = new FileScope(cs, ((File)entry.getKey()).toString(), toks);
             fileScopes.add(fs);
             fs.compileRoot(macros);
@@ -843,7 +844,7 @@ public class Main {
         return l;
     }
 
-    public static List<LexedParsedToken> toLexedParsed(List l) {
+    public static ImList<LexedParsedToken> toLexedParsed(ImList l) {
         return l;
     }
 
@@ -851,7 +852,7 @@ public class Main {
         Object var10000;
         if(t instanceof ArrayType) {
             ArrayType t1 = (ArrayType)t;
-            var10000 = new ArrayToken(-1, new ArrayList(Arrays.asList(new Object[]{typeToTok(t1.getComponentType())})));
+            var10000 = new ArrayToken(-1, new ImList(Arrays.asList(new Object[]{typeToTok(t1.getComponentType())})));
         } else if(t instanceof ParameterizedType) {
             ParameterizedType t2 = (ParameterizedType)t;
             ArrayList toks = new ArrayList();
@@ -862,7 +863,7 @@ public class Main {
                 toks.add(typeToTok(ta));
             }
 
-            var10000 = new GenericToken(-1, typeToTok(t2.getRawType()), toks);
+            var10000 = new GenericToken(-1, typeToTok(t2.getRawType()), new ImList(toks));
         } else {
             var10000 = new VToken(-1, t.getName());
         }

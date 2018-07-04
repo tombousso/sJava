@@ -1,7 +1,6 @@
 package sjava.compiler.handlers;
 
 import gnu.bytecode.Type;
-import java.util.List;
 import sjava.compiler.AMethodInfo;
 import sjava.compiler.tokens.AGetToken;
 import sjava.compiler.tokens.ALenToken;
@@ -21,6 +20,7 @@ import sjava.compiler.tokens.EmptyToken;
 import sjava.compiler.tokens.FieldToken;
 import sjava.compiler.tokens.GotoToken;
 import sjava.compiler.tokens.IfToken;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.IncludeToken;
 import sjava.compiler.tokens.InstanceToken;
 import sjava.compiler.tokens.LabelToken;
@@ -48,7 +48,7 @@ public abstract class Handler {
         this.mi = mi;
     }
 
-    public Type[] compileAll(List<Token> toks, int i, int e, Object needed) {
+    public Type[] compileAll(ImList<Token> toks, int i, int e, Object needed) {
         int l = toks.size();
         Type[] types = new Type[e - i];
 

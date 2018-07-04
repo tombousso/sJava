@@ -1,7 +1,6 @@
 package sjava.compiler;
 
 import java.util.Iterator;
-import java.util.List;
 import sjava.compiler.Lexer;
 import sjava.compiler.Main;
 import sjava.compiler.Parser;
@@ -10,6 +9,7 @@ import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.ColonToken;
 import sjava.compiler.tokens.CommentToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.QuoteToken;
 import sjava.compiler.tokens.SingleQuoteToken;
@@ -23,7 +23,7 @@ public class Formatter {
         return sb.toString();
     }
 
-    static int formatToks(LexedParsedToken block, int tabs, String before, String after, StringBuffer sb, List<LexedParsedToken> toks) {
+    static int formatToks(LexedParsedToken block, int tabs, String before, String after, StringBuffer sb, ImList<LexedParsedToken> toks) {
         sb.append(before);
         int line = 0;
         boolean prevMultiline = false;
@@ -73,7 +73,7 @@ public class Formatter {
         return line;
     }
 
-    static String formatToks(List<LexedParsedToken> toks) {
+    static String formatToks(ImList<LexedParsedToken> toks) {
         StringBuffer sb = new StringBuffer();
         int line = toks.size() != 0?((LexedParsedToken)toks.get(0)).line:1;
         Iterator it = toks.iterator();
@@ -109,7 +109,7 @@ public class Formatter {
         } else if(tok instanceof ArrayToken) {
             ArrayToken tok3 = (ArrayToken)tok;
             formatTok((LexedParsedToken)tok3.toks.get(0), line, line, tabs, sb);
-            formatToks(tok3, tabs, "[", "]", sb, tok3.toks.subList(1, tok3.toks.size()));
+            formatToks(tok3, tabs, "[", "]", sb, tok3.toks.skip(1));
         } else if(tok instanceof ColonToken) {
             ColonToken tok4 = (ColonToken)tok;
             line = formatTok(tok4.left, line, line, tabs, sb);

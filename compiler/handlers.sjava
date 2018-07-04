@@ -14,7 +14,7 @@
 		(super:<init>)
 		(set this:mi mi)
 	)
-	((compileAll toks List{Token} i int e int needed Object) Type[] public
+	((compileAll toks ImList{Token} i int e int needed Object) Type[] public
 		(define l (toks:size))
 		(define types (Type[] len:(- e i)))
 		(for ((j i)) (< j e) (inc j)
@@ -76,7 +76,7 @@
 	((<init> mi AMethodInfo) void public
 		(super:<init> mi)
 	)
-	((compileAll toks List{Token} i int e int code CodeAttr needed Object) Type[] public
+	((compileAll toks ImList{Token} i int e int code CodeAttr needed Object) Type[] public
 		(define ocode this:code)
 		(set this:code code)
 		(define out (this:compileAll toks i e needed))
@@ -209,7 +209,7 @@
 		)
 	)
 	;toks = condition
-	((emitIf_ inv bool toks List{Token} compare String trueE Emitter falseE Emitter needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
+	((emitIf_ inv bool toks ImList{Token} compare String trueE Emitter falseE Emitter needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
 		(define output (!= this:code null))
 
 		(define trueCasts (ArrayList{Tuple2{VToken Type}}))
@@ -379,7 +379,7 @@
 	((emitIf inv bool cond Token trueE Emitter falseE Emitter needed Type) Tuple3{Type List{Tuple2{VToken Type}} List{Tuple2{VToken Type}}} public
 		(instanceCond cond
 			(CompareToken (this:emitIf_ inv cond:toks cond:compare trueE falseE needed))
-			(true (this:emitIf_ inv (Arrays:asList (Token[] cond)) "!=0" trueE falseE needed))
+			(true (this:emitIf_ inv (ImList (Arrays:asList (Token[] cond))) "!=0" trueE falseE needed))
 		)
 	)
 	((compile tok EmptyToken needed Type) Type public
@@ -618,6 +618,9 @@
 				)
 				(List
 					(define al ClassType (Type:getType "java.util.ArrayList"))
+					(define imList ClassType (Main:getCompilerType "tokens.ImList"))
+					(if output (this:code:emitNew imList))
+					(if output (this:code:emitDup))
 					(if output (this:code:emitNew al))
 					(if output (this:code:emitDup))
 					(if output (this:code:emitInvoke (al:getMethod "<init>" (Type[]))))
@@ -647,7 +650,8 @@
 							)
 						)
 					)
-					al
+					(if output (this:code:emitInvoke (imList:getMethod "<init>" (Type[] (Type:getType "java.util.List")))))
+					imList
 				)
 				(true
 					(throw (RuntimeException ((o:getClass):toString)))
@@ -760,11 +764,10 @@
 						(define scope tok:scope)
 						(define params tok:params)
 						(define generics (ArrayList{Type} params))
-						(define toks (ArrayList tok:toks))
 						(if (= tok:t null)
 							(begin
 								(define fakemi (MethodInfo (ClassInfo this:mi:ci:fs (as ClassType null)) null scope null))
-								(define beginTok (this:mi:transformBlockToks (BeginToken 0 toks)))
+								(define beginTok (this:mi:transformBlockToks (BeginToken 0 null) tok:toks))
 								(define captureH (CaptureVHandler fakemi this:mi (LinkedHashMap)))
 								(set tok:ret (Main:tryBox (captureH:compile beginTok null Main:unknownType)))
 								(generics:add tok:ret)
@@ -788,14 +791,14 @@
 							)
 						)
 					)
-					(true
+					(ObjectToken
 						(if output
 							(begin
 								(if ((as ClassType (tok:t:getRawType)):isInterface)
 									(ci:c:addInterface tok:t)
 									(ci:c:setSuper tok:t)
 								)
-								(forEach tok tok:toks
+								(forEach tok (as List tok:toks)
 									(ci:compileDef (as BlockToken tok))
 								)
 							)
@@ -827,7 +830,7 @@
 		)
 		(this:castMaybe tok:t needed)
 	)
-	((callMacro pre Type[] toks List name String macros Map{String List{MacroInfo}} argsA Object[]) Object public static
+	((callMacro pre Type[] toks List{LexedParsedToken} name String macros Map{String List{MacroInfo}} argsA Object[]) Object public static
 		(define types (Type[] len:(+ (alen pre) (toks:size))))
 		(Arrays:fill types (Main:getCompilerType "tokens.LexedParsedToken"))
 		(System:arraycopy pre 0 types 0 (alen pre))
@@ -1164,7 +1167,7 @@
 			)
 			(set method (method:getNext))
 		)
-		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:subList 1 (tok:toks:size))) needed false):_1
+		(Main:emitInvoke this (tocall:getName) t (Main:toEmitters (tok:toks:skip 1)) needed false):_1
 	)
 	((compile tok ConstructorToken needed Type) Type public
 		(define output (!= this:code null))

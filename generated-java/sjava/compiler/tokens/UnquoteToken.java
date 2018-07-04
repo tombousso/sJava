@@ -1,14 +1,14 @@
 package sjava.compiler.tokens;
 
-import java.util.List;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.ParsedToken;
 
 public class UnquoteToken extends ParsedToken {
     public boolean var;
-    public List<LexedParsedToken> toks;
+    public ImList<LexedParsedToken> toks;
 
-    public UnquoteToken(int line, List<LexedParsedToken> toks, boolean var) {
+    public UnquoteToken(int line, ImList<LexedParsedToken> toks, boolean var) {
         super(line);
         this.toks = toks;
         this.var = var;

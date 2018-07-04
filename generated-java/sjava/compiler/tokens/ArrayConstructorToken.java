@@ -1,15 +1,15 @@
 package sjava.compiler.tokens;
 
 import gnu.bytecode.Type;
-import java.util.List;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.Token;
 
 public class ArrayConstructorToken extends Token {
     public Type type;
-    public List<Token> lens;
-    public List<Token> toks;
+    public ImList<Token> lens;
+    public ImList<Token> toks;
 
-    public ArrayConstructorToken(int line, Type type, List<Token> lens, List<Token> toks) {
+    public ArrayConstructorToken(int line, Type type, ImList<Token> lens, ImList<Token> toks) {
         super(line);
         this.type = type;
         this.lens = lens;

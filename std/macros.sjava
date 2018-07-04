@@ -185,7 +185,7 @@
 				((as ConstToken (out:toks:get 0)):val:equals "true")
 			)
 			(begin
-				(set out `(begin ,(out:toks:subList 1 (out:toks:size))))
+				(set out `(begin ,(out:toks:skip 1)))
 				2
 			)
 			(begin
@@ -199,7 +199,7 @@
 		(set out
 			`(if ,(case:toks:get 0)
 				(begin
-					,(case:toks:subList 1 (case:toks:size))
+					,(case:toks:skip 1)
 				)
 				,out
 			)
@@ -219,7 +219,7 @@
 				case
 				`((instance? ,var ,(case:toks:get 0))
 					(define ,var ,(case:toks:get 0) ,var)
-					,(case:toks:subList 1 (case:toks:size))
+					,(case:toks:skip 1)
 				)
 			)
 		)
@@ -239,7 +239,7 @@
 		)
 		(inc j)
 	)
-	(call:toks:set special arg)
+	(set call:toks (call:toks:update special arg))
 	(define conds (ArrayList))
 	(define mname (as VToken (as ColonToken (call:toks:get 0)):right):val)
 	(define nargs (alen (mi:method:getParameterTypes)))
@@ -270,7 +270,7 @@
 		(define obj ,obj)
 		,(mapA call calls
 			(define call BlockToken call)
-			`(obj:,(call:toks:get 0) ,(call:toks:subList 1 (call:toks:size)))
+			`(obj:,(call:toks:get 0) ,(call:toks:skip 1))
 		)
 		obj
 	)
@@ -279,7 +279,7 @@
 	(define out obj)
 	(forEach call calls
 		(define call BlockToken call)
-		(set out `((unquote out):(unquote (call:toks:get 0)) ,(call:toks:subList 1 (call:toks:size))))
+		(set out `((unquote out):(unquote (call:toks:get 0)) ,(call:toks:skip 1)))
 	)
 	out
 )
@@ -323,12 +323,12 @@
 		(inc arg)
 	)
 	(define tup (sjava.compiler.Main:extractModifiers (Arrays:asList rest) 0))
-	(define body ((Arrays:asList rest):subList tup:_2 (alen rest)))
+	(define body ((ImList (Arrays:asList rest)):skip tup:_2))
 	(define toks (ArrayList{LexedParsedToken}))
 	(toks:add (body:get 0))
 	(toks:addAll sets)
-	(toks:addAll (body:subList 1 (body:size)))
-	(ci:addMethod "<init>" Type:voidType tup:_1 toks scope)
+	(toks:addAll (body:skip 1))
+	(ci:addMethod "<init>" Type:voidType tup:_1 (ImList toks) scope)
 )
 (define-macro (tokString tok)
 	(if (instance? tok UnquoteToken)
@@ -348,7 +348,7 @@
 				)
 				(out:add
 					`(if ,(tag:toks:get 1)
-						,(mapA tok (tag:toks:subList 2 (tag:toks:size))
+						,(mapA tok (tag:toks:skip 2)
 							`(sb:append ,(macro xml tok))
 						)
 					)
@@ -385,7 +385,7 @@
 					)
 				)
 				(define children (ArrayList{LexedParsedToken}))
-				(forEach tok (tag:toks:subList i size)
+				(forEach tok (tag:toks:skip i)
 					(if (instance? tok BlockToken)
 						(children:add `(sb:append ,(macro xml tok)))
 						(children:add `(sb:append ,(macro tokString tok)))

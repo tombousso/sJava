@@ -27,6 +27,7 @@ import sjava.compiler.handlers.GenHandler;
 import sjava.compiler.tokens.ArrayToken;
 import sjava.compiler.tokens.BlockToken;
 import sjava.compiler.tokens.GenericToken;
+import sjava.compiler.tokens.ImList;
 import sjava.compiler.tokens.LexedParsedToken;
 import sjava.compiler.tokens.SingleQuoteToken;
 import sjava.compiler.tokens.Token;
@@ -37,7 +38,7 @@ public class ClassInfo {
     public FileScope fs;
     public ClassType c;
     BlockToken supers;
-    List<LexedParsedToken> toks;
+    ImList<LexedParsedToken> toks;
     public List<AMethodInfo> methods;
     public List<ClassInfo> anonClasses;
     Class rc;
@@ -200,7 +201,7 @@ public class ClassInfo {
         if(tok instanceof GenericToken) {
             GenericToken tok1 = (GenericToken)tok;
             ClassType c = (ClassType)this.getType(((VToken)tok1.tok).val, allowNew).getRawType();
-            List collection = tok1.toks;
+            ImList collection = tok1.toks;
             Type[] out = new Type[collection.size()];
             Iterator it = collection.iterator();
 
@@ -240,12 +241,12 @@ public class ClassInfo {
 
                 ArrayList annotations;
                 for(annotations = new ArrayList(); i.intValue() != tok.toks.size() && (LexedParsedToken)tok.toks.get(i.intValue()) instanceof SingleQuoteToken; i = Integer.valueOf(i.intValue() + 1)) {
-                    List toks = ((BlockToken)((LexedParsedToken)((SingleQuoteToken)((LexedParsedToken)tok.toks.get(i.intValue()))).toks.get(0))).toks;
+                    ImList toks = ((BlockToken)((LexedParsedToken)((SingleQuoteToken)((LexedParsedToken)tok.toks.get(i.intValue()))).toks.get(0))).toks;
                     VToken first1 = (VToken)((LexedParsedToken)toks.get(0));
                     if(!first1.val.equals("throws")) {
                         annotations.add(new AnnotationEntry((ClassType)this.getType(first1)));
                     } else {
-                        List collection = toks.subList(1, toks.size());
+                        ImList collection = toks.skip(1);
                         ClassType[] out = new ClassType[collection.size()];
                         Iterator it = collection.iterator();
 
@@ -259,7 +260,7 @@ public class ClassInfo {
                 }
 
                 List types = Main.getParams(this, (BlockToken)first, scope, 1, n);
-                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((LexedParsedToken)tok.toks.get(1)), mods.intValue(), tok.toks.subList(i.intValue(), tok.toks.size()), scope);
+                AMethodInfo mi = this.addMethod(((VToken)((LexedParsedToken)((BlockToken)first).toks.get(0))).val, types, this.getType((LexedParsedToken)tok.toks.get(1)), mods.intValue(), tok.toks.skip(i.intValue()), scope);
                 if(exceptions != null) {
                     mi.method.setExceptions(exceptions);
                 }
@@ -286,7 +287,7 @@ public class ClassInfo {
 
     void compileDefs() {
         ClassType c = this.c;
-        List iterable = this.supers.toks;
+        ImList iterable = this.supers.toks;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
@@ -299,7 +300,7 @@ public class ClassInfo {
             }
         }
 
-        List iterable1 = this.toks;
+        ImList iterable1 = this.toks;
         Iterator it1 = iterable1.iterator();
 
         for(int notused1 = 0; it1.hasNext(); ++notused1) {
@@ -321,7 +322,7 @@ public class ClassInfo {
     }
 
     void runClassMacros() {
-        List iterable = this.toks;
+        ImList iterable = this.toks;
         Iterator it = iterable.iterator();
 
         for(int notused = 0; it.hasNext(); ++notused) {
@@ -337,10 +338,10 @@ public class ClassInfo {
         String name = ((VToken)((LexedParsedToken)tok.toks.get(0))).val;
         name = name.substring(0, name.length() - 1);
         Type[] pre = new Type[]{Main.getCompilerType("ClassInfo")};
-        GenHandler.callMacro(pre, tok.toks.subList(1, tok.toks.size()), name, this.fs.cs.classMacroNames, new Object[]{this});
+        GenHandler.callMacro(pre, tok.toks.skip(1), name, this.fs.cs.classMacroNames, new Object[]{this});
     }
 
-    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope, boolean addThis) {
+    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, ImList<LexedParsedToken> toks, LinkedHashMap scope, boolean addThis) {
         if(addThis && (mods & Access.STATIC) == 0) {
             scope.put("this", new Arg(this.c, 0, 0));
         }
@@ -350,11 +351,11 @@ public class ClassInfo {
         return out;
     }
 
-    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap scope) {
+    public AMethodInfo addMethod(String name, List<Type> params, Type ret, int mods, ImList<LexedParsedToken> toks, LinkedHashMap scope) {
         return this.addMethod(name, params, ret, mods, toks, scope, true);
     }
 
-    public AMethodInfo addMethod(String name, Type ret, int mods, List<LexedParsedToken> toks, LinkedHashMap<String, Arg> scope) {
+    public AMethodInfo addMethod(String name, Type ret, int mods, ImList<LexedParsedToken> toks, LinkedHashMap<String, Arg> scope) {
         ArrayList params = new ArrayList();
         Collection iterable = scope.values();
         Iterator it = iterable.iterator();
